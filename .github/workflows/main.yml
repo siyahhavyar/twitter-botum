@@ -1,0 +1,40 @@
+name: Twitter Botu
+
+on:
+  schedule:
+    # Türkiye Saati (UTC+3) Ayarları:
+    # 06:00 TR -> 03:00 UTC
+    # 07:00 TR -> 04:00 UTC
+    # 15:00 TR -> 12:00 UTC
+    # 19:00 TR -> 16:00 UTC
+    # 21:21 TR -> 18:21 UTC
+    # 22:30 TR -> 19:30 UTC
+    # 00:00 TR -> 21:00 UTC
+    - cron: '0 3 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 16 * * *'
+    - cron: '21 18 * * *'
+    - cron: '30 19 * * *'
+    - cron: '0 21 * * *'
+  workflow_dispatch: # Elle deneme butonu
+
+jobs:
+  calistir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Python Kur
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+      - name: Kutuphaneleri Yukle
+        run: pip install -r requirements.txt
+      - name: Botu Calistir
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python bot.py
