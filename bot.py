@@ -6,32 +6,38 @@ import requests
 import random
 import google.generativeai as genai
 
-# --- ŞİFRELER (KASADAN ÇEKİLİR) ---
+# --- ŞİFRELER ---
+# Hugging Face YOK. Sadece Twitter ve Gemini.
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
-GEMINI_KEY = os.environ['GEMINI_KEY'] # Gemini Anahtarı (Ekli değilse ekle!)
+GEMINI_KEY = os.environ['GEMINI_KEY']
 
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
 def get_smart_wallpaper_idea():
-    print("🧠 Gemini yeni bir duvar kağıdı fikri düşünüyor...")
+    print("🧠 Gemini (Beyin) düşünüyor...")
     
-    # Twitter için özel prompt: Minimalist, Estetik ve Havalı şeyler istiyoruz.
     prompt_emir = """
     Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
-    Konseptler: Minimalist, Cyberpunk, Doğa, Uzay, Soyut, Popüler Kültür (Marvel, Anime vb.), Synthwave.
+    
+    Konseptler (Rastgele birini seç): 
+    - Minimalist Doğa (Dağlar, deniz, orman)
+    - Cyberpunk & Neon Şehirler
+    - Uzay ve Astronot (Derinlik hissi)
+    - Soyut Geometrik (Abstract)
+    - Fantastik Manzara (Uçan adalar, büyülü orman)
     
     Görevin:
-    1. Bu konseptlerden rastgele birini seç ve çok havalı, insanların telefonuna arka plan yapmak isteyeceği bir sahne kurgula.
+    1. Çok havalı, 8K kalitesinde, insanların telefonuna arka plan yapmak isteyeceği bir sahne kurgula.
     2. Bana SADECE aşağıdaki JSON formatında cevap ver:
     
     {
-      "caption": "Twitter için kısa, etkileyici, emojili İngilizce veya Türkçe (karışık olabilir) bir açıklama yaz. En sona bolca ilgili hashtag ekle.",
-      "image_prompt": "Resim için İNGİLİZCE, çok detaylı, cinematic, 8k, photorealistic, vertical wallpaper prompt yaz."
+      "caption": "Twitter için kısa, etkileyici, emojili bir açıklama yaz (İngilizce). En sona bolca hashtag ekle (#Wallpaper #4K #Art gibi).",
+      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları mutlaka içersin: 'cinematic lighting, 8k resolution, photorealistic, vertical wallpaper, hyper-detailed, masterpiece, sharp focus'."
     }
     """
     
@@ -44,29 +50,35 @@ def get_smart_wallpaper_idea():
     except Exception as e:
         print(f"⚠️ Gemini Hatası ({e}), yedek konu kullanılıyor.")
         return {
-            "caption": "Lost in Space 🌌 \n\n#Wallpaper #Space #Art #AI",
-            "image_prompt": "Astronaut floating in deep space nebula, glowing colors, cinematic, 8k, vertical, masterpiece"
+            "caption": "Neon City Rain ☔ \n\n#Wallpaper #Cyberpunk #4K #AIArt",
+            "image_prompt": "Cyberpunk city street at night, heavy rain, neon lights reflecting on wet asphalt, futuristic cars, cinematic, 8k, vertical, masterpiece, sharp focus"
         }
 
-# --- YENİ SINIRSIZ RESSAM (POLLINATIONS) ---
-def generate_image_pollinations(prompt):
-    print(f"🎨 Pollinations (Flux) Çiziyor...")
+# --- YENİ ULTRA KALİTE MOTORU: FLUX ---
+def generate_image_flux(prompt):
+    print(f"🎨 Flux Motoru Çiziyor (Ultra Kalite)...")
     
-    # Promptu URL uyumlu hale getir
-    prompt_encoded = requests.utils.quote(f"{prompt}, vertical wallpaper, 8k, masterpiece, high quality")
+    # Promptun sonuna kalite garantileyen sihirli kelimeler ekliyoruz
+    full_prompt = f"{prompt}, high resolution, 8k, uhd, sharp focus, best quality"
+    prompt_encoded = requests.utils.quote(full_prompt)
     
-    # Model: Flux (Çok kalitelidir) | Boyut: 768x1344 (Telefon Ekranı)
-    url = f"https://pollinations.ai/p/{prompt_encoded}?width=768&height=1344&model=flux&seed={random.randint(1, 100000)}"
+    # Rastgele sayı (Seed) ekle ki her resim farklı olsun
+    seed = random.randint(1, 999999)
+    
+    # POLLINATIONS URL (Model=Flux, Genişlik=768, Yükseklik=1344)
+    url = f"https://pollinations.ai/p/{prompt_encoded}?width=768&height=1344&model=flux&seed={seed}&nologo=true&enhance=true"
     
     try:
-        response = requests.get(url, timeout=60)
-        if response.status_code == 200:
+        # İndirme işlemi (Flux biraz ağır olduğu için süre tanıdık)
+        response = requests.get(url, timeout=120) 
+        
+        if response.status_code == 200 and len(response.content) > 1000:
             with open("twitter_post.jpg", 'wb') as f:
                 f.write(response.content)
-            print("✅ Resim İndirildi!")
+            print("✅ Resim İndirildi (Flux Kalitesi)!")
             return True
         else:
-            print(f"❌ Çizim Hatası Kodu: {response.status_code}")
+            print(f"❌ Sunucu Hatası veya Boş Resim: {response.status_code}")
             return False
     except Exception as e:
         print(f"❌ İndirme Hatası: {e}")
@@ -76,8 +88,8 @@ def post_tweet():
     # 1. Fikri Bul
     content = get_smart_wallpaper_idea()
     
-    # 2. Resmi Çiz (Sınırsız)
-    if generate_image_pollinations(content['image_prompt']):
+    # 2. Resmi Çiz (FLUX ile)
+    if generate_image_flux(content['image_prompt']):
         
         # 3. Paylaş
         print("🐦 Twitter'a yükleniyor...")
@@ -88,9 +100,8 @@ def post_tweet():
 
             media = api.media_upload(filename="twitter_post.jpg")
             
-            # Caption
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER BAŞARILI! (Sınırsız Mod)")
+            print("✅ TWITTER BAŞARILI! (Cam Gibi Görüntü)")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
