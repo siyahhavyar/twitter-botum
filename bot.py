@@ -2,42 +2,50 @@ import tweepy
 import os
 import time
 import json
-import requests
 import random
 import google.generativeai as genai
+from huggingface_hub import InferenceClient
 
 # --- ŞİFRELER ---
-# Hugging Face YOK. Sadece Twitter ve Gemini.
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
+# --- DEV YEDEK DEPOSU (6 MOTORLU) ---
+# GitHub'a eklediğin HF_TOKEN_1, HF_TOKEN_2 ... HF_TOKEN_6 hepsini buraya ekledim.
+TOKEN_LISTESI = [
+    os.environ.get('HF_TOKEN'),    # Ana Token
+    os.environ.get('HF_TOKEN_1'),  # Yedek 1
+    os.environ.get('HF_TOKEN_2'),  # Yedek 2
+    os.environ.get('HF_TOKEN_3'),  # Yedek 3
+    os.environ.get('HF_TOKEN_4'),  # Yedek 4
+    os.environ.get('HF_TOKEN_5'),  # Yedek 5
+    os.environ.get('HF_TOKEN_6')   # Yedek 6
+]
+# Boş olanları temizle (Hepsini girmemiş olsan bile hata vermez)
+TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
+
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
+repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_smart_wallpaper_idea():
-    print("🧠 Gemini (Beyin) düşünüyor...")
+    print("🧠 Gemini içerik düşünüyor...")
     
     prompt_emir = """
-    Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
-    
-    Konseptler (Rastgele birini seç): 
-    - Minimalist Doğa (Dağlar, deniz, orman)
-    - Cyberpunk & Neon Şehirler
-    - Uzay ve Astronot (Derinlik hissi)
-    - Soyut Geometrik (Abstract)
-    - Fantastik Manzara (Uçan adalar, büyülü orman)
+    Sen profesyonel bir dijital sanatçısın. Twitter için 'Duvar Kağıdı' tasarlıyorsun.
+    Konseptler: Minimalist Doğa, Cyberpunk, Uzay, Soyut, Neon Şehir, Fantastik.
     
     Görevin:
-    1. Çok havalı, 8K kalitesinde, insanların telefonuna arka plan yapmak isteyeceği bir sahne kurgula.
-    2. Bana SADECE aşağıdaki JSON formatında cevap ver:
+    1. Çok havalı, 8K kalitesinde, net ve pürüzsüz bir sahne kurgula.
+    2. SADECE aşağıdaki JSON formatında cevap ver:
     
     {
-      "caption": "Twitter için kısa, etkileyici, emojili bir açıklama yaz (İngilizce). En sona bolca hashtag ekle (#Wallpaper #4K #Art gibi).",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları mutlaka içersin: 'cinematic lighting, 8k resolution, photorealistic, vertical wallpaper, hyper-detailed, masterpiece, sharp focus'."
+      "caption": "Twitter için İngilizce, kısa, havalı, emojili açıklama ve hashtagler.",
+      "image_prompt": "Resim için İNGİLİZCE, 8k resolution, cinematic lighting, photorealistic, vertical wallpaper, sharp focus, masterpiece prompt."
     }
     """
     
@@ -45,53 +53,42 @@ def get_smart_wallpaper_idea():
         response = model.generate_content(prompt_emir)
         text = response.text.replace("```json", "").replace("```", "").strip()
         data = json.loads(text)
-        print(f"✅ Konu Bulundu: {data['caption'][:30]}...")
+        print(f"✅ Konu: {data['caption'][:30]}...")
         return data
     except Exception as e:
-        print(f"⚠️ Gemini Hatası ({e}), yedek konu kullanılıyor.")
+        print(f"⚠️ Gemini Hatası ({e}), yedek konu.")
         return {
-            "caption": "Neon City Rain ☔ \n\n#Wallpaper #Cyberpunk #4K #AIArt",
-            "image_prompt": "Cyberpunk city street at night, heavy rain, neon lights reflecting on wet asphalt, futuristic cars, cinematic, 8k, vertical, masterpiece, sharp focus"
+            "caption": "Deep Space 🌌 \n\n#Wallpaper #Space #8K",
+            "image_prompt": "Nebula in deep space, glowing stars, cinematic, 8k, vertical, masterpiece"
         }
 
-# --- YENİ ULTRA KALİTE MOTORU: FLUX ---
-def generate_image_flux(prompt):
-    print(f"🎨 Flux Motoru Çiziyor (Ultra Kalite)...")
-    
-    # Promptun sonuna kalite garantileyen sihirli kelimeler ekliyoruz
-    full_prompt = f"{prompt}, high resolution, 8k, uhd, sharp focus, best quality"
-    prompt_encoded = requests.utils.quote(full_prompt)
-    
-    # Rastgele sayı (Seed) ekle ki her resim farklı olsun
-    seed = random.randint(1, 999999)
-    
-    # POLLINATIONS URL (Model=Flux, Genişlik=768, Yükseklik=1344)
-    url = f"https://pollinations.ai/p/{prompt_encoded}?width=768&height=1344&model=flux&seed={seed}&nologo=true&enhance=true"
-    
-    try:
-        # İndirme işlemi (Flux biraz ağır olduğu için süre tanıdık)
-        response = requests.get(url, timeout=120) 
-        
-        if response.status_code == 200 and len(response.content) > 1000:
-            with open("twitter_post.jpg", 'wb') as f:
-                f.write(response.content)
-            print("✅ Resim İndirildi (Flux Kalitesi)!")
+def generate_high_quality_image(prompt):
+    # Sırayla anahtarları dener
+    for i, token in enumerate(TOKEN_LISTESI):
+        print(f"🔄 {i+1}. Ressam Anahtarı deneniyor...")
+        try:
+            client = InferenceClient(model=repo_id, token=token)
+            
+            # --- KALİTE AYARLARI ---
+            image = client.text_to_image(
+                f"{prompt}, vertical wallpaper, aspect ratio 2:3, 8k resolution, photorealistic, masterpiece, highly detailed, --no text, --no blur", 
+                width=768, height=1344
+            )
+            image.save("twitter_post.jpg")
+            print(f"✅ BAŞARILI! ({i+1}. Anahtar çalıştı)")
             return True
-        else:
-            print(f"❌ Sunucu Hatası veya Boş Resim: {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"❌ İndirme Hatası: {e}")
-        return False
+        except Exception as e:
+            print(f"❌ {i+1}. Anahtar Hatası (Kota dolmuş olabilir): {e}")
+            print("Diğer anahtara geçiliyor...")
+            time.sleep(2) 
+            
+    print("🚨 HATA: Tüm anahtarlar denendi ama başarısız oldu.")
+    return False
 
 def post_tweet():
-    # 1. Fikri Bul
     content = get_smart_wallpaper_idea()
     
-    # 2. Resmi Çiz (FLUX ile)
-    if generate_image_flux(content['image_prompt']):
-        
-        # 3. Paylaş
+    if generate_high_quality_image(content['image_prompt']):
         print("🐦 Twitter'a yükleniyor...")
         try:
             auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
@@ -99,14 +96,13 @@ def post_tweet():
             client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
 
             media = api.media_upload(filename="twitter_post.jpg")
-            
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER BAŞARILI! (Cam Gibi Görüntü)")
+            print("✅ TWITTER BAŞARILI!")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
     else:
-        print("❌ Resim çizilemediği için iptal.")
+        print("❌ Resim çizilemedi.")
 
 if __name__ == "__main__":
     post_tweet()
