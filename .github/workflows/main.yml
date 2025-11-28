@@ -32,9 +32,11 @@ jobs:
         run: pip install -r requirements.txt
       - name: Botu Calistir
         env:
+          # --- İŞTE BU SATIRI EKLEDİK ---
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          # ------------------------------
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python bot.py
