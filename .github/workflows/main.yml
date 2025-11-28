@@ -6,14 +6,14 @@ on:
     # 06:00 TR -> 03:00 UTC
     # 07:00 TR -> 04:00 UTC
     # 15:00 TR -> 12:00 UTC
-    # 19:00 TR -> 16:00 UTC
+    # 20:31 TR -> 17:31 UTC <-- YENİ EKLENDİ (19:00 yerine)
     # 21:21 TR -> 18:21 UTC
     # 22:30 TR -> 19:30 UTC
     # 00:00 TR -> 21:00 UTC
     - cron: '0 3 * * *'
     - cron: '0 4 * * *'
     - cron: '0 12 * * *'
-    - cron: '0 16 * * *'
+    - cron: '31 17 * * *'
     - cron: '21 18 * * *'
     - cron: '30 19 * * *'
     - cron: '0 21 * * *'
@@ -32,11 +32,17 @@ jobs:
         run: pip install -r requirements.txt
       - name: Botu Calistir
         env:
-          # --- İŞTE BU SATIRI EKLEDİK ---
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
-          # ------------------------------
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          # Yedekli HF Tokenlari (Varsa hepsini ceker)
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN_1: ${{ secrets.HF_TOKEN_1 }}
+          HF_TOKEN_2: ${{ secrets.HF_TOKEN_2 }}
+          HF_TOKEN_3: ${{ secrets.HF_TOKEN_3 }}
+          HF_TOKEN_4: ${{ secrets.HF_TOKEN_4 }}
+          HF_TOKEN_5: ${{ secrets.HF_TOKEN_5 }}
+          HF_TOKEN_6: ${{ secrets.HF_TOKEN_6 }}
         run: python bot.py
