@@ -1,4 +1,3 @@
 tweepy
-huggingface_hub
-pillow
 requests
+google-generativeai
