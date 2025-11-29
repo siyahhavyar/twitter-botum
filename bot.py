@@ -3,106 +3,138 @@ import os
 import time
 import json
 import random
+import requests
 import google.generativeai as genai
-from huggingface_hub import InferenceClient
+from huggingface_hub import InferenceClient # Yeni eklenen kütüphane
 
-# --- ŞİFRELER ---
-api_key = os.environ['API_KEY']
-api_secret = os.environ['API_SECRET']
+# --- API ANAHTARLARI (GitHub Secrets'tan) ---
+consumer_key = os.environ['API_KEY']
+consumer_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
-access_secret = os.environ['ACCESS_SECRET']
+access_token_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- DEV YEDEK DEPOSU (6 MOTORLU) ---
-# GitHub'a eklediğin HF_TOKEN_1, HF_TOKEN_2 ... HF_TOKEN_6 hepsini buraya ekledim.
+# --- RESİM OLUŞTURMA AYARLARI ---
+# Hugging Face için varsayılan SDXL modeli ve kütüphane bağlantısı
+repo_id = "stabilityai/stable-diffusion-xl-base-1.0" 
+
+# --- YEDEK DEPOLU TOKEN SİSTEMİ (Resim çizmek için) ---
 TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'),    # Ana Token
-    os.environ.get('HF_TOKEN_1'),  # Yedek 1
-    os.environ.get('HF_TOKEN_2'),  # Yedek 2
-    os.environ.get('HF_TOKEN_3'),  # Yedek 3
-    os.environ.get('HF_TOKEN_4'),  # Yedek 4
-    os.environ.get('HF_TOKEN_5'),  # Yedek 5
-    os.environ.get('HF_TOKEN_6')   # Yedek 6
+    os.environ.get('HF_TOKEN'), os.environ.get('HF_TOKEN_1'), os.environ.get('HF_TOKEN_2'),
+    os.environ.get('HF_TOKEN_3'), os.environ.get('HF_TOKEN_4'), os.environ.get('HF_TOKEN_5'),
+    os.environ.get('HF_TOKEN_6')
 ]
-# Boş olanları temizle (Hepsini girmemiş olsan bile hata vermez)
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
-repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 
-def get_smart_wallpaper_idea():
-    print("🧠 Gemini içerik düşünüyor...")
+# --- 🧱 ÇEKİRDEK KONSEPTLER (Gemini'nin evirip çevireceği ana malzemeler) ---
+WALLPAPER_THEMES = [
+    "Minimalist",
+    "Abstract Geometry",
+    "Surrealism",
+    "Cyberpunk",
+    "Retro Synthwave",
+    "Brutalist Architecture",
+    "Glassmorphism",
+    "Liquid Metal",
+    "Dark Academia",
+    "Monochrome Noir",
+    "Cozy Lo-Fi",
+    "Optical Illusion",
+    "Glitchcore / Error Aesthetic",
+    "Japanese Zen"
+]
+
+def get_wallpaper_idea():
+    # 1. Geniş bir tema seç (Çekirdek Malzeme)
+    broad_theme = random.choice(WALLPAPER_THEMES)
+    print(f"🎨 Ana Tema Seçildi: {broad_theme}")
+
+    print("🧠 Gemini konsepti evirip çevirip yeni bir fikir üretiyor...")
+
+    # 2. Gemini'ye Mutasyon Emri Veriyoruz
+    prompt_emir = f"""
+    Sen bir Yapay Zeka Sanat Konsept Uzmanısın.
+    Görevin: '{broad_theme}' ana temasını alıp, onu bambaşka, spesifik ve viral olacak bir alt-konsepte dönüştürmek.
+
+    Örnekler:
+    - Ana Tema: Minimalist -> Alt-Konsept: 'Minimalist bir çölde, gökyüzünde parlak mor bir küre'.
+    - Ana Tema: Liquid Metal -> Alt-Konsept: 'Akan sıvı metalden yapılmış, 17. yüzyıl Avrupa kütüphanesi'.
+    - Ana Tema: Dark Academia -> Alt-Konsept: 'Sadece yanan bir mumla aydınlatılmış gotik pencereden sızan su damlaları'.
+
+    Yeni, benzersiz alt-konsepti yarattıktan sonra, bu alt-konsepte uygun çıktıyı üret.
     
-    prompt_emir = """
-    Sen profesyonel bir dijital sanatçısın. Twitter için 'Duvar Kağıdı' tasarlıyorsun.
-    Konseptler: Minimalist Doğa, Cyberpunk, Uzay, Soyut, Neon Şehir, Fantastik.
-    
-    Görevin:
-    1. Çok havalı, 8K kalitesinde, net ve pürüzsüz bir sahne kurgula.
-    2. SADECE aşağıdaki JSON formatında cevap ver:
-    
-    {
-      "caption": "Twitter için İngilizce, kısa, havalı, emojili açıklama ve hashtagler.",
-      "image_prompt": "Resim için İNGİLİZCE, 8k resolution, cinematic lighting, photorealistic, vertical wallpaper, sharp focus, masterpiece prompt."
-    }
+    Çıktı Formatı SADECE şu JSON yapısında olmalıdır:
+    {{
+      "sub_theme": "Gemini'nin yarattığı yeni ve spesifik alt-konsept (Türkçe/Kısa)",
+      "caption": "Twitter için İngilizce, havalı ve emojili bir başlık ve hashtag'ler (#Wallpaper #Art #4K vb.).",
+      "image_prompt": "Yeni alt-konsept için İNGİLİZCE prompt. Şunları mutlaka içersin: 'minimalist, clean lines, vertical wallpaper, 8k resolution, masterpiece, high quality, cinematic lighting, --no text, signature'."
+    }}
     """
     
     try:
         response = model.generate_content(prompt_emir)
-        text = response.text.replace("```json", "").replace("```", "").strip()
+        text = response.text.strip().replace("```json", "").replace("```", "")
         data = json.loads(text)
-        print(f"✅ Konu: {data['caption'][:30]}...")
+        print(f"✨ Yeni Konsept: {data['sub_theme']}")
+        print(f"✅ Metin hazır: {data['caption'][:30]}...")
         return data
     except Exception as e:
-        print(f"⚠️ Gemini Hatası ({e}), yedek konu.")
+        print(f"⚠️ Gemini Hatası, yedek kullanılıyor: {e}")
         return {
-            "caption": "Deep Space 🌌 \n\n#Wallpaper #Space #8K",
-            "image_prompt": "Nebula in deep space, glowing stars, cinematic, 8k, vertical, masterpiece"
+            "sub_theme": "Yedek Tema: Neo-Minimalizm",
+            "caption": "Minimalist Geometry. 📐\n\n#Abstract #Wallpaper #AI",
+            "image_prompt": "Clean, vertical geometric pattern in neon pink and cyan, minimalist, 8k, photorealistic"
         }
 
 def generate_high_quality_image(prompt):
-    # Sırayla anahtarları dener
+    # Sırayla tüm yedek anahtarları dener
     for i, token in enumerate(TOKEN_LISTESI):
+        if not token: continue
         print(f"🔄 {i+1}. Ressam Anahtarı deneniyor...")
         try:
+            # Hugging Face token kullanılarak SDXL modeli çağrılır
             client = InferenceClient(model=repo_id, token=token)
             
-            # --- KALİTE AYARLARI ---
+            # SDXL Modeli ile çizim
             image = client.text_to_image(
-                f"{prompt}, vertical wallpaper, aspect ratio 2:3, 8k resolution, photorealistic, masterpiece, highly detailed, --no text, --no blur", 
-                width=768, height=1344
+                prompt=f"{prompt}", 
+                width=768, height=1344 # Telefon ekranına uygun dikey çözünürlük
             )
-            image.save("twitter_post.jpg")
-            print(f"✅ BAŞARILI! ({i+1}. Anahtar çalıştı)")
+            image.save("wallpaper.jpg")
+            print(f"✅ Resim Çizildi ({i+1}. Anahtar çalıştı).")
             return True
         except Exception as e:
             print(f"❌ {i+1}. Anahtar Hatası (Kota dolmuş olabilir): {e}")
             print("Diğer anahtara geçiliyor...")
             time.sleep(2) 
             
-    print("🚨 HATA: Tüm anahtarlar denendi ama başarısız oldu.")
+    print("🚨 HATA: Hiçbir anahtar resmi çizemedi.")
     return False
 
 def post_tweet():
-    content = get_smart_wallpaper_idea()
+    content = get_wallpaper_idea()
     
     if generate_high_quality_image(content['image_prompt']):
         print("🐦 Twitter'a yükleniyor...")
         try:
-            auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
+            auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret, access_token, access_token_secret)
             api = tweepy.API(auth)
-            client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
+            client = tweepy.Client(consumer_key=consumer_key, consumer_secret=consumer_secret, access_token=access_token, access_token_secret=access_token_secret)
 
-            media = api.media_upload(filename="twitter_post.jpg")
+            media = api.media_upload(filename="wallpaper.jpg")
+            
+            # Paylaş
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER BAŞARILI!")
+            print("✅ TWITTER'DA PAYLAŞILDI!")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
     else:
-        print("❌ Resim çizilemedi.")
+        print("⚠️ Resim çizilemediği için iptal.")
 
 if __name__ == "__main__":
     post_tweet()
