@@ -30,56 +30,74 @@ genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
 repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 
-# --- 🎨 TEMİZ VE DESTANSI KONU HAVUZU (Korku Yok!) ---
+# --- 🎨 KARMAŞIK VE ÇEŞİTLİ KONU HAVUZU ---
 KONULAR = [
-    # BİLİM KURGU & UZAY
-    "Futuristic City with Flying Cars", "Astronaut Walking on Mars", 
-    "Spaceship Cockpit View of Earth", "Cyberpunk Street with Neon Lights",
-    "Giant Mech Robot Protecting City", "Solar System Planets View",
-    "Advanced Alien City (Friendly)", "Time Traveler's Machine",
-    "Hacker Room with Multiple Screens", "Mars Colony Greenhouse",
+    # SÜRREALİST & İMKANSIZ
+    "A city built on the back of a giant flying turtle",
+    "A library where books are portals to other worlds, floating",
+    "Stairs leading to a door in the clouds",
+    "A forest where trees are made of crystal and glass",
+    "An hourglass with a whole galaxy inside it",
+    "A train traveling through the sky on tracks made of light",
+    "Melting clocks in a desert landscape (Dali style)",
 
-    # DOĞA & MANZARA
-    "Cozy Hobbit House in Green Forest", "Japanese Temple in Spring (Sakura)",
-    "Snowy Mountains at Sunset", "Tropical Island Beach Paradise",
-    "Northern Lights (Aurora) over Lake", "Waterfall in a Jungle",
-    "Lonely Lighthouse in Calm Sea", "Autumn Road with Orange Leaves",
-    "Zen Garden with Bonsai Tree", "Rainy Window City View (Cozy)",
+    # FÜTÜRİSTİK & CYBERPUNK
+    "A futuristic city with vertical gardens and flying vehicles",
+    "A cyberpunk street market in the rain with neon signs",
+    "An underwater city dome glowing in the deep ocean",
+    "A bustling spaceport on a distant planet with alien ships",
+    "A robot tending to a complex mechanical garden",
+    "A futuristic observatory on a mountain peak looking at a nebula",
 
-    # FANTASTİK & MASALSI
-    "Fairy Tale Castle in Clouds", "Dragon Flying over Mountains (Epic)",
-    "Magical Library with Floating Books", "Crystal Cave Glowing Blue",
-    "Tree of Life Glowing", "Phoenix Rising (Fire Bird)",
-    "Underwater City of Atlantis (Bright)", "Elf Village in Trees",
-    "Wizard's Tower (Magical)", "Flying Island in Sky",
+    # FANTASTİK & MİTOLOJİK
+    "An ancient dragon guarding a hoard of glowing treasure in a cave",
+    "A wizard's tower full of magical artifacts and glowing runes",
+    "A steampunk airship fleet sailing through the clouds",
+    "A mythical phoenix rising from ashes, made of fire and light",
+    "An elf village seamlessly integrated into massive ancient trees",
+    "A hidden temple in a jungle overgrown with bioluminescent plants",
 
-    # TARİHİ & EYLEM
-    "Viking Ship in Ocean", "Samurai Training in Dojo",
-    "Medieval Knight on Horse", "Cowboy Riding in Wild West",
-    "Ancient Greek Temple", "Egyptian Pyramids at Sunrise",
-    "Retro 80s Arcade Room", "Steampunk Airship in Sky",
-    "Old Train Journey through Alps", "Pirate Ship Sailing"
+    # TARİHİ & ALTERNATİF
+    "An ancient Roman city but with advanced clockwork technology",
+    "A vibrant market in a bustling medieval fantasy city",
+    "A samurai duel in a mystical, fog-covered landscape",
+    "A pirate ship sailing on a sea of stars instead of water",
+    "An Art Deco style metropolis from the 1920s of the future",
+    "A detailed alchemist's laboratory filled with strange potions",
+
+    # DOĞA & ATMOSFER (Ama daha dramatik)
+    "A dramatic thunderstorm over a jagged mountain range",
+    "A mysterious bioluminescent forest at night",
+    "A vast desert landscape with strange, towering rock formations",
+    "An ancient, gnarled tree of life glowing in a dark forest",
+    "A breathtaking aurora borealis reflecting in a frozen lake",
+    "A secret garden hidden behind a waterfall",
+
+    # KAVRAMSAL & SOYUT (Korku yok)
+    "A visual representation of 'Time' as a complex machine",
+    "A dreamscape with floating islands and impossible architecture",
+    "A symphony of light and color forming a cosmic structure",
+    "A world made entirely of clockwork gears and mechanisms"
 ]
 
 def get_creative_idea():
     topic = random.choice(KONULAR)
     print(f"🎯 Seçilen Konu: {topic}")
     
-    # Gemini'ye "Korku yapma, Güzel bir sahne yap" emri
+    # Gemini'ye "Sıradan olma, Şaşırt, Karmaşık yap" emri
     prompt_emir = f"""
     Sen ödüllü bir dijital sanatçısın. Konu: "{topic}".
     
-    ÖNEMLİ KURAL: Asla korku, kan, şiddet veya ürkütücü öğeler kullanma. 
-    İnsanların "Vay be ne kadar güzel" diyeceği, estetik ve detaylı bir sahne anlat.
-    Asla "abstract", "geometry" veya "simple" kelimelerini kullanma.
+    ÖNEMLİ KURAL: Asla korku, kan, şiddet veya ürkütücü öğeler kullanma.
     
     Görevin:
-    1. Bu konuyu al ve çok detaylı, sinematik, fotoğraf gerçekliğinde bir sahne kurgula.
-    2. Bana SADECE şu JSON formatını ver:
+    1. Bu konuyu temel alarak, sıradanlıktan uzak, görsel olarak zengin, karmaşık ve düşündürücü bir sahne kurgula.
+    2. İzleyiciyi şaşırtacak, detaylarla dolu bir kompozisyon hayal et. Sürrealist veya beklenmedik unsurlar eklemekten çekinme.
     
+    2. Bana SADECE şu JSON formatını ver:
     {{
-      "caption": "Twitter için İngilizce, havalı, emojili kısa bir açıklama.",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları MUTLAKA içersin: 'highly detailed, cinematic lighting, 8k resolution, photorealistic, vertical wallpaper, masterpiece, sharp focus, beautiful atmosphere'. ASLA 'horror' veya 'scary' kullanma."
+      "caption": "Twitter için İngilizce, konuyu yansıtan havalı, emojili kısa bir açıklama.",
+      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları MUTLAKA içersin: 'highly detailed, cinematic lighting, 8k resolution, photorealistic, vertical wallpaper, masterpiece, sharp focus, intricate details'. ASLA 'horror' veya 'scary' kullanma."
     }}
     """
     
@@ -89,8 +107,8 @@ def get_creative_idea():
         return json.loads(text)
     except:
         return {
-            "caption": "Peaceful Nature 🌿 \n\n#Nature #Wallpaper #Art",
-            "image_prompt": "A beautiful cozy cabin in a green forest, sunlight filtering through trees, cinematic lighting, 8k, photorealistic, vertical, masterpiece"
+            "caption": "A Glimpse of the Infinite ✨ \n\n#Surreal #Art #Wallpaper",
+            "image_prompt": "A surreal landscape with floating islands and ancient ruins under a nebula sky, cinematic lighting, 8k, photorealistic, vertical, masterpiece, intricate details"
         }
 
 def generate_image_sdxl(prompt):
