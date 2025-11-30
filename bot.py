@@ -1,85 +1,130 @@
 import os
 import requests
-import random
 import time
+import random
 import google.generativeai as genai
 import tweepy
 
-# --- ŞİFRELER ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-CONSUMER_KEY = os.environ.get("TWITTER_API_KEY")
-CONSUMER_SECRET = os.environ.get("TWITTER_API_SECRET")
-ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
-ACCESS_SECRET = os.environ.get("TWITTER_ACCESS_SECRET")
+# --- ŞİFRELERİ ALMA (Ekran Görüntüne Göre) ---
+GEMINI_API_KEY = os.environ.get("GEMINI_KEY")
 
-# --- ÇÖZÜNÜRLÜK ---
-# 1080x1920 en temiz orandır.
-IMG_WIDTH = 1080
-IMG_HEIGHT = 1920
+# Twitter Şifreleri
+CONSUMER_KEY = os.environ.get("API_KEY")
+CONSUMER_SECRET = os.environ.get("API_SECRET")
+ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
+ACCESS_SECRET = os.environ.get("ACCESS_SECRET")
+
+# --- HUGGING FACE TOKEN HAVUZU ---
+# Tüm tokenleri bir listeye topluyoruz.
+hf_tokens = [
+    os.environ.get("HF_TOKEN_1"),
+    os.environ.get("HF_TOKEN_2"),
+    os.environ.get("HF_TOKEN_3"),
+    os.environ.get("HF_TOKEN_4"),
+    os.environ.get("HF_TOKEN_5"),
+    os.environ.get("HF_TOKEN_6")
+]
+# Boş olanları (None) listeden temizleyelim, sadece dolu olanlar kalsın
+valid_tokens = [t for t in hf_tokens if t]
+
+# MODEL: Playground v2.5 (En Keskin/Estetik Model)
+API_URL = "https://api-inference.huggingface.co/models/playgroundai/playground-v2.5-1024px-aesthetic"
 
 def get_image_prompt():
-    print("Gemini: Keskin çizgi stili için prompt hazırlanıyor...")
+    print("Gemini: Playground v2.5 için estetik komut hazırlıyor...")
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # BURASI ÇOK KRİTİK. Yapay zekaya "Bulanık yapma şansı" bırakmıyoruz.
-    prompt_instruction = """
-    Create a wallpaper prompt for a smartphone.
-    MANDATORY STYLE: "Vector Art", "Flat Design", "Cel Shaded" or "Anime Background Style".
-    
-    FORBIDDEN: Do not use "3d render", "photorealistic", "fluffy", "fur", "soft lighting". These cause blur.
-    
-    SUBJECTS:
-    1. Cute minimalist animals (drawn as vector icons, not 3d).
-    2. Japanese landscape (Makoto Shinkai style).
-    3. Cyberpunk city with neon lines.
-    4. Abstract geometric shapes with hard edges.
-    
-    OUTPUT: ONLY the English prompt.
+    instruction = """
+    Act as a professional wallpaper artist. Create a prompt for 'Playground v2.5'.
+    Style: Sharp Focus, 8k, High Contrast, Digital Art.
+    Subjects: Minimalist landscapes, cute geometric animals, neon city, abstract fluid.
+    Constraint: NO TEXT.
+    Output: ONLY the English prompt.
     """
     
     try:
-        response = model.generate_content(prompt_instruction)
-        base_prompt = response.text.strip()
-        
-        # --- NETLİK İĞNESİ ---
-        # Bu kelimeler resmi keskinleştirir
-        sharpness_boosters = ", vector art, hard outlines, flat colors, clean lines, svg style, high contrast, 8k resolution, retina display, sharp edges, no blur, masterpiece"
-        
-        final_prompt = base_prompt + sharpness_boosters
-        print(f"Fikir: {base_prompt}")
+        response = model.generate_content(instruction)
+        prompt = response.text.strip()
+        # Playground v2.5 Kalite Artırıcıları
+        final_prompt = prompt + ", playground v2.5 style, aesthetic, 8k resolution, sharp focus, high contrast, incredibly detailed, masterpiece"
+        print(f"Fikir: {prompt}")
         return final_prompt
     except Exception as e:
         print(f"Gemini Hatası: {e}")
-        return "minimalist black cat looking at moon, vector art, flat design, clean lines, sharp edges, 8k"
+        return "cute isometric house on floating island, sharp focus, 8k, vivid colors, playground style"
+
+def query_huggingface_with_rotation(payload):
+    # Sırayla tüm tokenleri dene
+    for index, token in enumerate(valid_tokens):
+        print(f"Token {index + 1}/{len(valid_tokens)} deneniyor...")
+        
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Bir token içinde en fazla 3 kere "Model Yükleniyor" hatasını bekle
+        for attempt in range(3):
+            try:
+                response = requests.post(API_URL, headers=headers, json=payload)
+                
+                # 1. DURUM: BAŞARILI
+                if response.status_code == 200:
+                    return response.content
+                
+                # 2. DURUM: MODEL YÜKLENİYOR (Bekle ve aynı tokeni tekrar dene)
+                elif "error" in response.json() and "loading" in response.json()["error"]:
+                    wait_time = response.json()["estimated_time"]
+                    print(f"Model ısınıyor... {wait_time:.1f} saniye bekleniyor.")
+                    time.sleep(wait_time + 2)
+                    continue # Aynı token ile tekrar dene
+                
+                # 3. DURUM: TOKEN LİMİTİ DOLDU (Döngüyü kır, sonraki tokene geç)
+                else:
+                    print(f"Bu token hata verdi (Kod: {response.status_code}). Sıradakine geçiliyor...")
+                    break # İç döngüyü kır, dış döngüden (sonraki tokene) devam et
+                    
+            except Exception as e:
+                print(f"Bağlantı hatası: {e}. Sıradakine geçiliyor.")
+                break 
+
+    print("TÜM TOKENLER DENENDİ AMA BAŞARISIZ OLUNDU.")
+    return None
 
 def download_image(prompt):
-    print("Pollinations: Vektör tabanlı çizim yapılıyor...")
-    encoded_prompt = requests.utils.quote(prompt)
-    seed = random.randint(1, 999999)
+    print("Playground v2.5: Resim çiziliyor...")
     
-    # model=flux-realism yerine 'flux' kullanıyoruz ama stili prompt ile zorluyoruz.
-    # enhance=false yapıyoruz çünkü enhance bazen resmi yapaylaştırıp bozuyor.
-    url = f"https://pollinations.ai/p/{encoded_prompt}?width={IMG_WIDTH}&height={IMG_HEIGHT}&seed={seed}&model=flux&nologo=true&enhance=false"
+    # KARE (1024x1024) en keskin sonucu verir. Telefon bunu kırparak kullanır.
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "width": 1024,
+            "height": 1024,
+            "guidance_scale": 5, # Renk canlılığı
+            "num_inference_steps": 50
+        }
+    }
     
-    try:
-        response = requests.get(url, timeout=90)
-        if response.status_code == 200:
-            filename = "wallpaper.jpg"
-            with open(filename, 'wb') as f:
-                f.write(response.content)
-            print(f"Resim İndi! Boyut: {IMG_WIDTH}x{IMG_HEIGHT}")
-            return filename
-        else:
+    # Yeni rotasyonlu fonksiyonu çağırıyoruz
+    image_bytes = query_huggingface_with_rotation(payload)
+    
+    if image_bytes:
+        filename = "wallpaper_hq.jpg"
+        with open(filename, "wb") as f:
+            f.write(image_bytes)
+        
+        # Dosya boyutu kontrolü (1KB altıysa resim değildir)
+        if os.path.getsize(filename) < 1000:
+            print("Hata: İnen dosya bozuk.")
             return None
-    except Exception as e:
-        print(f"İndirme hatası: {e}")
+            
+        print("Mükemmel! Resim başarıyla kaydedildi.")
+        return filename
+    else:
         return None
 
 def post_to_twitter(filename, prompt):
     print("Twitter'a yükleniyor...")
     try:
-        # V1.1 Yetkilendirme
+        # V1.1 Giriş (Medya Yükleme)
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = tweepy.API(auth)
@@ -87,7 +132,7 @@ def post_to_twitter(filename, prompt):
         media = api.media_upload(filename)
         media_id = media.media_id
         
-        # V2 Client
+        # V2 Giriş (Tweet Atma)
         client = tweepy.Client(
             consumer_key=CONSUMER_KEY,
             consumer_secret=CONSUMER_SECRET,
@@ -95,13 +140,13 @@ def post_to_twitter(filename, prompt):
             access_token_secret=ACCESS_SECRET
         )
         
-        text = "Daily Wallpaper ✨\n\n#wallpaper #vectorart #minimalist #art #4k"
+        text = "Daily Aesthetic Wallpaper ✨\n#wallpaper #art #4k #aiart"
         
         client.create_tweet(text=text, media_ids=[media_id])
         print("✅ BAŞARILI: Paylaşıldı!")
         
     except Exception as e:
-        print(f"❌ Twitter Hatası: {e}")
+        print(f"Twitter Hatası: {e}")
 
 if __name__ == "__main__":
     prompt_text = get_image_prompt()
@@ -109,5 +154,3 @@ if __name__ == "__main__":
     
     if image_file:
         post_to_twitter(image_file, prompt_text)
-    else:
-        print("Hata oluştu.")
