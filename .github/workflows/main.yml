@@ -1,50 +1,58 @@
-name: Twitter Botu (TR Saati)
+name: 7x Gunluk Duvar Kagidi Botu
 
 on:
   schedule:
-    # Türkiye Saati (UTC+3) ile Günde 8 Kere
-    # 07:00, 10:00, 12:00, 15:00, 17:00, 19:00, 21:00, 23:00
-    - cron: '0 4,7,9,12,14,16,18,20 * * *'
+    # Türkiye Saati (TRT) ile En Yoğun Saatler
+    # GitHub UTC kullandığı için 3 saat geri yazıyoruz:
+    
+    - cron: '0 5 * * *'   # TR: 08:00 (Sabah trafiği)
+    - cron: '0 7 * * *'   # TR: 10:00 (Kahve molası)
+    - cron: '30 9 * * *'  # TR: 12:30 (Öğle yemeği - Zirve)
+    - cron: '0 12 * * *'  # TR: 15:00 (Öğleden sonra molası)
+    - cron: '30 14 * * *' # TR: 17:30 (Çıkış saati)
+    - cron: '0 17 * * *'  # TR: 20:00 (Akşam keyfi - Prime Time)
+    - cron: '30 19 * * *' # TR: 22:30 (Gece yatmadan önce)
+    
   workflow_dispatch: # Elle çalıştırma butonu
 
 jobs:
   calistir:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Dosya işlemleri için izin
+      contents: write # Dosya işlemleri izni
 
     steps:
       - name: Depoyu Çek
         uses: actions/checkout@v3
 
-      - name: Python Kur (3.12)
+      - name: Python Kur
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.9'
 
       - name: Kütüphaneleri Yükle
         run: pip install -r requirements.txt
 
       - name: Botu Çalıştır
         env:
-          # SOL TARAFA DOKUNMA (Python bu isimleri arıyor)
-          # SAĞ TARAFA DİKKAT (Senin GitHub Secrets'a kaydettiğin isimler olmalı)
+          # --- SENİN EKRAN GÖRÜNTÜNDEKİ ŞİFRELER ---
           
-          GEMINI_API_KEY: ${{ secrets.GEMINI_KEY }}
+          # Google Gemini (Beyin)
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           
-          # Twitter Şifreleri (Eğer GitHub Secret'a API_KEY diye kaydettiysen böyle kalabilir)
-          # Ama Python kodunda TWITTER_API_KEY diye bekliyor, o yüzden eşleştiriyoruz:
-          TWITTER_API_KEY: ${{ secrets.API_KEY }}
-          TWITTER_API_SECRET: ${{ secrets.API_SECRET }}
-          TWITTER_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          TWITTER_ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          # Twitter (X) Şifreleri
+          API_KEY: ${{ secrets.API_KEY }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          
+          # 6 Adet Hugging Face Tokeni (Ressamlar)
+          # Biri biterse diğeri devreye girecek
+          HF_TOKEN_1: ${{ secrets.HF_TOKEN_1 }}
+          HF_TOKEN_2: ${{ secrets.HF_TOKEN_2 }}
+          HF_TOKEN_3: ${{ secrets.HF_TOKEN_3 }}
+          HF_TOKEN_4: ${{ secrets.HF_TOKEN_4 }}
+          HF_TOKEN_5: ${{ secrets.HF_TOKEN_5 }}
+          HF_TOKEN_6: ${{ secrets.HF_TOKEN_6 }}
           
         run: python bot.py
-
-      # Twitter çalışmazsa veya kontrol etmek istersen resmi buraya kaydeder
-      - name: Resmi Göster (Artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: gunluk-duvar-kagidi
-          path: wallpaper_hq.jpg
-          if-no-files-found: ignore
