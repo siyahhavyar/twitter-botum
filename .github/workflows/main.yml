@@ -1,3 +1,5 @@
+- name: Install dependencies
+  run: pip install pillow google-generativeai tweepy
 name: Twitter Botu
 
 on:
