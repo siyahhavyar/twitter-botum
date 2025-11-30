@@ -1,5 +1,3 @@
 tweepy
 requests
 google-generativeai
-huggingface_hub
-pillow
