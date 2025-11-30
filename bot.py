@@ -6,45 +6,56 @@ import random
 import requests
 import google.generativeai as genai
 
-# --- ŞİFRELER ---
+# --- ŞİFRELER (GitHub Secrets'tan Çekilir) ---
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- TOKEN LİSTESİ ---
+# --- 6 MOTORLU YEDEK DEPO SİSTEMİ (HUGGING FACE) ---
+# GitHub Secrets kısmında bu isimlerle anahtar olması lazım
 TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'),
-    os.environ.get('HF_TOKEN_1'),
-    os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN_3'),
-    os.environ.get('HF_TOKEN_4'),
-    os.environ.get('HF_TOKEN_5'),
-    os.environ.get('HF_TOKEN_6')
+    os.environ.get('HF_TOKEN'),    # Ana Token
+    os.environ.get('HF_TOKEN_1'),  # Yedek 1
+    os.environ.get('HF_TOKEN_2'),  # Yedek 2
+    os.environ.get('HF_TOKEN_3'),  # Yedek 3
+    os.environ.get('HF_TOKEN_4'),  # Yedek 4
+    os.environ.get('HF_TOKEN_5'),  # Yedek 5
+    os.environ.get('HF_TOKEN_6')   # Yedek 6
 ]
+# Boş olanları listeden temizle
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
+# EN GÜNCEL VE HIZLI MODEL: Gemini 1.5 Flash
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# SDXL API URL'si (Direkt Adres)
+# EN KALİTELİ ÇİZİM MODELİ: SDXL 1.0
 API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_autonomous_idea():
-    print("🧠 Gemini sanat yönetmeni modunda...")
+    print("🧠 Gemini, senin zevkine göre yeni ve eşsiz bir fikir kurguluyor...")
     
+    # SENİN ZEVK HARİTAN
     prompt_emir = """
     Sen benim kişisel dijital sanat asistanımsın. Twitter hesabım için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
-    Görevin:
-    1. Minimalist Doğa, Cyberpunk, Uzay, Sürrealizm veya Estetik Geometri konularından birini seç.
-    2. Benzersiz, çok havalı ve 8K kalitesinde duracak bir sahne kurgula.
-    
+    BENİM SEVDİĞİM TARZLAR (Bunları karıştır, birleştir, yeniden yorumla):
+    1. Minimalist Doğa (Sakin, sisli, huzurlu, tek ağaç, göl yansıması vb.)
+    2. Estetik Geometri (Bauhaus tarzı, düz çizgiler, pastel tonlar, simetri)
+    3. Temiz Bilim Kurgu (Neon ışıklar, sade uzay boşluğu, astronot, retro-fütürizm)
+    4. Sürrealist Rüyalar (Bulutların üstünde kapılar, uçan adalar, mantık dışı ama estetik)
+    5. Soft Renkler ve Işık (Gün batımı, 'Golden hour', loş ışık, huzur verici atmosfer)
+
+    GÖREVİN:
+    Yukarıdaki tarzları temel alarak, daha önce hiç yapılmamış, benzersiz ve çok havalı bir görsel fikir bul.
+    Sürekli aynı şeyi yapma. Bir seferinde dağ çiziyorsan, diğerinde neon bir şehir, ötekinde soyut bir şekil çiz.
+
     Bana SADECE şu JSON formatında cevap ver:
     {
-      "caption": "Twitter için İngilizce, kısa, havalı, emojili bir açıklama. Hashtagler ekle (#Minimalist #Art #4K vb.).",
+      "caption": "Twitter için İngilizce, çok kısa (max 1 cümle), havalı ve emojili bir açıklama. Hashtagler ekle (#Minimalist #Art #4K vb.).",
       "image_prompt": "Resmi çizecek yapay zeka için İNGİLİZCE prompt. Şunları MUTLAKA ekle: 'minimalist, clean lines, vertical wallpaper, 8k resolution, masterpiece, high quality, cinematic lighting, photorealistic, sharp focus, --no text'."
     }
     """
@@ -76,7 +87,7 @@ def generate_image_raw(prompt):
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly",
+                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly, hands, fingers",
                 # SDXL boyutu (Dikey'e yakın)
                 "width": 768, 
                 "height": 1344 
@@ -120,13 +131,14 @@ def post_tweet():
 
             media = api.media_upload(filename="tweet_image.jpg")
             
+            # Paylaş
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER'DA PAYLAŞILDI!")
+            print("✅ TWITTER BAŞARILI! (Yüksek Kalite Modu)")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
     else:
-        print("⚠️ Resim çizilemediği için iptal.")
+        print("❌ Resim çizilemediği için iptal.")
 
 if __name__ == "__main__":
     post_tweet()
