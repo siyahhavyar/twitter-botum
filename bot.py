@@ -12,49 +12,55 @@ CONSUMER_SECRET = os.environ.get("TWITTER_API_SECRET")
 ACCESS_TOKEN = os.environ.get("TWITTER_ACCESS_TOKEN")
 ACCESS_SECRET = os.environ.get("TWITTER_ACCESS_SECRET")
 
-# --- KALİTE AYARI (KRİTİK GÜNCELLEME) ---
-# Yapay zekanın "çamurlaşmadan" en keskin detay verdiği boyut budur.
-# 1080x1920 telefonda 1440p'den daha net görünür çünkü piksel hatası olmaz.
+# --- ÇÖZÜNÜRLÜK ---
+# 1080x1920 en temiz orandır.
 IMG_WIDTH = 1080
 IMG_HEIGHT = 1920
 
 def get_image_prompt():
-    print("Gemini API ile ultra net fikir düşünülüyor...")
+    print("Gemini: Keskin çizgi stili için prompt hazırlanıyor...")
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
     
-    # İPUCU: Yapay zekaya "Fotoğraf" değil "3D Render" veya "Vektör" çizdirirsek daha net olur.
+    # BURASI ÇOK KRİTİK. Yapay zekaya "Bulanık yapma şansı" bırakmıyoruz.
     prompt_instruction = """
-    Create a prompt for a smartphone wallpaper.
-    Style: 3D Render, Vector Art, or Digital Illustration (Avoid realistic photos to prevent blur).
-    Subject: Minimalist nature, abstract geometry, cute characters, or fluid shapes.
-    Constraint: NO TEXT.
-    Output: ONLY the English prompt.
+    Create a wallpaper prompt for a smartphone.
+    MANDATORY STYLE: "Vector Art", "Flat Design", "Cel Shaded" or "Anime Background Style".
+    
+    FORBIDDEN: Do not use "3d render", "photorealistic", "fluffy", "fur", "soft lighting". These cause blur.
+    
+    SUBJECTS:
+    1. Cute minimalist animals (drawn as vector icons, not 3d).
+    2. Japanese landscape (Makoto Shinkai style).
+    3. Cyberpunk city with neon lines.
+    4. Abstract geometric shapes with hard edges.
+    
+    OUTPUT: ONLY the English prompt.
     """
     
     try:
         response = model.generate_content(prompt_instruction)
         base_prompt = response.text.strip()
         
-        # --- KESKİNLİK FORMÜLÜ ---
-        # Bu kelimeler resmi "Jilet" gibi yapar:
-        quality_boosters = ", 8k resolution, sharp focus, crystal clear, vector lines, highly detailed, unreal engine 5 render, octane render, no blur, high contrast"
+        # --- NETLİK İĞNESİ ---
+        # Bu kelimeler resmi keskinleştirir
+        sharpness_boosters = ", vector art, hard outlines, flat colors, clean lines, svg style, high contrast, 8k resolution, retina display, sharp edges, no blur, masterpiece"
         
-        final_prompt = base_prompt + quality_boosters
+        final_prompt = base_prompt + sharpness_boosters
         print(f"Fikir: {base_prompt}")
         return final_prompt
     except Exception as e:
         print(f"Gemini Hatası: {e}")
-        return "cute cat on a cloud, 3d render, 8k, sharp focus, minimalist"
+        return "minimalist black cat looking at moon, vector art, flat design, clean lines, sharp edges, 8k"
 
 def download_image(prompt):
-    print("Pollinations ile resim çiziliyor...")
+    print("Pollinations: Vektör tabanlı çizim yapılıyor...")
     encoded_prompt = requests.utils.quote(prompt)
     seed = random.randint(1, 999999)
     
-    # NOT: 'enhance=true' bazen görüntüyü bozar, 'nologo=true' temiz yapar.
-    # Model 'flux' detay için en iyisidir.
-    url = f"https://pollinations.ai/p/{encoded_prompt}?width={IMG_WIDTH}&height={IMG_HEIGHT}&seed={seed}&model=flux&nologo=true"
+    # model=flux-realism yerine 'flux' kullanıyoruz ama stili prompt ile zorluyoruz.
+    # enhance=false yapıyoruz çünkü enhance bazen resmi yapaylaştırıp bozuyor.
+    url = f"https://pollinations.ai/p/{encoded_prompt}?width={IMG_WIDTH}&height={IMG_HEIGHT}&seed={seed}&model=flux&nologo=true&enhance=false"
     
     try:
         response = requests.get(url, timeout=90)
@@ -65,16 +71,15 @@ def download_image(prompt):
             print(f"Resim İndi! Boyut: {IMG_WIDTH}x{IMG_HEIGHT}")
             return filename
         else:
-            print("Sunucu hatası.")
             return None
     except Exception as e:
         print(f"İndirme hatası: {e}")
         return None
 
 def post_to_twitter(filename, prompt):
-    print("Twitter'a gönderiliyor...")
+    print("Twitter'a yükleniyor...")
     try:
-        # V1.1 API ile Medya Yükleme
+        # V1.1 Yetkilendirme
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = tweepy.API(auth)
@@ -82,7 +87,7 @@ def post_to_twitter(filename, prompt):
         media = api.media_upload(filename)
         media_id = media.media_id
         
-        # V2 API ile Tweet Atma
+        # V2 Client
         client = tweepy.Client(
             consumer_key=CONSUMER_KEY,
             consumer_secret=CONSUMER_SECRET,
@@ -90,11 +95,10 @@ def post_to_twitter(filename, prompt):
             access_token_secret=ACCESS_SECRET
         )
         
-        # Hashtagler etkileşim için önemli
-        text = "New Wallpaper! 🎨✨\n\n#wallpaper #art #aesthetic #4k #background"
+        text = "Daily Wallpaper ✨\n\n#wallpaper #vectorart #minimalist #art #4k"
         
         client.create_tweet(text=text, media_ids=[media_id])
-        print("✅ BAŞARILI: Tweet HD olarak paylaşıldı!")
+        print("✅ BAŞARILI: Paylaşıldı!")
         
     except Exception as e:
         print(f"❌ Twitter Hatası: {e}")
