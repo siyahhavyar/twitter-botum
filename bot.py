@@ -2,8 +2,9 @@ import tweepy
 import os
 import time
 import json
-import random
-import requests
+import base64
+import io
+from PIL import Image
 import google.generativeai as genai
 
 # --- ŞİFRELER ---
@@ -13,114 +14,100 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- TOKEN LISTESI ---
-TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'), os.environ.get('HF_TOKEN_1'), os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN_3'), os.environ.get('HF_TOKEN_4'), os.environ.get('HF_TOKEN_5'),
-    os.environ.get('HF_TOKEN_6')
-]
-TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
-
-# --- AYARLAR ---
+# --- GEMINI AYARLARI (Resim Üretimi İçin Güncel Model) ---
 genai.configure(api_key=GEMINI_KEY)
-# EN SAĞLAM MODEL: Gemini Pro (Hata vermez)
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.5-flash-image')  # Resim desteği olan model (2025 güncel)
 
-# SDXL API URL (Direkt Adres)
-API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
-
-def get_artistic_idea():
-    print("🧠 Gemini sanat yönetmeni modunda...")
+def get_autonomous_idea_and_image():
+    print("🧠 Gemini sanat yönetmeni modunda... (Fikir + Resim Üretimi)")
     
     prompt_emir = """
-    Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
+    Sen benim kişisel dijital sanat asistanımsın. Twitter hesabım için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
-    GÖREVİN:
-    1. Minimalist, Cyberpunk, Uzay, Doğa veya Soyut konulardan benzersiz bir sahne hayal et.
-    2. Bana SADECE şu JSON formatında cevap ver:
+    Görevin:
+    1. Minimalist Doğa, Cyberpunk, Uzay, Sürrealizm veya Estetik Geometri konularından birini seç.
+    2. Benzersiz, çok havalı ve 8K kalitesinde duracak bir sahne kurgula.
+    
+    Bana SADECE şu JSON formatında cevap ver:
     {
-      "caption": "Twitter için İngilizce, kısa, havalı bir açıklama ve hashtagler.",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus'."
+      "caption": "Twitter için İngilizce, kısa, havalı, emojili bir açıklama. Hashtagler ekle (#Minimalist #Wallpaper #Art #4K #Aesthetic).",
+      "image_prompt": "Resmi çizecek AI için İNGİLİZCE prompt. Şunları MUTLAKA ekle: 'minimalist, clean lines, vertical wallpaper, highly detailed, 8k resolution, masterpiece, cinematic lighting, sharp focus, beautiful composition --no text, no watermark'."
     }
     """
     
     try:
-        response = model.generate_content(prompt_emir)
-        text = response.text.replace("```json", "").replace("```", "").strip()
-        if text.startswith("json"): text = text[4:] # Temizlik
+        # Fikir üret (sadece text)
+        response_idea = model.generate_content(prompt_emir)
+        text = response_idea.text.strip().replace("```json", "").replace("```", "")
         data = json.loads(text)
-        print(f"✅ Fikir Bulundu: {data['caption']}")
-        return data
-    except Exception as e:
-        print(f"⚠️ Gemini Hatası ({e}), yedek konu kullanılıyor.")
+        print(f"✅ Fikir Bulundu: {data['caption'][:50]}...")
+        
+        # Resim üret (prompt'tan)
+        image_prompt = f"Generate an image of: {data['image_prompt']}, aspect ratio 9:16 for vertical wallpaper"
+        response_image = model.generate_content(
+            image_prompt,
+            generation_config=genai.types.GenerationConfig(
+                response_modalities=["TEXT", "IMAGE"],  # Resim modu
+                image_config=genai.types.ImageConfig(aspect_ratio="9:16", image_size="1024x1792")  # Dikey, yüksek çözünürlük
+            )
+        )
+        
+        # Resmi kaydet
+        for part in response_image.candidates[0].content.parts:
+            if part.inline_data:
+                img_data = base64.b64decode(part.inline_data.data)
+                image = Image.open(io.BytesIO(img_data))
+                image.save("tweet_image.jpg")
+                print("✅ Resim Gemini Tarafından Üretildi!")
+                return data
+        
+        # Eğer resim gelmediyse fallback
+        print("⚠️ Resim gelmedi, yedek kullanılıyor.")
         return {
-            "caption": "Serenity 🌌 #Wallpaper #Art",
-            "image_prompt": "A majestic mountain reflection in a calm lake at night, starry sky, cinematic, 8k, vertical"
-        }
-
-def query_huggingface(payload, token):
-    # Direkt internet isteği atıyoruz (Kütüphanesiz)
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response
-
-def generate_image_raw(prompt):
-    # Tüm anahtarları sırayla dener
-    for i, token in enumerate(TOKEN_LISTESI):
-        print(f"🔄 {i+1}. Anahtar deneniyor...")
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly",
-                "width": 768,   # Dikey Format
-                "height": 1344
-            }
+            "caption": "Endless horizon at sunset 🌅 Minimalist vibes\n\n#Wallpaper #Minimalist #Art #Aesthetic",
+            "image_prompt": "minimalist endless ocean sunset, single boat silhouette, warm colors, vertical wallpaper, 8k, masterpiece, cinematic lighting --no text"
         }
         
+    except Exception as e:
+        print(f"⚠️ Gemini Hatası ({e}), yedek kullanılıyor.")
+        # Yedek resim için basit bir generate dene
         try:
-            response = query_huggingface(payload, token)
-            
-            # EĞER MODEL UYUYORSA (503 HATASI) - BEKLEME MANTIĞI
-            if response.status_code == 503:
-                estimated_time = response.json().get("estimated_time", 20)
-                print(f"💤 Model uyuyor! {estimated_time} saniye bekleniyor...")
-                time.sleep(estimated_time)
-                # Tekrar dene
-                response = query_huggingface(payload, token)
-            
-            if response.status_code == 200:
-                with open("tweet_image.jpg", "wb") as f:
-                    f.write(response.content)
-                print(f"✅ Resim Başarıyla İndirildi! ({i+1}. Anahtar)")
-                return True
-            else:
-                print(f"❌ Hata Kodu: {response.status_code} - Mesaj: {response.text}")
-                
-        except Exception as e:
-            print(f"❌ Bağlantı Hatası: {e}")
-            
-    print("🚨 HATA: Hiçbir anahtar resmi çizemedi.")
-    return False
+            response_fallback = model.generate_content(
+                "Generate a minimalist vertical wallpaper of an endless ocean sunset, 9:16 aspect ratio, 8k",
+                generation_config=genai.types.GenerationConfig(response_modalities=["IMAGE"])
+            )
+            for part in response_fallback.candidates[0].content.parts:
+                if part.inline_data:
+                    img_data = base64.b64decode(part.inline_data.data)
+                    Image.open(io.BytesIO(img_data)).save("tweet_image.jpg")
+                    print("✅ Yedek Resim Üretildi!")
+        except:
+            print("❌ Resim üretilemedi, manuel ekle.")
+        return {
+            "caption": "Endless horizon at sunset 🌅 Minimalist vibes\n\n#Wallpaper #Minimalist #Art #Aesthetic"
+        }
 
 def post_tweet():
-    content = get_artistic_idea()
+    idea = get_autonomous_idea_and_image()
     
-    if generate_image_raw(content['image_prompt']):
+    if os.path.exists("tweet_image.jpg"):
         print("🐦 Twitter'a yükleniyor...")
         try:
             auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
             api = tweepy.API(auth)
-            client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
+            client = tweepy.Client(
+                consumer_key=api_key, consumer_secret=api_secret,
+                access_token=access_token, access_token_secret=access_secret
+            )
 
-            media = api.media_upload(filename="tweet_image.jpg")
-            client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER BAŞARILI!")
+            media = api.media_upload("tweet_image.jpg")
+            client.create_tweet(text=idea['caption'], media_ids=[media.media_id])
+            print("✅ TWEET BAŞARIYLA ATILDI! 🎉")
             
         except Exception as e:
-            print(f"❌ Twitter Hatası: {e}")
+            print(f"❌ Twitter hatası: {e}")
     else:
-        print("⚠️ Resim çizilemediği için iptal.")
+        print("❌ Resim dosyası yok, tweet atılmadı. Gemini quota'nı kontrol et.")
 
 if __name__ == "__main__":
     post_tweet()
