@@ -1,139 +1,115 @@
+import tweepy
 import os
-import json
 import time
-import requests
+import json
 import random
 import google.generativeai as genai
-from instagrapi import Client
+from huggingface_hub import InferenceClient
 
-# 1. ŞİFRELERİ GITHUB KASASINDAN ÇEKİYORUZ
+# --- ŞİFRELER (GitHub Kasasından) ---
+api_key = os.environ['API_KEY']
+api_secret = os.environ['API_SECRET']
+access_token = os.environ['ACCESS_TOKEN']
+access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
-INSTA_USER = os.environ['INSTA_USER']
-INSTA_PASS = os.environ['INSTA_PASS']
-INSTA_SESSION = os.environ.get('INSTA_SESSION')
 
-# 2. GEMINI AYARLARI (HATA VERMEYEN YENİ MODEL)
-genai.configure(api_key=GEMINI_KEY)
-# ESKİSİ: gemini-pro (Hata veriyordu)
-# YENİSİ: gemini-1.5-flash (Hatasız çalışır)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# 3. KONU HAVUZU
-KONULAR = [
-    "Tarihin Çözülememiş Gizemleri", "Korkunç Mitolojik Yaratıklar",
-    "Uzay ve Evrenin Sırları", "Antik Uygarlıkların Teknolojileri",
-    "Lanetli Yerler", "Paranormal Olaylar", "Arkeolojik Keşifler",
-    "Kayıp Kıtalar", "Simya ve Okültizm"
+# --- YEDEK DEPOLU TOKEN SİSTEMİ ---
+TOKEN_LISTESI = [
+    os.environ.get('HF_TOKEN'),
+    os.environ.get('HF_TOKEN_1'),
+    os.environ.get('HF_TOKEN_2'),
+    os.environ.get('HF_TOKEN_3'),
+    os.environ.get('HF_TOKEN_4'),
+    os.environ.get('HF_TOKEN_5'),
+    os.environ.get('HF_TOKEN_6')
 ]
+TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
-def icerik_uret():
-    print("🧠 Gemini (1.5 Flash) içerik üretiyor...")
-    secilen_konu = random.choice(KONULAR)
+# --- AYARLAR ---
+genai.configure(api_key=GEMINI_KEY)
+# En iyi sonuç veren model
+model = genai.GenerativeModel('gemini-1.5-flash')
+# Kalitenin kralı SDXL
+repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
+
+def get_artistic_vision():
+    print("🧠 Sanatçı (Gemini) ilham arıyor...")
     
-    prompt = f"""
-    Sen profesyonel bir tarih ve gizem belgeseli yazarısın. Konu: {secilen_konu}.
+    # --- İŞTE BURASI ÇOK ÖNEMLİ ---
+    # Ona kısıtlı bir liste vermiyoruz. Ona "Sen Sanatçısın" diyoruz.
     
-    Görevin:
-    1. Bu konuda şok edici, az bilinen bir olay seç.
-    2. Instagram için 10 GÖRSELLİ, hikaye anlatan bir kaydırmalı (Carousel) post hazırla.
-    3. Bana SADECE aşağıdaki JSON formatında cevap ver:
+    prompt_emir = """
+    Sen dünyaca ünlü, vizyoner bir dijital sanatçısın ve küratörsün.
+    Görevin: Twitter (X) kitlesi için insanların telefonlarına "Duvar Kağıdı" yapmak isteyeceği, estetik açıdan kusursuz bir eser tasarlamak.
     
-    {{
-      "baslik": "İlgi çekici Türkçe Başlık",
-      "aciklama": "Konuyu anlatan 5-6 paragraflık detaylı Türkçe metin. En sona etiketleri ekle.",
-      "gorsel_komutlari": [
-        "1. görsel için İngilizce prompt (vertical, 8k, cinematic)",
-        "2. görsel için İngilizce prompt (vertical)",
-        "3. görsel için İngilizce prompt (vertical)",
-        "4. görsel için İngilizce prompt (vertical)",
-        "5. görsel için İngilizce prompt (vertical)",
-        "6. görsel için İngilizce prompt (vertical)",
-        "7. görsel için İngilizce prompt (vertical)",
-        "8. görsel için İngilizce prompt (vertical)",
-        "9. görsel için İngilizce prompt (vertical)",
-        "10. görsel için İngilizce prompt (vertical)"
-      ]
-    }}
+    KURALLARIN:
+    1. ASLA korku, kan, şiddet, cinsellik, rahatsız edici veya tiksindirici öğeler kullanma.
+    2. Sıradan, sıkıcı veya çok basit şeyler yapma.
+    3. İnsanların "Vay be, bu ne kadar güzel" diyeceği, renk uyumu mükemmel, kompozisyonu harika şeyler düşün.
+    4. Konu seçiminde ÖZGÜRSÜN. İster fütüristik bir şehir, ister huzurlu bir doğa, ister soyut bir rüya, ister antik bir tapınak... O an içinden ne geliyorsa. Tek kriter: ESTETİK ve GÜZEL olması.
+    
+    Bana SADECE şu JSON formatında cevap ver:
+    {
+      "caption": "Twitter için İngilizce, kısa, havalı, emojili bir sanatçı notu. (Eserin adı gibi)",
+      "image_prompt": "Resmi çizecek yapay zeka için İNGİLİZCE, çok detaylı, 8k çözünürlükte, sinematik ışıklandırmalı, dikey formatta (vertical wallpaper), fotoğraf gerçekliğinde (photorealistic) ve 'masterpiece' kalitesinde prompt. Asla 'text' olmasın."
+    }
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(prompt_emir)
         text = response.text.replace("```json", "").replace("```", "").strip()
         data = json.loads(text)
-        print(f"✅ Konu Bulundu: {data['baslik']}")
+        print(f"✅ Sanatçı Kararını Verdi: {data['caption']}")
         return data
     except Exception as e:
-        print(f"❌ Gemini Hatası: {e}")
-        return None
+        print(f"⚠️ Gemini İlham Gelmedi ({e}), yedek devreye giriyor.")
+        return {
+            "caption": "Dreamscape 🌌 \n\n#Art #Wallpaper #AI",
+            "image_prompt": "A majestic floating island in the sky with waterfalls, dreamy atmosphere, cinematic lighting, 8k, vertical, photorealistic, masterpiece"
+        }
 
-def resim_ciz(prompt, dosya_adi):
-    print(f"🎨 Çiziliyor: {dosya_adi}...")
-    # Pollinations Flux (Sınırsız ve GitHub'da çalışır)
-    prompt_encoded = requests.utils.quote(f"{prompt}, vertical, 8k resolution, photorealistic, cinematic")
-    seed = random.randint(1, 1000000)
-    url = f"https://pollinations.ai/p/{prompt_encoded}?width=1080&height=1350&model=flux&seed={seed}&nologo=true&enhance=true"
-    
-    try:
-        response = requests.get(url, timeout=90)
-        if response.status_code == 200:
-            with open(dosya_adi, 'wb') as f:
-                f.write(response.content)
-            return True
-        return False
-    except:
-        return False
-
-def main_job():
-    # A) İçerik
-    data = icerik_uret()
-    if not data: return
-
-    # B) Resimler
-    resim_listesi = []
-    print("📸 10 Resim hazırlanıyor (GitHub Sunucuda)...")
-    
-    for i, prompt in enumerate(data['gorsel_komutlari']):
-        dosya_adi = f"resim_{i+1}.jpg"
-        if resim_ciz(prompt, dosya_adi):
-            resim_listesi.append(dosya_adi)
-            time.sleep(2) 
-    
-    if len(resim_listesi) < 2:
-        print("❌ Yeterli resim çizilemedi.")
-        return
-
-    # C) Paylaşım
-    print(f"🚀 {len(resim_listesi)} resim Instagram'a yükleniyor...")
-    cl = Client()
-    
-    try:
-        # GitHub Secrets'taki Session ile giriş
-        if INSTA_SESSION:
-            try:
-                print("🎫 Session ile giriliyor...")
-                cl.set_settings(json.loads(INSTA_SESSION))
-                cl.login(INSTA_USER, INSTA_PASS)
-            except:
-                print("⚠️ Session geçersiz, şifreyle deneniyor...")
-                cl.login(INSTA_USER, INSTA_PASS)
-        else:
-            print("🔑 Şifre ile giriliyor...")
-            cl.login(INSTA_USER, INSTA_PASS)
-
-        print("✅ Giriş Başarılı!")
-
-        cl.album_upload(
-            paths=resim_listesi,
-            caption=f"📢 {data['baslik']}\n\n{data['aciklama']}"
-        )
-        print("🎉 TEBRİKLER! GÖNDERİ PAYLAŞILDI!")
-        
-        # Temizlik
-        for r in resim_listesi:
-            if os.path.exists(r): os.remove(r)
+def generate_image_sdxl(prompt):
+    # Yedek anahtarları sırayla dener
+    for i, token in enumerate(TOKEN_LISTESI):
+        print(f"🔄 {i+1}. Fırça (Anahtar) deneniyor...")
+        try:
+            client = InferenceClient(model=repo_id, token=token)
             
-    except Exception as e:
-        print(f"❌ Instagram Hatası: {e}")
+            # SDXL ile Dikey ve Yüksek Kalite
+            image = client.text_to_image(
+                f"{prompt}, vertical wallpaper, aspect ratio 2:3, 8k resolution, highly detailed", 
+                width=768, height=1344
+            )
+            image.save("art_piece.jpg")
+            print(f"✅ Eser Çizildi ({i+1}. Anahtar).")
+            return True
+        except Exception as e:
+            print(f"❌ {i+1}. Anahtar Hatası: {e}")
+            time.sleep(1)
+            
+    print("🚨 HATA: Hiçbir anahtar çizemedi.")
+    return False
+
+def post_tweet():
+    content = get_artistic_vision()
+    
+    if generate_image_sdxl(content['image_prompt']):
+        print("🐦 Galeriye (Twitter) yükleniyor...")
+        try:
+            auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
+            api = tweepy.API(auth)
+            client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
+
+            media = api.media_upload(filename="art_piece.jpg")
+            
+            # Paylaş
+            client.create_tweet(text=content['caption'], media_ids=[media.media_id])
+            print("✅ SANAT ESERİ PAYLAŞILDI!")
+            
+        except Exception as e:
+            print(f"❌ Twitter Hatası: {e}")
+    else:
+        print("❌ Resim çizilemediği için iptal.")
 
 if __name__ == "__main__":
-    main_job()
+    post_tweet()
