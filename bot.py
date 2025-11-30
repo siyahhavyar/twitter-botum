@@ -13,7 +13,8 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- YEDEK DEPOLU TOKEN SİSTEMİ ---
+# --- 6 MOTORLU GÜÇ SİSTEMİ (HUGGING FACE) ---
+# Bu sistem sayesinde bot asla "kota doldu" diye durmaz.
 TOKEN_LISTESI = [
     os.environ.get('HF_TOKEN'),
     os.environ.get('HF_TOKEN_1'),
@@ -23,35 +24,37 @@ TOKEN_LISTESI = [
     os.environ.get('HF_TOKEN_5'),
     os.environ.get('HF_TOKEN_6')
 ]
+# Boş olanları listeden temizle
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
-# En iyi sonuç veren model
+# Beyin: Gemini 1.5 Flash (Hatasız, hızlı)
 model = genai.GenerativeModel('gemini-1.5-flash')
-# Kalitenin kralı SDXL
+# Ressam: SDXL 1.0 (En yüksek kalite)
 repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_artistic_vision():
-    print("🧠 Sanatçı (Gemini) ilham arıyor...")
+    print("🧠 Sanat Yönetmeni (Gemini) vizyonunu oluşturuyor...")
     
-    # --- İŞTE BURASI ÇOK ÖNEMLİ ---
-    # Ona kısıtlı bir liste vermiyoruz. Ona "Sen Sanatçısın" diyoruz.
+    # --- TAM OTONOM SANATÇI EMRİ ---
+    # Liste yok. Sınırlama yok. Sadece "Estetik ve Güzel" olma kuralı var.
     
     prompt_emir = """
-    Sen dünyaca ünlü, vizyoner bir dijital sanatçısın ve küratörsün.
-    Görevin: Twitter (X) kitlesi için insanların telefonlarına "Duvar Kağıdı" yapmak isteyeceği, estetik açıdan kusursuz bir eser tasarlamak.
+    Sen dünyaca ünlü, vizyoner bir dijital sanatçısın (Art Director).
+    Görevin: Twitter (X) kitlesi için insanların telefonlarına "Duvar Kağıdı" yapmak isteyeceği, estetik açıdan kusursuz, büyüleyici bir eser tasarlamak.
     
-    KURALLARIN:
-    1. ASLA korku, kan, şiddet, cinsellik, rahatsız edici veya tiksindirici öğeler kullanma.
-    2. Sıradan, sıkıcı veya çok basit şeyler yapma.
-    3. İnsanların "Vay be, bu ne kadar güzel" diyeceği, renk uyumu mükemmel, kompozisyonu harika şeyler düşün.
-    4. Konu seçiminde ÖZGÜRSÜN. İster fütüristik bir şehir, ister huzurlu bir doğa, ister soyut bir rüya, ister antik bir tapınak... O an içinden ne geliyorsa. Tek kriter: ESTETİK ve GÜZEL olması.
+    KESİN KURALLARIN:
+    1. ASLA korku, kan, şiddet, cinsellik, +18, rahatsız edici veya tiksindirici öğeler kullanma.
+    2. Sıradan, sıkıcı veya çok basit (sadece bir daire gibi) şeyler yapma.
+    3. İnsanların görünce "Vay be, bunu kaydetmeliyim" diyeceği, renk uyumu mükemmel, kompozisyonu harika şeyler düşün.
+    
+    Konu seçiminde TAMAMEN ÖZGÜRSÜN. O anki ilhamına göre fütüristik bir şehir, mistik bir orman, soyut bir rüya alemi veya antik bir yapı tasarlayabilirsin. Tek kriter: GÖZ ALICI ve KALİTELİ olması.
     
     Bana SADECE şu JSON formatında cevap ver:
     {
-      "caption": "Twitter için İngilizce, kısa, havalı, emojili bir sanatçı notu. (Eserin adı gibi)",
-      "image_prompt": "Resmi çizecek yapay zeka için İNGİLİZCE, çok detaylı, 8k çözünürlükte, sinematik ışıklandırmalı, dikey formatta (vertical wallpaper), fotoğraf gerçekliğinde (photorealistic) ve 'masterpiece' kalitesinde prompt. Asla 'text' olmasın."
+      "caption": "Twitter için İngilizce, çok kısa, havalı, emojili bir sanatçı notu (Eserin adı gibi).",
+      "image_prompt": "Resmi çizecek yapay zeka için İNGİLİZCE, çok detaylı, 8k çözünürlükte, sinematik ışıklandırmalı, dikey formatta (vertical wallpaper), fotoğraf gerçekliğinde (photorealistic) ve 'masterpiece' kalitesinde prompt. Asla 'text' veya 'watermark' olmasın."
     }
     """
     
@@ -59,40 +62,44 @@ def get_artistic_vision():
         response = model.generate_content(prompt_emir)
         text = response.text.replace("```json", "").replace("```", "").strip()
         data = json.loads(text)
-        print(f"✅ Sanatçı Kararını Verdi: {data['caption']}")
+        print(f"✅ Vizyon Belirlendi: {data['caption']}")
         return data
     except Exception as e:
         print(f"⚠️ Gemini İlham Gelmedi ({e}), yedek devreye giriyor.")
+        # Çok nadir bir hata olursa yedek olarak bunu çizer.
         return {
             "caption": "Dreamscape 🌌 \n\n#Art #Wallpaper #AI",
             "image_prompt": "A majestic floating island in the sky with waterfalls, dreamy atmosphere, cinematic lighting, 8k, vertical, photorealistic, masterpiece"
         }
 
 def generate_image_sdxl(prompt):
-    # Yedek anahtarları sırayla dener
+    # Elimizdeki 6 motoru (anahtarı) sırayla dener. Biri çalışmazsa diğerine geçer.
     for i, token in enumerate(TOKEN_LISTESI):
-        print(f"🔄 {i+1}. Fırça (Anahtar) deneniyor...")
+        print(f"🔄 {i+1}. Ressam Motoru (Anahtar) deneniyor...")
         try:
             client = InferenceClient(model=repo_id, token=token)
             
-            # SDXL ile Dikey ve Yüksek Kalite
+            # SDXL ile Dikey ve Yüksek Kalite Çizim (Bu oran telefon için en iyisidir)
             image = client.text_to_image(
-                f"{prompt}, vertical wallpaper, aspect ratio 2:3, 8k resolution, highly detailed", 
+                f"{prompt}", 
                 width=768, height=1344
             )
             image.save("art_piece.jpg")
-            print(f"✅ Eser Çizildi ({i+1}. Anahtar).")
+            print(f"✅ Eser Başarıyla Çizildi ({i+1}. Motor).")
             return True
         except Exception as e:
-            print(f"❌ {i+1}. Anahtar Hatası: {e}")
-            time.sleep(1)
+            # Eğer 418 veya 429 hatası (kota doldu) gelirse burası çalışır.
+            print(f"⚠️ {i+1}. Motor Hatası (Diğerine geçiliyor): {e}")
+            time.sleep(1) # 1 saniye bekle ve diğer anahtarı dene
             
-    print("🚨 HATA: Hiçbir anahtar çizemedi.")
+    print("🚨 HATA: Tüm motorlar denendi ama hiçbiri çalışmadı (İnanılmaz!).")
     return False
 
 def post_tweet():
+    # 1. Beyin (Gemini) konuyu bulur
     content = get_artistic_vision()
     
+    # 2. El (Hugging Face SDXL) resmi çizer
     if generate_image_sdxl(content['image_prompt']):
         print("🐦 Galeriye (Twitter) yükleniyor...")
         try:
