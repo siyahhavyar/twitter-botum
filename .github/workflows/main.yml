@@ -1,44 +1,50 @@
-name: Twitter Botu
+name: Twitter Botu (TR Saati)
 
 on:
   schedule:
-    # Türkiye Saati (UTC+3) Ayarları:
-    # Günde 8 Kere Paylaşım
-    # 07:00 TR -> 04:00 UTC
-    # 10:00 TR -> 07:00 UTC
-    # 12:00 TR -> 09:00 UTC
-    # 15:00 TR -> 12:00 UTC
-    # 17:00 TR -> 14:00 UTC
-    # 19:00 TR -> 16:00 UTC
-    # 21:00 TR -> 18:00 UTC
-    # 23:00 TR -> 20:00 UTC
-    - cron: '0 4 * * *'
-    - cron: '0 7 * * *'
-    - cron: '0 9 * * *'
-    - cron: '0 12 * * *'
-    - cron: '0 14 * * *'
-    - cron: '0 16 * * *'
-    - cron: '0 18 * * *'
-    - cron: '0 20 * * *'
-  workflow_dispatch: # Elle deneme butonu
+    # Türkiye Saati (UTC+3) ile Günde 8 Kere
+    # 07:00, 10:00, 12:00, 15:00, 17:00, 19:00, 21:00, 23:00
+    - cron: '0 4,7,9,12,14,16,18,20 * * *'
+  workflow_dispatch: # Elle çalıştırma butonu
 
 jobs:
   calistir:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Dosya işlemleri için izin
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Python Kur
-        uses: actions/setup-python@v2
+      - name: Depoyu Çek
+        uses: actions/checkout@v3
+
+      - name: Python Kur (3.12)
+        uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-      - name: Kutuphaneleri Yukle
+
+      - name: Kütüphaneleri Yükle
         run: pip install -r requirements.txt
-      - name: Botu Calistir
+
+      - name: Botu Çalıştır
         env:
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
-          API_KEY: ${{ secrets.API_KEY }}
-          API_SECRET: ${{ secrets.API_SECRET }}
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          REPLICATE_TOKEN: ${{ secrets.REPLICATE_TOKEN }}  # <-- Ekledim, artık token gelecek!
+          # SOL TARAFA DOKUNMA (Python bu isimleri arıyor)
+          # SAĞ TARAFA DİKKAT (Senin GitHub Secrets'a kaydettiğin isimler olmalı)
+          
+          GEMINI_API_KEY: ${{ secrets.GEMINI_KEY }}
+          
+          # Twitter Şifreleri (Eğer GitHub Secret'a API_KEY diye kaydettiysen böyle kalabilir)
+          # Ama Python kodunda TWITTER_API_KEY diye bekliyor, o yüzden eşleştiriyoruz:
+          TWITTER_API_KEY: ${{ secrets.API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          
         run: python bot.py
+
+      # Twitter çalışmazsa veya kontrol etmek istersen resmi buraya kaydeder
+      - name: Resmi Göster (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gunluk-duvar-kagidi
+          path: wallpaper_hq.jpg
+          if-no-files-found: ignore
