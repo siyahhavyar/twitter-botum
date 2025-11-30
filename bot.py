@@ -16,9 +16,9 @@ api_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
-REPLICATE_TOKEN = os.environ.get('REPLICATE_TOKEN')  # <-- burası artık doğru!
+REPLICATE_TOKEN = os.environ.get('REPLICATE_TOKEN')  # <-- Senin az önce eklediğin!
 
-# DEBUG: Token'ın gelip gelmediğini hemen kontrol edelim
+# DEBUG SATIRLARI BURAYA EKLENDİ (REPLICATE_TOKEN kontrolü için)
 print(f"DEBUG: REPLICATE_TOKEN var mı? {'EVET' if REPLICATE_TOKEN else 'HAYIR'}")
 if REPLICATE_TOKEN:
     print(f"DEBUG: Token başı → {REPLICATE_TOKEN[:20]}...")
@@ -67,7 +67,7 @@ def generate_image_with_replicate(prompt):
         "Content-Type": "application/json"
     }
     payload = {
-        "version": "1f208f8c8705b9c1389a20dae6d317b9873dacfb9f8236a24d1e57c68e2d1b9e",  # Flux Schnell
+        "version": "1f208f8c8705b9c1389a20dae6d317b9873dacfb9f8236a24d1e57c68e2d1b9e",  # Flux Schnell (hızlı & kaliteli)
         "input": {
             "prompt": prompt + ", vertical phone wallpaper, ultra detailed, 8k, masterpiece",
             "aspect_ratio": "9:16",
@@ -85,6 +85,7 @@ def generate_image_with_replicate(prompt):
         prediction_id = r.json()["id"]
         url = f"{REPLICATE_API}/{prediction_id}"
 
+        # Sonucu bekle
         while True:
             res = requests.get(url, headers=headers)
             data = res.json()
