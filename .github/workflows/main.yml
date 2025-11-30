@@ -40,4 +40,5 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          REPLICATE_TOKEN: ${{ secrets.REPLICATE_TOKEN }}  # <-- Ekledim, artık token gelecek!
         run: python bot.py
