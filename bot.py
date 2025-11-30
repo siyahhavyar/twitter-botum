@@ -2,9 +2,9 @@ import tweepy
 import os
 import time
 import json
+import requests
 import random
 import google.generativeai as genai
-from huggingface_hub import InferenceClient
 
 # --- ŞİFRELER ---
 api_key = os.environ['API_KEY']
@@ -13,141 +13,95 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- YEDEK DEPOLU TOKEN SİSTEMİ ---
-TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'),
-    os.environ.get('HF_TOKEN_1'),
-    os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN_3'),
-    os.environ.get('HF_TOKEN_4'),
-    os.environ.get('HF_TOKEN_5'),
-    os.environ.get('HF_TOKEN_6')
-]
-TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
-
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-pro')
-repo_id = "stabilityai/stable-diffusion-xl-base-1.0"
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 🎨 KARMAŞIK VE ÇEŞİTLİ KONU HAVUZU ---
-KONULAR = [
-    # SÜRREALİST & İMKANSIZ
-    "A city built on the back of a giant flying turtle",
-    "A library where books are portals to other worlds, floating",
-    "Stairs leading to a door in the clouds",
-    "A forest where trees are made of crystal and glass",
-    "An hourglass with a whole galaxy inside it",
-    "A train traveling through the sky on tracks made of light",
-    "Melting clocks in a desert landscape (Dali style)",
-
-    # FÜTÜRİSTİK & CYBERPUNK
-    "A futuristic city with vertical gardens and flying vehicles",
-    "A cyberpunk street market in the rain with neon signs",
-    "An underwater city dome glowing in the deep ocean",
-    "A bustling spaceport on a distant planet with alien ships",
-    "A robot tending to a complex mechanical garden",
-    "A futuristic observatory on a mountain peak looking at a nebula",
-
-    # FANTASTİK & MİTOLOJİK
-    "An ancient dragon guarding a hoard of glowing treasure in a cave",
-    "A wizard's tower full of magical artifacts and glowing runes",
-    "A steampunk airship fleet sailing through the clouds",
-    "A mythical phoenix rising from ashes, made of fire and light",
-    "An elf village seamlessly integrated into massive ancient trees",
-    "A hidden temple in a jungle overgrown with bioluminescent plants",
-
-    # TARİHİ & ALTERNATİF
-    "An ancient Roman city but with advanced clockwork technology",
-    "A vibrant market in a bustling medieval fantasy city",
-    "A samurai duel in a mystical, fog-covered landscape",
-    "A pirate ship sailing on a sea of stars instead of water",
-    "An Art Deco style metropolis from the 1920s of the future",
-    "A detailed alchemist's laboratory filled with strange potions",
-
-    # DOĞA & ATMOSFER (Ama daha dramatik)
-    "A dramatic thunderstorm over a jagged mountain range",
-    "A mysterious bioluminescent forest at night",
-    "A vast desert landscape with strange, towering rock formations",
-    "An ancient, gnarled tree of life glowing in a dark forest",
-    "A breathtaking aurora borealis reflecting in a frozen lake",
-    "A secret garden hidden behind a waterfall",
-
-    # KAVRAMSAL & SOYUT (Korku yok)
-    "A visual representation of 'Time' as a complex machine",
-    "A dreamscape with floating islands and impossible architecture",
-    "A symphony of light and color forming a cosmic structure",
-    "A world made entirely of clockwork gears and mechanisms"
-]
-
-def get_creative_idea():
-    topic = random.choice(KONULAR)
-    print(f"🎯 Seçilen Konu: {topic}")
+def get_autonomous_idea():
+    print("🧠 Gemini, senin zevkine göre yeni ve eşsiz bir fikir kurguluyor...")
     
-    # Gemini'ye "Sıradan olma, Şaşırt, Karmaşık yap" emri
-    prompt_emir = f"""
-    Sen ödüllü bir dijital sanatçısın. Konu: "{topic}".
+    # BURASI ÇOK ÖNEMLİ: Senin zevk haritan
+    prompt_emir = """
+    Sen benim kişisel dijital sanat asistanımsın. Twitter hesabım için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
-    ÖNEMLİ KURAL: Asla korku, kan, şiddet veya ürkütücü öğeler kullanma.
-    
-    Görevin:
-    1. Bu konuyu temel alarak, sıradanlıktan uzak, görsel olarak zengin, karmaşık ve düşündürücü bir sahne kurgula.
-    2. İzleyiciyi şaşırtacak, detaylarla dolu bir kompozisyon hayal et. Sürrealist veya beklenmedik unsurlar eklemekten çekinme.
-    
-    2. Bana SADECE şu JSON formatını ver:
-    {{
-      "caption": "Twitter için İngilizce, konuyu yansıtan havalı, emojili kısa bir açıklama.",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları MUTLAKA içersin: 'highly detailed, cinematic lighting, 8k resolution, photorealistic, vertical wallpaper, masterpiece, sharp focus, intricate details'. ASLA 'horror' veya 'scary' kullanma."
-    }}
+    BENİM SEVDİĞİM TARZLAR (Bunları karıştır, birleştir, yeniden yorumla):
+    1. Minimalist Doğa (Sakin, sisli, huzurlu, tek ağaç, göl yansıması vb.)
+    2. Estetik Geometri (Bauhaus tarzı, düz çizgiler, pastel tonlar, simetri)
+    3. Temiz Bilim Kurgu (Neon ışıklar, sade uzay boşluğu, astronot, retro-fütürizm)
+    4. Sürrealist Rüyalar (Bulutların üstünde kapılar, uçan adalar, mantık dışı ama estetik)
+    5. Soft Renkler ve Işık (Gün batımı, 'Golden hour', loş ışık, huzur verici atmosfer)
+
+    GÖREVİN:
+    Yukarıdaki tarzları temel alarak, daha önce hiç yapılmamış, benzersiz ve çok havalı bir görsel fikir bul.
+    Sürekli aynı şeyi yapma. Bir seferinde dağ çiziyorsan, diğerinde neon bir şehir, ötekinde soyut bir şekil çiz. Çeşitlilik şart.
+
+    Bana SADECE şu JSON formatında cevap ver:
+    {
+      "caption": "Twitter için İngilizce, çok kısa (max 1 cümle), havalı ve emojili bir açıklama. Hashtagler ekle (#Minimalist #Art #4K vb.).",
+      "image_prompt": "Resmi çizecek yapay zeka için İNGİLİZCE prompt. Şunları MUTLAKA ekle: 'minimalist, clean lines, vertical wallpaper, 8k resolution, masterpiece, high quality, cinematic lighting, photorealistic, sharp focus'. Asla 'text' veya 'watermark' olmasın."
+    }
     """
     
     try:
         response = model.generate_content(prompt_emir)
         text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text)
-    except:
+        data = json.loads(text)
+        print(f"✅ Fikir Bulundu: {data['caption']}")
+        return data
+    except Exception as e:
+        print(f"⚠️ Gemini Hatası ({e}), yedek konu kullanılıyor.")
         return {
-            "caption": "A Glimpse of the Infinite ✨ \n\n#Surreal #Art #Wallpaper",
-            "image_prompt": "A surreal landscape with floating islands and ancient ruins under a nebula sky, cinematic lighting, 8k, photorealistic, vertical, masterpiece, intricate details"
+            "caption": "Serenity in Blue 🌊 \n\n#Minimalist #Wallpaper #Art",
+            "image_prompt": "A single sailboat on a calm blue ocean, minimalist style, vertical, 8k, photorealistic"
         }
 
-def generate_image_sdxl(prompt):
-    for i, token in enumerate(TOKEN_LISTESI):
-        print(f"🔄 {i+1}. Anahtar deneniyor...")
-        try:
-            client = InferenceClient(model=repo_id, token=token)
-            image = client.text_to_image(
-                f"{prompt}, vertical wallpaper, aspect ratio 2:3", 
-                width=768, height=1344
-            )
-            image.save("tweet_img.jpg")
-            print(f"✅ Resim Çizildi ({i+1}. Anahtar).")
+# --- SINIRSIZ RESSAM (POLLINATIONS FLUX) ---
+def generate_image_flux(prompt):
+    print(f"🎨 Flux Çiziyor: {prompt[:50]}...")
+    
+    # Promptu URL uyumlu hale getir
+    encoded_prompt = requests.utils.quote(prompt)
+    seed = random.randint(1, 1000000)
+    
+    # Twitter için Dikey (Vertical) Boyut: 1080x1920
+    url = f"https://pollinations.ai/p/{encoded_prompt}?width=1080&height=1920&model=flux&seed={seed}&nologo=true&enhance=true"
+    
+    try:
+        response = requests.get(url, timeout=90)
+        
+        if response.status_code == 200 and len(response.content) > 0:
+            with open("tweet_image.jpg", 'wb') as f:
+                f.write(response.content)
+            print("✅ Resim İndirildi.")
             return True
-        except Exception as e:
-            print(f"❌ {i+1}. Anahtar Hatası: {e}")
-            time.sleep(1)
-            
-    print("🚨 HATA: Hiçbir anahtar çizemedi.")
-    return False
+        else:
+            print(f"❌ Resim hatası: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"❌ İndirme hatası: {e}")
+        return False
 
 def post_tweet():
-    content = get_creative_idea()
+    # 1. Fikri Bul (Otonom)
+    content = get_autonomous_idea()
     
-    if generate_image_sdxl(content['image_prompt']):
+    # 2. Resmi Çiz
+    if generate_image_flux(content['image_prompt']):
         print("🐦 Twitter'a yükleniyor...")
         try:
             auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
             api = tweepy.API(auth)
             client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
 
-            media = api.media_upload(filename="tweet_img.jpg")
+            media = api.media_upload(filename="tweet_image.jpg")
+            
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
             print("✅ TWITTER'DA PAYLAŞILDI!")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
     else:
-        print("❌ Resim çizilemediği için iptal.")
+        print("⚠️ Resim çizilemediği için iptal.")
 
 if __name__ == "__main__":
     post_tweet()
