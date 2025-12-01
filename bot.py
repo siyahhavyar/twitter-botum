@@ -12,24 +12,27 @@ CONSUMER_SECRET = os.environ.get("API_SECRET")
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 ACCESS_SECRET = os.environ.get("ACCESS_SECRET")
 
+# Token Listesi
+hf_tokens = [
+    os.environ.get("HF_TOKEN_1"), os.environ.get("HF_TOKEN_2"),
+    os.environ.get("HF_TOKEN_3"), os.environ.get("HF_TOKEN_4"),
+    os.environ.get("HF_TOKEN_5"), os.environ.get("HF_TOKEN_6")
+]
+valid_tokens = [t for t in hf_tokens if t]
+
 def get_creative_content():
-    print("🧠 Gemini: Generating concept...")
+    print("🧠 Gemini (Pro): Generating concept...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        # Model ismini güncelledik, artık hata vermeyecek
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # GÜNCELLEME: En güvenli model 'gemini-pro'dur.
+        model = genai.GenerativeModel('gemini-pro')
         
-        # KONU LİSTESİ (Çeşitlilik için)
         themes = [
-            "Cyberpunk City Rain Neon", "Minimalist Zen Garden", "Hyper-Realistic Water Droplets", 
-            "Neon Noir Street", "Deep Space Nebula", "Crystal Cave", 
-            "Futuristic Glass Architecture", "Bioluminescent Forest", "Sunset snowy mountains",
-            "Abstract Liquid Gold", "Geometric 3D shapes", "Synthwave 80s Road",
-            "Macro Eye Photography", "Underwater Coral Reef", "Misty Pine Forest",
-            "Vibrant Oil Painting", "Paper Cutout Art", "Stormy Ocean Waves", 
-            "Detailed Mechanical Watch", "Fire and Ice Abstract", "Dreamy Clouds Pastel", 
-            "Isometric Tiny House", "Steampunk Airship", "Glitch Art Portrait", 
-            "Marble Texture Gold", "Double Exposure Nature", "Majestic Lion Portrait"
+            "Cyberpunk City Neon Rain", "Minimalist Zen Garden", "Space Nebula", 
+            "Futuristic Architecture", "Bioluminescent Forest", "Sunset Mountains",
+            "Abstract Liquid 3D", "Geometric Shapes", "Synthwave Retro",
+            "Macro Nature Photography", "Underwater Reef", "Vibrant Oil Painting",
+            "Stormy Ocean", "Mechanical Watch Gears", "Glitch Art"
         ]
         theme = random.choice(themes)
         
@@ -37,13 +40,13 @@ def get_creative_content():
         Act as an Art Director. Theme: "{theme}".
         
         TASK:
-        1. Write a prompt for 'Flux' AI. 
-        2. Write a short English Tweet.
+        1. Write a prompt for 'Stable Diffusion XL'.
+        2. Write a short English Tweet caption.
         3. Hashtags.
         
         RULES:
-        - Keywords to include: "8k resolution, photorealistic, sharp focus, incredibly detailed, macro photography, hard contrast".
-        - FORBIDDEN: "blur, bokeh, soft, depth of field" (We want full sharpness).
+        - Keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, hard contrast".
+        - FORBIDDEN: "blur, bokeh, soft focus" (Must be sharp).
         
         FORMAT:
         PROMPT: [Image Prompt] ||| CAPTION: [Caption]
@@ -65,45 +68,60 @@ def get_creative_content():
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
         # Yedek Plan
-        return "hyper-realistic water drop on leaf, macro photo, 8k, sharp focus, high contrast", "Nature details. 🌿💧 #wallpaper"
+        return "cyberpunk city street night neon, vector art, sharp focus, 8k", "Neon vibes. 🌃✨ #wallpaper #cyberpunk"
 
-def download_image_sharp(prompt):
-    print("💎 Pollinations (Flux): Rendering sharp image...")
+def download_image_hf(prompt):
+    print("🎨 Hugging Face (SDXL): Rendering HD image...")
     
-    encoded = requests.utils.quote(prompt)
-    seed = random.randint(1, 100000)
+    # SDXL Base 1.0 (En stabil ve kaliteli açık model)
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
-    # --- KALİTE AYARLARI ---
-    # Width/Height: 768x1344 (Bu yapay zekanın "Native" boyutudur. EN NET sonucu bu verir)
-    # Model: flux (En stabili budur)
-    # Enhance: true (Renkleri canlandırır)
-    
-    url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={seed}&model=flux&nologo=true&enhance=true"
-    
-    try:
-        # İndirme süresini biraz uzattık (timeout=90) ki yarıda kesilmesin
-        response = requests.get(url, timeout=90)
+    # Her bir tokeni sırayla dene
+    for idx, token in enumerate(valid_tokens):
+        headers = {"Authorization": f"Bearer {token}"}
         
-        if response.status_code == 200:
-            filename = "wallpaper.jpg"
-            with open(filename, 'wb') as f:
-                f.write(response.content)
+        # 768x1344 = SDXL'in Dikey HD doğal çözünürlüğü. (Bulanık olmaz)
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": 768,
+                "height": 1344,
+                "num_inference_steps": 40,
+                "guidance_scale": 7.5
+            }
+        }
+        
+        try:
+            print(f"➡️ Trying Token {idx+1}...")
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
             
-            size = os.path.getsize(filename) / 1024
-            print(f"✅ Image Downloaded! Size: {size:.0f}KB")
-            
-            # Eğer dosya 50KB'dan küçükse resim inmemiş demektir
-            if size < 50: 
-                print("❌ File too small (Error text returned). Retrying with simple prompt...")
-                return None
+            if response.status_code == 200:
+                print("✅ Hugging Face SUCCESS!")
                 
-            return filename
-        else:
-            print(f"❌ Server Error: {response.status_code}")
-            return None
-    except Exception as e:
-        print(f"Download Error: {e}")
-        return None
+                filename = "wallpaper.jpg"
+                with open(filename, 'wb') as f:
+                    f.write(response.content)
+                
+                size = os.path.getsize(filename) / 1024
+                # 50KB altıysa hata mesajıdır
+                if size < 50:
+                    print("❌ File too small (Error). Trying next token...")
+                    continue
+                    
+                print(f"✅ Image Ready! Size: {size:.0f}KB")
+                return filename
+                
+            elif "loading" in response.text:
+                print("⏳ Model loading... Waiting 10s")
+                time.sleep(10)
+            else:
+                print(f"❌ Error Code: {response.status_code}")
+                
+        except Exception as e:
+            print(f"Connection error: {e}")
+            
+    print("🚨 All tokens failed.")
+    return None
 
 def post_to_twitter(filename, text):
     print("🐦 Uploading to Twitter...")
@@ -127,17 +145,9 @@ def post_to_twitter(filename, text):
 
 if __name__ == "__main__":
     prompt, caption = get_creative_content()
-    
-    # İlk deneme
-    image_file = download_image_sharp(prompt)
-    
-    # Eğer ilk deneme başarısız olursa, basit bir prompt ile tekrar dene (Yedek)
-    if not image_file:
-        print("🔄 Retrying with backup prompt...")
-        image_file = download_image_sharp("minimalist abstract geometric shapes, 8k, sharp focus, vibrant colors")
-        caption = "Abstract vibes. ✨ #wallpaper #art"
+    image_file = download_image_hf(prompt)
     
     if image_file:
         post_to_twitter(image_file, caption)
     else:
-        print("❌ Final failure. No image generated.")
+        print("❌ Process failed.")
