@@ -22,39 +22,32 @@ hf_tokens = [
 ]
 valid_tokens = [t for t in hf_tokens if t]
 
-# --- YEDEK SENARYOLAR (Gemini Bozulursa Devreye Girer) ---
-BACKUP_SCENARIOS = [
-    {"p": "Cyberpunk city street raining neon lights, vector art", "c": "Neon rain. 🌃☂️ #cyberpunk"},
-    {"p": "Deep space nebula with stars, high contrast", "c": "Lost in space. 🌌✨ #space"},
-    {"p": "Abstract liquid gold and black marble texture", "c": "Golden touch. 🏆✨ #luxury"},
-    {"p": "Majestic snowy mountains at sunrise, photorealistic", "c": "Mountain vibes. 🏔️❄️ #nature"},
-    {"p": "Futuristic glass architecture skyscraper", "c": "Future cities. 🏢💠 #architecture"},
-    {"p": "Macro photography of water drop on a leaf", "c": "Details matter. 💧🍃 #macro"},
-    {"p": "Geometric abstract shapes 3D, orange and blue", "c": "Geometric harmony. 🔶🔷 #abstract"},
-    {"p": "Underwater coral reef with colorful fish", "c": "Under the sea. 🐠🌊 #ocean"},
-    {"p": "Vibrant oil painting of a flower field", "c": "Painted dreams. 🌻🎨 #art"},
-    {"p": "Misty pine forest morning", "c": "Morning mist. 🌲🌫️ #forest"}
-]
-
 def get_creative_content():
-    print("🧠 Gemini: Generating concept...")
+    print("🧠 Gemini (Pro): Generating Ultra-High-Res concept...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash') # 1.5-flash olmazsa 'gemini-pro' deneyebilirsin
+        model = genai.GenerativeModel('gemini-pro') 
         
-        themes = ["Cyberpunk", "Nature", "Space", "Abstract", "Retro", "Fantasy", "Architecture", "Macro"]
-        selected = random.choice(themes)
-
+        themes = [
+            "Hyper-Detailed Cyberpunk Street", "Macro Water Drop on Leaf", 
+            "Ultra-Realistic Eye Iris", "Space Galaxy Nebula 8K", 
+            "Bioluminescent Avatar Forest", "Crystal Clear Ice Cave",
+            "Futuristic Gold & Marble Architecture", "Neon Noir Rain",
+            "Detailed Mechanical Watch Movement", "Vibrant Oil Painting Texture"
+        ]
+        theme = random.choice(themes)
+        
         instruction = f"""
-        Act as an Art Director. Theme: "{selected}".
+        Role: Art Director. Theme: "{theme}".
+        
         TASK:
-        1. Write a prompt for 'Stable Diffusion XL'. 
-        2. Write a short English Tweet.
+        1. Write a prompt for 'Stable Diffusion XL'.
+        2. Write a short English Tweet caption.
         3. Hashtags.
         
         RULES:
-        - Image keywords: "8k resolution, vertical wallpaper, sharp focus, hard contrast, vector lines, no blur".
-        - FORBIDDEN: "blur, bokeh, depth of field".
+        - Keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, hard contrast, ray tracing, unreal engine 5".
+        - FORBIDDEN: "blur, bokeh, soft focus, fuzzy, low res".
         
         FORMAT:
         PROMPT: [Image Prompt] ||| CAPTION: [Caption]
@@ -66,117 +59,130 @@ def get_creative_content():
         if len(parts) == 2:
             p_text = parts[0].replace("PROMPT:", "").strip()
             c_text = parts[1].replace("CAPTION:", "").strip()
-            final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, no blur"
-            print(f"🎨 Gemini Success! Theme: {selected}")
+            # Keskinlik Komutları (16K hissi için)
+            final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, high fidelity, no blur, highly detailed, hdr"
+            print(f"🎨 Theme: {theme}")
             return final_prompt, c_text
         else:
             raise Exception("Format Error")
             
     except Exception as e:
-        print(f"⚠️ Gemini Failed. Using RANDOM BACKUP.")
-        backup = random.choice(BACKUP_SCENARIOS)
-        final_prompt = backup["p"] + ", vertical wallpaper, 8k resolution, sharp focus, no blur"
-        return final_prompt, backup["c"]
+        print(f"⚠️ Gemini Error: {e}")
+        return "cyberpunk city street night neon, sharp focus, 8k, hdr", "Neon vibes. 🌃✨ #wallpaper"
 
-def try_huggingface(prompt):
-    print("🎨 Hugging Face (SDXL) attempting...")
+def download_image_sdxl(prompt):
+    print("🎨 1. AŞAMA: Hugging Face (SDXL) Baz Resmi Çiziyor...")
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
         
-        # SDXL Native Boyut (En net hali)
+        # 768x1344 -> SDXL'in en temiz olduğu boyut.
         payload = {
             "inputs": prompt,
             "parameters": {
-                "width": 768, 
+                "width": 768,
                 "height": 1344,
-                "num_inference_steps": 40,
-                "guidance_scale": 7.5
+                "num_inference_steps": 45, # Detay için artırdık
+                "guidance_scale": 8.0     # Prompta daha sıkı bağlılık
             }
         }
         
         try:
-            print(f"➡️ Trying Token {idx+1}...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+            print(f"➡️ Token {idx+1} deneniyor...")
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=40)
             
             if response.status_code == 200:
-                print("✅ Hugging Face SUCCESS!")
+                print("✅ Baz Resim Hazır.")
                 return response.content
             elif "loading" in response.text:
-                print("⏳ Model loading...")
+                print("⏳ Model ısınıyor...")
                 time.sleep(5)
             else:
-                print(f"❌ Error Code: {response.status_code}")
+                print(f"❌ Hata: {response.status_code}")
                 
         except Exception as e:
-            print(f"Connection error: {e}")
+            print(f"Bağlantı hatası: {e}")
             
     return None
 
-def try_pollinations_backup(prompt):
-    print("🛡️ BACKUP SYSTEM (Pollinations) Activated...")
-    try:
-        encoded = requests.utils.quote(prompt)
-        url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={random.randint(1,1000)}&model=flux-realism&nologo=true&enhance=true"
+def ai_upscale_image(image_bytes):
+    print("🚀 2. AŞAMA: Yapay Zeka ile Büyütülüyor (x2 Upscale)...")
+    
+    # Bu model resmi bulanıklık olmadan 2 katına çıkarır (Yaklaşık 3000px yükseklik)
+    UPSCALER_URL = "https://api-inference.huggingface.co/models/caidas/swin2SR-classical-sr-x2-64"
+    
+    for token in valid_tokens:
+        headers = {"Authorization": f"Bearer {token}"}
         
-        response = requests.get(url, timeout=40)
-        if response.status_code == 200:
-            print("✅ Backup system generated image!")
-            return response.content
-    except Exception as e:
-        print(f"Backup error: {e}")
+        try:
+            response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=80)
+            
+            if response.status_code == 200:
+                print("✅ Upscale Başarılı! Çözünürlük arttı.")
+                return response.content
+            
+            elif "loading" in response.text:
+                print("⏳ Upscaler ısınıyor...")
+                time.sleep(10)
+                # Tekrar dene
+                response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=80)
+                if response.status_code == 200:
+                    return response.content
+            
+        except Exception as e:
+            print(f"Upscale Hatası: {e}")
+            
     return None
 
-def upscale_image_to_4k(filename):
-    print("🚀 UPSCALING ENGINE: Resmi 4K Yapıyor & Keskinleştiriyor...")
+def enhance_clarity(filename):
+    print("💎 3. AŞAMA: '16K Hissi' Veren Keskinleştirme (HDR Effect)...")
     try:
-        # 1. Resmi Oku
         img = cv2.imread(filename)
-        if img is None:
-            print("❌ Resim okunamadı.")
-            return False
+        if img is None: return False
 
-        # 2. Boyutları al ve 2 Katına çıkar (Upscale)
-        # Lanczos4 interpolasyonu en kaliteli büyütme yöntemidir.
-        h, w = img.shape[:2]
-        new_w, new_h = w * 2, h * 2
-        upscaled = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
-        print(f"📏 Yeni Boyut: {new_w}x{new_h} (HD/4K Ready)")
+        # A) Keskinleştirme Filtresi (Unsharp Mask)
+        # Görüntüyü hafif bulanıklaştırıp orijinalden çıkararak kenarları belirginleştirir.
+        gaussian = cv2.GaussianBlur(img, (0, 0), 2.0)
+        unsharp_image = cv2.addWeighted(img, 1.5, gaussian, -0.5, 0, img)
 
-        # 3. Keskinleştirme (Sharpening Kernel) - Bulanıklığı siler
-        # Bu matris, kenarları belirginleştirir.
-        kernel = np.array([[0, -1, 0],
-                           [-1, 5,-1],
-                           [0, -1, 0]])
-        sharpened = cv2.filter2D(upscaled, -1, kernel)
+        # B) Detay Artırma (CLAHE - Contrast Limited Adaptive Histogram Equalization)
+        # Bu işlem renkleri patlatır ve gölgelerdeki detayları ortaya çıkarır.
+        # Önce LAB renk uzayına çeviriyoruz
+        lab = cv2.cvtColor(unsharp_image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        cl = clahe.apply(l)
+        
+        limg = cv2.merge((cl,a,b))
+        final_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-        # 4. Kaydet (Eski resmin üzerine yaz)
-        cv2.imwrite(filename, sharpened, [cv2.IMWRITE_JPEG_QUALITY, 100])
+        # Kaydet (Maksimum kalite JPG)
+        cv2.imwrite(filename, final_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
         
         new_size = os.path.getsize(filename) / 1024
-        print(f"✅ İŞLEM TAMAM! Yeni Dosya Boyutu: {new_size:.0f}KB")
+        print(f"✅ FİNAL GÖRÜNTÜ HAZIR! Dosya Boyutu: {new_size:.0f}KB")
         return True
 
     except Exception as e:
-        print(f"Upscale Hatası: {e}")
+        print(f"Efekt Hatası: {e}")
         return False
 
-def save_and_post(image_bytes, tweet_text):
+def save_and_post(final_image_bytes, tweet_text):
     filename = "wallpaper.jpg"
     with open(filename, "wb") as f:
-        f.write(image_bytes)
+        f.write(final_image_bytes)
         
-    if os.path.getsize(filename) < 1000:
-        print("❌ Corrupted file.")
+    size = os.path.getsize(filename) / 1024
+    if size < 50:
+        print("❌ Dosya bozuk.")
         return
 
-    # --- YENİ ADIM: RESMİ BÜYÜT VE NETLEŞTİR ---
-    success = upscale_image_to_4k(filename)
-    if not success:
-        print("⚠️ Upscale başarısız oldu, orijinal resim paylaşılıyor.")
+    # --- YENİ ADIM: HDR ve KESKİNLİK EFEKTİ ---
+    enhance_clarity(filename)
 
-    print("🐦 Uploading to Twitter...")
+    print("🐦 Twitter'a yükleniyor...")
     try:
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
@@ -191,20 +197,25 @@ def save_and_post(image_bytes, tweet_text):
         )
         
         client.create_tweet(text=tweet_text, media_ids=[media.media_id])
-        print("✅ TWEET POSTED SUCCESSFULLY!")
+        print("✅ BAŞARILI! Tweet Atıldı.")
     except Exception as e:
-        print(f"Twitter Error: {e}")
+        print(f"Twitter Hatası: {e}")
 
 if __name__ == "__main__":
     prompt_text, tweet_content = get_creative_content()
     
-    # 1. Resmi Üret
-    img_data = try_huggingface(prompt_text)
-    if not img_data:
-        img_data = try_pollinations_backup(prompt_text)
+    # 1. SDXL ile Temiz Baz Resim
+    original_img = download_image_sdxl(prompt_text)
+    
+    if original_img:
+        # 2. Yapay Zeka ile Büyüt (AI Upscale)
+        upscaled_img = ai_upscale_image(original_img)
         
-    # 2. Resmi Büyüt, Keskinleştir ve Paylaş
-    if img_data:
-        save_and_post(img_data, tweet_content)
+        if upscaled_img:
+            # Upscale olmuş resmi kaydet ve Efekt uygula
+            save_and_post(upscaled_img, tweet_content)
+        else:
+            print("⚠️ Upscale olmadı, orijinali HDleştirip atıyoruz.")
+            save_and_post(original_img, tweet_content)
     else:
-        print("❌ Failed to generate image.")
+        print("❌ Resim üretilemedi.")
