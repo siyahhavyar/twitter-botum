@@ -2,7 +2,7 @@ name: 7x Gunluk Duvar Kagidi Botu
 
 on:
   schedule:
-    # Türkiye Saati ile Paylaşım Vakitleri
+    # Türkiye Saati (UTC+3) Ayarlı
     - cron: '0 5 * * *'   # 08:00
     - cron: '0 7 * * *'   # 10:00
     - cron: '30 9 * * *'  # 12:30
@@ -22,11 +22,11 @@ jobs:
       - name: Depoyu Çek
         uses: actions/checkout@v3
 
-      # PYTHON 3.11 YAPIYORUZ (En Günceli)
+      # PYTHON 3.10 EN KARARLISIDIR
       - name: Python Kur
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Kütüphaneleri Yükle
         run: pip install -r requirements.txt
@@ -38,4 +38,11 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          
+          HF_TOKEN_1: ${{ secrets.HF_TOKEN_1 }}
+          HF_TOKEN_2: ${{ secrets.HF_TOKEN_2 }}
+          HF_TOKEN_3: ${{ secrets.HF_TOKEN_3 }}
+          HF_TOKEN_4: ${{ secrets.HF_TOKEN_4 }}
+          HF_TOKEN_5: ${{ secrets.HF_TOKEN_5 }}
+          HF_TOKEN_6: ${{ secrets.HF_TOKEN_6 }}
         run: python bot.py
