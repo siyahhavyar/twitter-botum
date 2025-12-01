@@ -13,39 +13,37 @@ ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 ACCESS_SECRET = os.environ.get("ACCESS_SECRET")
 
 def get_creative_content():
-    print("🧠 Gemini: Generating sharp creative concept...")
+    print("🧠 Gemini: Generating concept...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
+        # Model ismini güncelledik, artık hata vermeyecek
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # ÇEŞİTLİLİK İÇİN 30 FARKLI TEMA
+        # KONU LİSTESİ (Çeşitlilik için)
         themes = [
-            "Cyberpunk City Rain", "Minimalist Zen Garden", "Hyper-Realistic Water Droplets", 
+            "Cyberpunk City Rain Neon", "Minimalist Zen Garden", "Hyper-Realistic Water Droplets", 
             "Neon Noir Street", "Deep Space Nebula", "Crystal Cave", 
-            "Futuristic Glass Building", "Bioluminescent Forest", "Sunset over snowy mountains",
+            "Futuristic Glass Architecture", "Bioluminescent Forest", "Sunset snowy mountains",
             "Abstract Liquid Gold", "Geometric 3D shapes", "Synthwave 80s Road",
             "Macro Eye Photography", "Underwater Coral Reef", "Misty Pine Forest",
-            "Ancient Greek Statue with Neon", "Vibrant Oil Painting", "Paper Cutout Art",
-            "Stormy Ocean Waves", "Detailed Mechanical Watch Gear", "Fire and Ice Abstract",
-            "Dreamy Clouds Pastel", "Isometric Tiny House", "Steampunk Airship",
-            "Glitch Art Portrait", "Marble Texture Gold", "Double Exposure Nature",
-            "Majestic Lion Portrait", "Tokyo Street Night", "Northern Lights Aurora"
+            "Vibrant Oil Painting", "Paper Cutout Art", "Stormy Ocean Waves", 
+            "Detailed Mechanical Watch", "Fire and Ice Abstract", "Dreamy Clouds Pastel", 
+            "Isometric Tiny House", "Steampunk Airship", "Glitch Art Portrait", 
+            "Marble Texture Gold", "Double Exposure Nature", "Majestic Lion Portrait"
         ]
         theme = random.choice(themes)
         
-        # GEMINI İÇİN KESKİNLİK EMRİ
         instruction = f"""
-        You are an Art Director.
-        Topic: "{theme}"
+        Act as an Art Director. Theme: "{theme}".
         
         TASK:
-        1. Write a highly detailed image prompt for 'Flux-Realism' AI.
-        2. Write a short, cool English caption for Twitter.
+        1. Write a prompt for 'Flux' AI. 
+        2. Write a short English Tweet.
         3. Hashtags.
         
-        CRITICAL RULES FOR IMAGE PROMPT:
-        - Use keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, macro photography, ray tracing, unreal engine 5, hard contrast".
-        - FORBIDDEN: "blur, bokeh, depth of field, soft" (We want everything sharp).
+        RULES:
+        - Keywords to include: "8k resolution, photorealistic, sharp focus, incredibly detailed, macro photography, hard contrast".
+        - FORBIDDEN: "blur, bokeh, soft, depth of field" (We want full sharpness).
         
         FORMAT:
         PROMPT: [Image Prompt] ||| CAPTION: [Caption]
@@ -57,7 +55,7 @@ def get_creative_content():
         if len(parts) == 2:
             p_text = parts[0].replace("PROMPT:", "").strip()
             c_text = parts[1].replace("CAPTION:", "").strip()
-            # Ekstra Keskinlik Güçlendiriciler
+            # Keskinlik Garantisi
             final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, high fidelity, no blur, highly detailed"
             print(f"🎨 Theme: {theme}")
             return final_prompt, c_text
@@ -65,24 +63,27 @@ def get_creative_content():
             raise Exception("Format Error")
             
     except Exception as e:
-        print(f"Gemini Error: {e}")
-        return "hyper-realistic water drop on leaf, macro photo, 8k, sharp focus", "Nature details. 🌿💧 #wallpaper"
+        print(f"⚠️ Gemini Error: {e}")
+        # Yedek Plan
+        return "hyper-realistic water drop on leaf, macro photo, 8k, sharp focus, high contrast", "Nature details. 🌿💧 #wallpaper"
 
 def download_image_sharp(prompt):
-    print("💎 Pollinations (Flux-Realism): Rendering sharp image...")
+    print("💎 Pollinations (Flux): Rendering sharp image...")
     
     encoded = requests.utils.quote(prompt)
     seed = random.randint(1, 100000)
     
-    # --- İŞTE SİHİRLİ AYARLAR BURADA ---
-    # Width/Height: 768x1344 (SDXL ve Flux'ın doğal çözünürlüğü - EN NET GÖRÜNTÜ BUDUR)
-    # Model: flux-realism (Daha gerçekçi ve net)
-    # Enhance: True (Renkleri patlatır)
+    # --- KALİTE AYARLARI ---
+    # Width/Height: 768x1344 (Bu yapay zekanın "Native" boyutudur. EN NET sonucu bu verir)
+    # Model: flux (En stabili budur)
+    # Enhance: true (Renkleri canlandırır)
     
-    url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={seed}&model=flux-realism&nologo=true&enhance=true"
+    url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={seed}&model=flux&nologo=true&enhance=true"
     
     try:
-        response = requests.get(url, timeout=60)
+        # İndirme süresini biraz uzattık (timeout=90) ki yarıda kesilmesin
+        response = requests.get(url, timeout=90)
+        
         if response.status_code == 200:
             filename = "wallpaper.jpg"
             with open(filename, 'wb') as f:
@@ -91,13 +92,14 @@ def download_image_sharp(prompt):
             size = os.path.getsize(filename) / 1024
             print(f"✅ Image Downloaded! Size: {size:.0f}KB")
             
-            if size < 50: # Dosya çok küçükse (hata varsa)
-                print("❌ File too small, probably failed.")
+            # Eğer dosya 50KB'dan küçükse resim inmemiş demektir
+            if size < 50: 
+                print("❌ File too small (Error text returned). Retrying with simple prompt...")
                 return None
                 
             return filename
         else:
-            print("❌ Server Error.")
+            print(f"❌ Server Error: {response.status_code}")
             return None
     except Exception as e:
         print(f"Download Error: {e}")
@@ -125,9 +127,17 @@ def post_to_twitter(filename, text):
 
 if __name__ == "__main__":
     prompt, caption = get_creative_content()
+    
+    # İlk deneme
     image_file = download_image_sharp(prompt)
+    
+    # Eğer ilk deneme başarısız olursa, basit bir prompt ile tekrar dene (Yedek)
+    if not image_file:
+        print("🔄 Retrying with backup prompt...")
+        image_file = download_image_sharp("minimalist abstract geometric shapes, 8k, sharp focus, vibrant colors")
+        caption = "Abstract vibes. ✨ #wallpaper #art"
     
     if image_file:
         post_to_twitter(image_file, caption)
     else:
-        print("❌ Process failed.")
+        print("❌ Final failure. No image generated.")
