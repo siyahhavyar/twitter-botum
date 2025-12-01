@@ -6,56 +6,55 @@ import random
 import requests
 import google.generativeai as genai
 
-# ==========================================
-# 1. ŞİFRELER (GitHub Secrets'tan)
-# ==========================================
+# --- ŞİFRELER ---
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
 access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# Hugging Face Yedekli Token Listesi (Resim Çizimi İçin)
+# --- TOKEN LİSTESİ ---
+# Önce senin istediğin TOKEN 3'ü başa koydum.
 TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'), os.environ.get('HF_TOKEN_1'), os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN_3'), os.environ.get('HF_TOKEN_4'), os.environ.get('HF_TOKEN_5'),
+    os.environ.get('HF_TOKEN_3'), # İlk bunu deneyecek
+    os.environ.get('HF_TOKEN_1'),
+    os.environ.get('HF_TOKEN_2'),
+    os.environ.get('HF_TOKEN'),
+    os.environ.get('HF_TOKEN_4'),
+    os.environ.get('HF_TOKEN_5'),
     os.environ.get('HF_TOKEN_6')
 ]
-# Boş olanları temizle
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
-# ==========================================
-# 2. GEMINI AYARLARI (METİN BEYNİ)
-# ==========================================
+# --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
-# En yeni ve hızlı model
-model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Resim Çizim Modeli (SDXL - En Kalitelisi)
-HF_API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+# DÜZELTME 1: 'gemini-pro' (En sağlam model)
+model = genai.GenerativeModel('gemini-pro')
+
+# DÜZELTME 2: YENİ ADRES (Router)
+# Eski adres 'api-inference' idi, yenisi 'router' oldu.
+API_URL = "https://router.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_artistic_idea():
-    print("🧠 Gemini JSON fikri üretiyor...")
+    print("🧠 Gemini (Pro) düşünüyor...")
     
     prompt_emir = """
     Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
     GÖREVİN:
-    1. Minimalist, Cyberpunk, Uzay, Doğa veya Soyut konulardan BENZERSİZ bir sahne hayal et.
-    2. Bana SADECE şu JSON formatında cevap ver (Markdown kullanma, sadece süslü parantez):
-    
+    1. Minimalist, Cyberpunk, Uzay veya Doğa temalı BENZERSİZ bir sahne hayal et.
+    2. Bana SADECE şu JSON formatında cevap ver:
     {
-      "caption": "Twitter için İngilizce, kısa, havalı bir açıklama ve 2 hashtag.",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus'."
+      "caption": "Twitter için İngilizce, kısa, havalı bir açıklama ve hashtagler.",
+      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus, --no text'."
     }
     """
     
     try:
         response = model.generate_content(prompt_emir)
-        # Temizlik (Markdown tırnaklarını kaldırır)
         text = response.text.replace("```json", "").replace("```", "").strip()
         if text.startswith("json"): text = text[4:] 
-        
         data = json.loads(text)
         print(f"✅ Fikir Bulundu: {data['caption']}")
         return data
@@ -66,42 +65,46 @@ def get_artistic_idea():
             "image_prompt": "A majestic mountain reflection in a calm lake at night, starry sky, cinematic, 8k, vertical"
         }
 
-# ==========================================
-# 3. RESSAM FONKSİYONU (HUGGING FACE)
-# ==========================================
+def query_huggingface(payload, token):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response
+
 def generate_image_raw(prompt):
-    # Tüm anahtarları sırayla dener (Biri bozuksa diğerine geçer)
+    # Listeyi sırayla dener (Önce Token 3)
     for i, token in enumerate(TOKEN_LISTESI):
         print(f"🔄 {i+1}. Anahtar deneniyor...")
         
-        headers = {"Authorization": f"Bearer {token}"}
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly",
+                "negative_prompt": "text, watermark, blurry, low quality, distorted",
                 "width": 768, 
                 "height": 1344
             }
         }
         
         try:
-            response = requests.post(HF_API_URL, headers=headers, json=payload)
+            response = query_huggingface(payload, token)
             
-            # MODEL UYUYORSA (503) - İNATÇI BEKLEME
+            # MODEL UYUYORSA (503)
             if response.status_code == 503:
-                estimated_time = response.json().get("estimated_time", 20)
-                print(f"💤 Model ısınıyor... {estimated_time} saniye bekleniyor...")
-                time.sleep(estimated_time)
+                print("💤 Model ısınıyor... 20 saniye bekleniyor...")
+                time.sleep(20)
                 print("🔄 Tekrar deneniyor...")
-                response = requests.post(HF_API_URL, headers=headers, json=payload)
+                response = query_huggingface(payload, token)
             
+            # BAŞARILI (200)
             if response.status_code == 200:
                 with open("tweet_image.jpg", "wb") as f:
                     f.write(response.content)
-                print(f"✅ Resim Başarıyla İndirildi! ({i+1}. Anahtar)")
+                print(f"✅ Resim Başarıyla İndirildi!")
                 return True
+            
+            # BAŞARISIZ (Hata Kodu)
             else:
                 print(f"❌ Hata Kodu: {response.status_code} - Mesaj: {response.text}")
+                # Eğer 410 hatası alırsan token değil, URL yanlıştır (ama düzelttik).
                 
         except Exception as e:
             print(f"❌ Bağlantı Hatası: {e}")
@@ -109,14 +112,9 @@ def generate_image_raw(prompt):
     print("🚨 HATA: Hiçbir anahtar resmi çizemedi.")
     return False
 
-# ==========================================
-# 4. PAYLAŞIM FONKSİYONU
-# ==========================================
 def post_tweet():
-    # Fikri al
     content = get_artistic_idea()
     
-    # Resmi çiz
     if generate_image_raw(content['image_prompt']):
         print("🐦 Twitter'a yükleniyor...")
         try:
