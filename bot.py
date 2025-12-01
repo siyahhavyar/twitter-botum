@@ -13,8 +13,8 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- 6 MOTORLU TOKEN LİSTESİ ---
-# Tokenların dolu olduğuna eminsen bu sistem onları son damlasına kadar kullanır.
+# --- 6 MOTORLU GÜÇ SİSTEMİ (SADECE HUGGING FACE) ---
+# Asla Pollinations kullanmaz. Sadece kaliteli tokenları kullanır.
 TOKEN_LISTESI = [
     os.environ.get('HF_TOKEN'),
     os.environ.get('HF_TOKEN_1'),
@@ -29,18 +29,20 @@ TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
 # --- AYARLAR ---
 genai.configure(api_key=GEMINI_KEY)
+# En sağlam model: 1.5 Flash
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# HUGGING FACE SDXL API (Direkt Adres)
+# HUGGING FACE SDXL API (Direkt Adres - En Yüksek Kalite)
 API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_autonomous_idea():
-    print("🧠 Gemini sanat yönetmeni modunda...")
+    print("🧠 Gemini sanat yönetmeni modunda (Sadece Kalite)...")
     
+    # SENİN ZEVK HARİTAN
     prompt_emir = """
     Sen benim kişisel dijital sanat asistanımsın. Twitter hesabım için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
-    KONSEPTLER: Minimalist Doğa, Cyberpunk, Uzay, Sürrealizm, Estetik Geometri.
+    KONSEPTLER: Minimalist Doğa, Cyberpunk, Uzay, Sürrealizm, Estetik Geometri, Sinematik Manzara.
     
     Görevin:
     1. Benzersiz, çok havalı ve 8K kalitesinde duracak bir sahne kurgula.
@@ -65,7 +67,7 @@ def get_autonomous_idea():
         }
 
 def query_huggingface(payload, token):
-    # Direkt HTTP isteği (Kütüphanesiz, en saf yöntem)
+    # Direkt HTTP isteği (Kütüphanesiz, en saf ve hızlı yöntem)
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(API_URL, headers=headers, json=payload)
     return response
@@ -73,12 +75,12 @@ def query_huggingface(payload, token):
 def generate_image_raw(prompt):
     # Tüm anahtarları sırayla dener
     for i, token in enumerate(TOKEN_LISTESI):
-        print(f"🔄 {i+1}. Anahtar deneniyor...")
+        print(f"🔄 {i+1}. Kalite Motoru (Anahtar) deneniyor...")
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly",
+                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly, pixelated, low res",
                 "width": 768,   # Dikey Format (SDXL için ideal)
                 "height": 1344
             }
@@ -88,17 +90,10 @@ def generate_image_raw(prompt):
             response = query_huggingface(payload, token)
             
             # --- UYANDIRMA SERVİSİ (503 HATASI) ---
-            # Model uyuyorsa hata verip kaçmak yok! Bekleyip tekrar deneyecek.
             if response.status_code == 503:
-                try:
-                    estimated_time = response.json().get("estimated_time", 20)
-                except:
-                    estimated_time = 20
-                
-                print(f"💤 Model şu an uykuda! {estimated_time} saniye bekleniyor...")
+                estimated_time = response.json().get("estimated_time", 20)
+                print(f"💤 Model ısınıyor... {estimated_time} saniye bekleniyor...")
                 time.sleep(estimated_time)
-                
-                # Uyanınca tekrar dene
                 print("🔄 Tekrar deneniyor...")
                 response = query_huggingface(payload, token)
             
@@ -106,13 +101,12 @@ def generate_image_raw(prompt):
             if response.status_code == 200:
                 with open("tweet_image.jpg", "wb") as f:
                     f.write(response.content)
-                print(f"✅ Resim Başarıyla Çizildi! ({i+1}. Anahtar kullanıldı)")
+                print(f"✅ Resim Başarıyla Çizildi! ({i+1}. Anahtar)")
                 return True
             
-            # BAŞARISIZSA NEDEN?
+            # BAŞARISIZSA:
             else:
                 print(f"❌ Bu anahtar çalışmadı. Kodu: {response.status_code}")
-                print(f"Hata Mesajı: {response.text}")
                 # Döngü devam eder, bir sonraki anahtara geçer.
                 
         except Exception as e:
@@ -124,6 +118,7 @@ def generate_image_raw(prompt):
 def post_tweet():
     content = get_autonomous_idea()
     
+    # Sadece Kaliteli Resim Çizilirse Paylaş
     if generate_image_raw(content['image_prompt']):
         print("🐦 Twitter'a yükleniyor...")
         try:
@@ -134,12 +129,12 @@ def post_tweet():
             media = api.media_upload(filename="tweet_image.jpg")
             
             client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER BAŞARILI! (Hugging Face Kalitesiyle)")
+            print("✅ TWITTER BAŞARILI! (Yüksek Kalite Modu)")
             
         except Exception as e:
             print(f"❌ Twitter Hatası: {e}")
     else:
-        print("⚠️ Resim çizilemediği için iptal.")
+        print("⚠️ Resim çizilemediği için iptal (Kalitesiz resim paylaşılmaz).")
 
 if __name__ == "__main__":
     post_tweet()
