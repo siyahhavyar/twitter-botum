@@ -13,41 +13,39 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- TOKEN LİSTESİ ---
-# Önce senin istediğin TOKEN 3'ü başa koydum.
+# --- 6 MOTORLU YEDEK SİSTEM ---
 TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN_3'), # İlk bunu deneyecek
+    os.environ.get('HF_TOKEN'),    # Ana Token
     os.environ.get('HF_TOKEN_1'),
     os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN'),
+    os.environ.get('HF_TOKEN_3'),
     os.environ.get('HF_TOKEN_4'),
     os.environ.get('HF_TOKEN_5'),
     os.environ.get('HF_TOKEN_6')
 ]
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
-# --- AYARLAR ---
+# --- AYARLAR (GÜNCELLENDİ) ---
 genai.configure(api_key=GEMINI_KEY)
-
-# DÜZELTME 1: 'gemini-pro' (En sağlam model)
-model = genai.GenerativeModel('gemini-pro')
+# DÜZELTME 1: Yeni ve Hızlı Model
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # DÜZELTME 2: YENİ ADRES (Router)
-# Eski adres 'api-inference' idi, yenisi 'router' oldu.
+# Eski adres 404 veriyordu, yenisi bu:
 API_URL = "https://router.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_artistic_idea():
-    print("🧠 Gemini (Pro) düşünüyor...")
+    print("🧠 Gemini (1.5 Flash) düşünüyor...")
     
     prompt_emir = """
     Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
     
     GÖREVİN:
-    1. Minimalist, Cyberpunk, Uzay veya Doğa temalı BENZERSİZ bir sahne hayal et.
+    1. Minimalist, Cyberpunk, Uzay, Doğa veya Soyut konulardan BENZERSİZ bir sahne hayal et.
     2. Bana SADECE şu JSON formatında cevap ver:
     {
       "caption": "Twitter için İngilizce, kısa, havalı bir açıklama ve hashtagler.",
-      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus, --no text'."
+      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus'."
     }
     """
     
@@ -71,14 +69,14 @@ def query_huggingface(payload, token):
     return response
 
 def generate_image_raw(prompt):
-    # Listeyi sırayla dener (Önce Token 3)
+    # Tüm anahtarları sırayla dener
     for i, token in enumerate(TOKEN_LISTESI):
         print(f"🔄 {i+1}. Anahtar deneniyor...")
         
         payload = {
             "inputs": prompt,
             "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted",
+                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly",
                 "width": 768, 
                 "height": 1344
             }
@@ -98,13 +96,12 @@ def generate_image_raw(prompt):
             if response.status_code == 200:
                 with open("tweet_image.jpg", "wb") as f:
                     f.write(response.content)
-                print(f"✅ Resim Başarıyla İndirildi!")
+                print(f"✅ Resim Başarıyla İndirildi! ({i+1}. Anahtar)")
                 return True
             
-            # BAŞARISIZ (Hata Kodu)
+            # BAŞARISIZ
             else:
                 print(f"❌ Hata Kodu: {response.status_code} - Mesaj: {response.text}")
-                # Eğer 410 hatası alırsan token değil, URL yanlıştır (ama düzelttik).
                 
         except Exception as e:
             print(f"❌ Bağlantı Hatası: {e}")
