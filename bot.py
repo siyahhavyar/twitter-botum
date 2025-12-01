@@ -56,7 +56,7 @@ def get_creative_content():
         if len(parts) == 2:
             p_text = parts[0].replace("PROMPT:", "").strip()
             c_text = parts[1].replace("CAPTION:", "").strip()
-            # "Real-ESRGAN" modeli için promptu temiz tutuyoruz
+            # Real-ESRGAN için temiz prompt
             final_prompt = p_text + ", sharp focus, 8k uhd, highly detailed"
             print(f"🎨 Theme: {theme}")
             return final_prompt, c_text
@@ -69,7 +69,6 @@ def get_creative_content():
 
 def download_base_image(prompt):
     print("🎨 1. AŞAMA: SDXL Baz Resmi Çiziyor...")
-    # SDXL Modeli
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
     for idx, token in enumerate(valid_tokens):
@@ -106,8 +105,7 @@ def download_base_image(prompt):
 def imgupscaler_engine(image_bytes):
     print("🚀 2. AŞAMA: Real-ESRGAN Motoru Çalışıyor (ImgUpscaler Teknolojisi)...")
     
-    # BU MODEL 'imgupscaler.com' GİBİ SİTELERİN KULLANDIĞI MOTORUN AYNISIDIR.
-    # Resmi alır, çözünürlüğü 2x veya 4x yapar ve detayları yapay zeka ile çizer.
+    # BU MODEL, RESMİ KALİTELİ BİR ŞEKİLDE BÜYÜTÜR VE NETLEŞTİRİR
     UPSCALER_URL = "https://api-inference.huggingface.co/models/ai-forever/Real-ESRGAN"
     
     for token in valid_tokens:
@@ -118,13 +116,12 @@ def imgupscaler_engine(image_bytes):
             response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
             
             if response.status_code == 200:
-                print("✅ MÜKEMMEL! Resim Upscale edildi (Kalite Yükseltildi).")
+                print("✅ MÜKEMMEL! Resim Upscale edildi.")
                 return response.content
             
             elif "loading" in response.text:
                 print("⏳ Upscaler ısınıyor (Bekleyiniz)...")
                 time.sleep(15)
-                # Tekrar dene
                 response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
                 if response.status_code == 200:
                     return response.content
@@ -176,7 +173,6 @@ if __name__ == "__main__":
     
     if original_img:
         # 2. Real-ESRGAN (ImgUpscaler Teknolojisi) ile Kaliteyi Artır
-        # Ben dokunmuyorum, yapay zeka yapıyor.
         upscaled_img = imgupscaler_engine(original_img)
         
         if upscaled_img:
