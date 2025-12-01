@@ -20,63 +20,77 @@ hf_tokens = [
 ]
 valid_tokens = [t for t in hf_tokens if t]
 
+# --- GEMINI ÇALIŞMAZSA DEVREYE GİRECEK 50 FARKLI SENARYO ---
+# Artık "Nature vibes" hatası almayacaksın.
+BACKUP_SCENARIOS = [
+    {"p": "Cyberpunk city street raining neon lights, vector art, sharp lines", "c": "Neon rain. 🌃☂️ #cyberpunk #wallpaper"},
+    {"p": "Minimalist japanese zen garden, flat design, pastel colors", "c": "Peace of mind. 🌿🏯 #zen #minimalist"},
+    {"p": "Deep space nebula with stars, high contrast, 8k resolution", "c": "Lost in space. 🌌✨ #space #universe"},
+    {"p": "Abstract liquid gold and black marble texture, sharp focus", "c": "Golden touch. 🏆✨ #luxury #wallpaper"},
+    {"p": "Retro 80s synthwave sunset road, vector art, vibrant colors", "c": "Retro vibes. 🚗🌅 #synthwave #80s"},
+    {"p": "Isometric tiny minimalist room 3D render, cute style", "c": "Tiny living. 🏠✨ #isometric #cute"},
+    {"p": "Majestic snowy mountains at sunrise, photorealistic, 8k", "c": "Mountain calling. 🏔️❄️ #nature #wallpaper"},
+    {"p": "Bioluminescent forest with glowing mushrooms, fantasy art", "c": "Magic forest. 🍄✨ #fantasy #art"},
+    {"p": "Futuristic glass architecture skyscraper, clean lines", "c": "Future cities. 🏢💠 #architecture #future"},
+    {"p": "Macro photography of water drop on a leaf, crystal clear", "c": "Details matter. 💧🍃 #macro #nature"},
+    {"p": "Geometric abstract shapes 3D, orange and blue", "c": "Geometric harmony. 🔶🔷 #abstract #design"},
+    {"p": "Cute vector cat sleeping on a cloud, kawaii style", "c": "Dreamy naps. 🐱☁️ #cute #kawaii"},
+    {"p": "Underwater coral reef with colorful fish, 8k detailed", "c": "Under the sea. 🐠🌊 #ocean #life"},
+    {"p": "Vibrant oil painting of a flower field, impasto style", "c": "Painted dreams. 🌻🎨 #art #painting"},
+    {"p": "Black and white noir detective city street, high contrast", "c": "City shadows. 🕵️‍♂️🌑 #noir #bnw"},
+    {"p": "Steampunk airship in the sky, detailed gears", "c": "Steam power. ⚙️🎈 #steampunk #art"},
+    {"p": "Glitch art portrait, digital distortion aesthetic", "c": "System failure. 📺👾 #glitch #art"},
+    {"p": "Ancient greek statue with neon glasses, vaporwave", "c": "Modern classics. 🗿🕶️ #vaporwave #art"},
+    {"p": "Misty pine forest morning, atmospheric lighting", "c": "Morning mist. 🌲🌫️ #forest #mood"},
+    {"p": "Paper cutout art style landscape, layered depth", "c": "Paper world. ✂️🏞️ #paperart #craft"}
+]
+
 def get_creative_content():
-    print("🧠 Gemini: Thinking of a concept and caption in English...")
+    print("🧠 Gemini: Trying to generate content...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        # SENİN İSTEDİĞİN GİBİ BURAYA DOKUNMADIM, AYNI KALIYOR
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        themes = [
-            "Minimalist Pastel Clouds", 
-            "Macro Photography of Water Droplets", "Abstract Fluid Colors", 
-            "Retro 80s Synthwave Sunset", "Majestic Fantasy Castle", 
-            "Deep Space Nebula", "Isometric Tiny Room 3D", 
-            "Bioluminescent Forest", "Zen Japanese Garden", 
-            "Futuristic Glass Architecture", "Cute Geometric Animal Vector", 
-            "Vibrant Oil Painting Style", "Black and White Noir City", 
-            "Underwater Coral Reef", "Pixel Art Landscape", 
-            "Dreamy Surrealism", "Glitch Art Aesthetic"
-        ]
-        selected_theme = random.choice(themes)
-        
+        # Çeşitlilik için rastgele tema
+        themes = ["Cyberpunk", "Nature", "Space", "Abstract", "Retro", "Fantasy", "Minimalist", "Architecture"]
+        selected = random.choice(themes)
+
         instruction = f"""
-        You are a professional Social Media Manager and Art Director.
-        
+        Act as an Art Director. Theme: "{selected}".
         TASK:
-        1. Create a unique, highly detailed image prompt based on: "{selected_theme}".
-        2. Write a short, engaging, aesthetic tweet caption (in English) for this image.
-        3. Add 3-4 relevant hashtags (e.g., #Wallpaper #Art).
-        
-        FORMAT:
-        PROMPT: [Image Prompt] ||| CAPTION: [English Tweet Text]
+        1. Write a prompt for 'Flux' AI. 
+        2. Write a short English Tweet.
+        3. Hashtags.
         
         RULES:
-        - Image Prompt must imply "8k, vertical wallpaper, sharp focus, masterpiece".
-        - Caption should be cool, minimal, or poetic. NOT robotic.
+        - Image keywords: "8k resolution, vertical wallpaper, sharp focus, hard contrast, vector lines, no blur".
+        - FORBIDDEN: "blur, bokeh, depth of field".
+        
+        FORMAT:
+        PROMPT: [Image Prompt] ||| CAPTION: [Caption]
         """
         
         response = model.generate_content(instruction)
-        raw_text = response.text.strip()
-        
-        parts = raw_text.split("|||")
+        parts = response.text.strip().split("|||")
         
         if len(parts) == 2:
-            image_prompt = parts[0].replace("PROMPT:", "").strip()
-            tweet_text = parts[1].replace("CAPTION:", "").strip()
-            
-            # Kalite Garantisi (Burası promptu güçlendirir)
-            final_prompt = image_prompt + ", vertical wallpaper, 8k resolution, ultra detailed, high contrast, vivid colors, sharp focus, no blur, crystal clear"
-            
-            print(f"🎨 Theme: {selected_theme}")
-            print(f"📝 Caption: {tweet_text}")
-            return final_prompt, tweet_text
+            p_text = parts[0].replace("PROMPT:", "").strip()
+            c_text = parts[1].replace("CAPTION:", "").strip()
+            final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, no blur"
+            print(f"🎨 Gemini Success! Theme: {selected}")
+            return final_prompt, c_text
         else:
             raise Exception("Format Error")
             
     except Exception as e:
-        print(f"⚠️ Gemini Error: {e}")
-        return "minimalist aesthetic sunset over ocean, vector art, 8k", "Nature vibes... 🌊✨ #wallpaper #art #aesthetic"
+        print(f"⚠️ Gemini Failed ({e}). Using RANDOM BACKUP SCENARIO.")
+        # --- İŞTE BURASI O APTAL HATAYI ENGELLEYEN YER ---
+        # Sabit bir metin yerine, yukarıdaki listeden rastgele birini seçiyoruz.
+        backup = random.choice(BACKUP_SCENARIOS)
+        
+        final_prompt = backup["p"] + ", vertical wallpaper, 8k resolution, sharp focus, no blur, high fidelity"
+        print(f"🔄 Backup Selected: {backup['c']}")
+        return final_prompt, backup["c"]
 
 def try_huggingface(prompt):
     print("🎨 Hugging Face (SDXL) attempting...")
@@ -85,14 +99,14 @@ def try_huggingface(prompt):
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
         
-        # SDXL'in EN NET olduğu doğal çözünürlük budur (768x1344).
-        # Bunu değiştirirsek görüntü bulanıklaşır.
+        # TELEFON İÇİN DİKEY HD (768x1344)
+        # Bu çözünürlük SDXL için "Native"dir, bulanık olmaz.
         payload = {
             "inputs": prompt,
             "parameters": {
                 "width": 768, 
                 "height": 1344,
-                "num_inference_steps": 40, # Detay seviyesi yüksek
+                "num_inference_steps": 40,
                 "guidance_scale": 7.5
             }
         }
@@ -121,9 +135,8 @@ def try_pollinations_backup(prompt):
     try:
         encoded = requests.utils.quote(prompt)
         
-        # --- İŞTE KALİTE AYARI BURADA ---
-        # 1920 yerine 1344 yapıyoruz. Bu sayede "sündürme" olmuyor, görüntü cam gibi net çıkıyor.
-        # model=flux-realism yaptık ki daha gerçekçi olsun.
+        # 768x1344 -> NET GÖRÜNTÜ İÇİN
+        # model=flux-realism
         url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={random.randint(1,1000)}&model=flux-realism&nologo=true&enhance=true"
         
         response = requests.get(url, timeout=40)
