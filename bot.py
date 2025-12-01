@@ -13,9 +13,9 @@ access_token = os.environ['ACCESS_TOKEN']
 access_secret = os.environ['ACCESS_SECRET']
 GEMINI_KEY = os.environ['GEMINI_KEY']
 
-# --- 6 MOTORLU YEDEK SİSTEM ---
+# --- 6 MOTORLU YEDEK DEPO ---
 TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'),    # Ana Token
+    os.environ.get('HF_TOKEN'),
     os.environ.get('HF_TOKEN_1'),
     os.environ.get('HF_TOKEN_2'),
     os.environ.get('HF_TOKEN_3'),
@@ -25,17 +25,16 @@ TOKEN_LISTESI = [
 ]
 TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
 
-# --- AYARLAR (GÜNCELLENDİ) ---
+# --- AYARLAR (DÜZELTİLDİ) ---
 genai.configure(api_key=GEMINI_KEY)
-# DÜZELTME 1: Yeni ve Hızlı Model
-model = genai.GenerativeModel('gemini-1.5-flash')
+# GARANTİ MODEL: gemini-pro
+model = genai.GenerativeModel('gemini-pro')
 
-# DÜZELTME 2: YENİ ADRES (Router)
-# Eski adres 404 veriyordu, yenisi bu:
-API_URL = "https://router.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+# GARANTİ ADRES: Klasik API
+API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
 
 def get_artistic_idea():
-    print("🧠 Gemini (1.5 Flash) düşünüyor...")
+    print("🧠 Gemini (Pro) düşünüyor...")
     
     prompt_emir = """
     Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
@@ -85,21 +84,18 @@ def generate_image_raw(prompt):
         try:
             response = query_huggingface(payload, token)
             
-            # MODEL UYUYORSA (503)
+            # MODEL UYUYORSA (503) - BEKLE
             if response.status_code == 503:
                 print("💤 Model ısınıyor... 20 saniye bekleniyor...")
                 time.sleep(20)
                 print("🔄 Tekrar deneniyor...")
                 response = query_huggingface(payload, token)
             
-            # BAŞARILI (200)
             if response.status_code == 200:
                 with open("tweet_image.jpg", "wb") as f:
                     f.write(response.content)
                 print(f"✅ Resim Başarıyla İndirildi! ({i+1}. Anahtar)")
                 return True
-            
-            # BAŞARISIZ
             else:
                 print(f"❌ Hata Kodu: {response.status_code} - Mesaj: {response.text}")
                 
