@@ -4,8 +4,6 @@ import random
 import time
 import google.generativeai as genai
 import tweepy
-import cv2
-import numpy as np
 
 # --- ŞİFRELER ---
 GEMINI_API_KEY = os.environ.get("GEMINI_KEY")
@@ -23,31 +21,30 @@ hf_tokens = [
 valid_tokens = [t for t in hf_tokens if t]
 
 def get_creative_content():
-    print("🧠 Gemini (Pro): Generating Ultra-High-Res concept...")
+    print("🧠 Gemini (Pro): Thinking...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-pro') 
+        model = genai.GenerativeModel('gemini-pro')
         
         themes = [
-            "Hyper-Detailed Cyberpunk Street", "Macro Water Drop on Leaf", 
-            "Ultra-Realistic Eye Iris", "Space Galaxy Nebula 8K", 
-            "Bioluminescent Avatar Forest", "Crystal Clear Ice Cave",
-            "Futuristic Gold & Marble Architecture", "Neon Noir Rain",
-            "Detailed Mechanical Watch Movement", "Vibrant Oil Painting Texture"
+            "Cyberpunk City Neon Rain", "Minimalist Zen Garden", "Deep Space Nebula", 
+            "Futuristic Architecture", "Bioluminescent Forest", "Sunset Snowy Mountains",
+            "Abstract Liquid Gold", "Geometric 3D Shapes", "Synthwave Retro Road", 
+            "Macro Water Droplet", "Underwater Coral Reef", "Vibrant Oil Painting",
+            "Stormy Ocean Waves", "Mechanical Watch Gears"
         ]
         theme = random.choice(themes)
         
         instruction = f"""
         Role: Art Director. Theme: "{theme}".
-        
         TASK:
         1. Write a prompt for 'Stable Diffusion XL'.
         2. Write a short English Tweet caption.
         3. Hashtags.
         
         RULES:
-        - Keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, hard contrast, ray tracing, unreal engine 5".
-        - FORBIDDEN: "blur, bokeh, soft focus, fuzzy, low res".
+        - Keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, hard contrast".
+        - FORBIDDEN: "blur, bokeh, soft focus, fuzzy".
         
         FORMAT:
         PROMPT: [Image Prompt] ||| CAPTION: [Caption]
@@ -59,8 +56,8 @@ def get_creative_content():
         if len(parts) == 2:
             p_text = parts[0].replace("PROMPT:", "").strip()
             c_text = parts[1].replace("CAPTION:", "").strip()
-            # Keskinlik Komutları (16K hissi için)
-            final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, high fidelity, no blur, highly detailed, hdr"
+            # "Real-ESRGAN" modeli için promptu temiz tutuyoruz
+            final_prompt = p_text + ", sharp focus, 8k uhd, highly detailed"
             print(f"🎨 Theme: {theme}")
             return final_prompt, c_text
         else:
@@ -68,35 +65,35 @@ def get_creative_content():
             
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
-        return "cyberpunk city street night neon, sharp focus, 8k, hdr", "Neon vibes. 🌃✨ #wallpaper"
+        return "cyberpunk city street night neon, 8k, sharp focus", "Neon vibes. 🌃✨ #wallpaper"
 
-def download_image_sdxl(prompt):
-    print("🎨 1. AŞAMA: Hugging Face (SDXL) Baz Resmi Çiziyor...")
+def download_base_image(prompt):
+    print("🎨 1. AŞAMA: SDXL Baz Resmi Çiziyor...")
+    # SDXL Modeli
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
         
-        # 768x1344 -> SDXL'in en temiz olduğu boyut.
+        # 768x1344 (En temiz ham görüntü)
         payload = {
             "inputs": prompt,
             "parameters": {
                 "width": 768,
                 "height": 1344,
-                "num_inference_steps": 45, # Detay için artırdık
-                "guidance_scale": 8.0     # Prompta daha sıkı bağlılık
+                "num_inference_steps": 35,
+                "guidance_scale": 7.5
             }
         }
         
         try:
             print(f"➡️ Token {idx+1} deneniyor...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=40)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
             
             if response.status_code == 200:
                 print("✅ Baz Resim Hazır.")
                 return response.content
             elif "loading" in response.text:
-                print("⏳ Model ısınıyor...")
                 time.sleep(5)
             else:
                 print(f"❌ Hata: {response.status_code}")
@@ -106,68 +103,39 @@ def download_image_sdxl(prompt):
             
     return None
 
-def ai_upscale_image(image_bytes):
-    print("🚀 2. AŞAMA: Yapay Zeka ile Büyütülüyor (x2 Upscale)...")
+def imgupscaler_engine(image_bytes):
+    print("🚀 2. AŞAMA: Real-ESRGAN Motoru Çalışıyor (ImgUpscaler Teknolojisi)...")
     
-    # Bu model resmi bulanıklık olmadan 2 katına çıkarır (Yaklaşık 3000px yükseklik)
-    UPSCALER_URL = "https://api-inference.huggingface.co/models/caidas/swin2SR-classical-sr-x2-64"
+    # BU MODEL 'imgupscaler.com' GİBİ SİTELERİN KULLANDIĞI MOTORUN AYNISIDIR.
+    # Resmi alır, çözünürlüğü 2x veya 4x yapar ve detayları yapay zeka ile çizer.
+    UPSCALER_URL = "https://api-inference.huggingface.co/models/ai-forever/Real-ESRGAN"
     
     for token in valid_tokens:
         headers = {"Authorization": f"Bearer {token}"}
         
         try:
-            response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=80)
+            # Resmi modele gönderiyoruz
+            response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
             
             if response.status_code == 200:
-                print("✅ Upscale Başarılı! Çözünürlük arttı.")
+                print("✅ MÜKEMMEL! Resim Upscale edildi (Kalite Yükseltildi).")
                 return response.content
             
             elif "loading" in response.text:
-                print("⏳ Upscaler ısınıyor...")
-                time.sleep(10)
+                print("⏳ Upscaler ısınıyor (Bekleyiniz)...")
+                time.sleep(15)
                 # Tekrar dene
-                response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=80)
+                response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
                 if response.status_code == 200:
                     return response.content
             
+            else:
+                print(f"⚠️ Upscale Hatası (Kod {response.status_code}). Orijinal kullanılacak.")
+                
         except Exception as e:
-            print(f"Upscale Hatası: {e}")
+            print(f"Upscale Bağlantı Hatası: {e}")
             
     return None
-
-def enhance_clarity(filename):
-    print("💎 3. AŞAMA: '16K Hissi' Veren Keskinleştirme (HDR Effect)...")
-    try:
-        img = cv2.imread(filename)
-        if img is None: return False
-
-        # A) Keskinleştirme Filtresi (Unsharp Mask)
-        # Görüntüyü hafif bulanıklaştırıp orijinalden çıkararak kenarları belirginleştirir.
-        gaussian = cv2.GaussianBlur(img, (0, 0), 2.0)
-        unsharp_image = cv2.addWeighted(img, 1.5, gaussian, -0.5, 0, img)
-
-        # B) Detay Artırma (CLAHE - Contrast Limited Adaptive Histogram Equalization)
-        # Bu işlem renkleri patlatır ve gölgelerdeki detayları ortaya çıkarır.
-        # Önce LAB renk uzayına çeviriyoruz
-        lab = cv2.cvtColor(unsharp_image, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        cl = clahe.apply(l)
-        
-        limg = cv2.merge((cl,a,b))
-        final_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-
-        # Kaydet (Maksimum kalite JPG)
-        cv2.imwrite(filename, final_img, [cv2.IMWRITE_JPEG_QUALITY, 100])
-        
-        new_size = os.path.getsize(filename) / 1024
-        print(f"✅ FİNAL GÖRÜNTÜ HAZIR! Dosya Boyutu: {new_size:.0f}KB")
-        return True
-
-    except Exception as e:
-        print(f"Efekt Hatası: {e}")
-        return False
 
 def save_and_post(final_image_bytes, tweet_text):
     filename = "wallpaper.jpg"
@@ -175,12 +143,11 @@ def save_and_post(final_image_bytes, tweet_text):
         f.write(final_image_bytes)
         
     size = os.path.getsize(filename) / 1024
+    print(f"💾 Paylaşılacak Dosya Boyutu: {size:.0f}KB")
+    
     if size < 50:
-        print("❌ Dosya bozuk.")
+        print("❌ Hata: Dosya bozuk, paylaşılmıyor.")
         return
-
-    # --- YENİ ADIM: HDR ve KESKİNLİK EFEKTİ ---
-    enhance_clarity(filename)
 
     print("🐦 Twitter'a yükleniyor...")
     try:
@@ -204,18 +171,18 @@ def save_and_post(final_image_bytes, tweet_text):
 if __name__ == "__main__":
     prompt_text, tweet_content = get_creative_content()
     
-    # 1. SDXL ile Temiz Baz Resim
-    original_img = download_image_sdxl(prompt_text)
+    # 1. SDXL ile Resmi Oluştur
+    original_img = download_base_image(prompt_text)
     
     if original_img:
-        # 2. Yapay Zeka ile Büyüt (AI Upscale)
-        upscaled_img = ai_upscale_image(original_img)
+        # 2. Real-ESRGAN (ImgUpscaler Teknolojisi) ile Kaliteyi Artır
+        # Ben dokunmuyorum, yapay zeka yapıyor.
+        upscaled_img = imgupscaler_engine(original_img)
         
         if upscaled_img:
-            # Upscale olmuş resmi kaydet ve Efekt uygula
             save_and_post(upscaled_img, tweet_content)
         else:
-            print("⚠️ Upscale olmadı, orijinali HDleştirip atıyoruz.")
+            print("⚠️ Upscale servisi yanıt vermedi, orijinal (HD) resim paylaşılıyor.")
             save_and_post(original_img, tweet_content)
     else:
         print("❌ Resim üretilemedi.")
