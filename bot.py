@@ -2,6 +2,7 @@ import tweepy
 import os
 import json
 from google import genai
+import base64
 
 # --- API Keys ---
 api_key = os.environ['API_KEY']
@@ -12,8 +13,7 @@ GEMINI_KEY = os.environ['GEMINI_KEY']
 
 # --- Gemini Client ---
 client = genai.Client(api_key=GEMINI_KEY)
-TEXT_MODEL = "gemini-1.5-flash"
-IMAGE_MODEL = "gemini-1.5-flash"
+MODEL = "gemini-1.5"  # flash yerine desteklenen model
 
 # -------------------------------------------------------
 # 1) Gemini – JSON Fikir Üretme
@@ -34,7 +34,7 @@ def get_artistic_idea():
 
     try:
         result = client.models.generate_content(
-            model=TEXT_MODEL,
+            model=MODEL,
             contents=prompt
         )
 
@@ -60,12 +60,14 @@ def generate_image(prompt):
     print("🎨 Gemini görsel oluşturuyor...")
 
     try:
-        result = client.models.generate_image(
-            model=IMAGE_MODEL,
-            prompt=prompt
+        result = client.models.generate_content(
+            model=MODEL,
+            contents=[{"role":"user","text":prompt}],
+            generation_config={"response_modalities":["image"]}
         )
 
-        image_bytes = result.images[0].data
+        # Resim verisi base64 formatında gelir
+        image_bytes = base64.b64decode(result.output[0].image[0].data)
 
         with open("tweet_image.png", "wb") as f:
             f.write(image_bytes)
