@@ -21,14 +21,15 @@ hf_tokens = [
 valid_tokens = [t for t in hf_tokens if t]
 
 def get_creative_content():
-    print("🧠 Gemini (Pro): Thinking...")
+    print("🧠 Gemini: Thinking...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        # GÜNCEL KÜTÜPHANE İLE EN YENİ MODEL
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         themes = [
-            "Cyberpunk City Neon Rain", "Minimalist Zen Garden", "Deep Space Nebula", 
-            "Futuristic Architecture", "Bioluminescent Forest", "Sunset Snowy Mountains",
+            "Cyberpunk Neon City", "Minimalist Zen Garden", "Deep Space Nebula", 
+            "Futuristic Glass Architecture", "Bioluminescent Forest", "Sunset Snowy Mountains",
             "Abstract Liquid Gold", "Geometric 3D Shapes", "Synthwave Retro Road", 
             "Macro Water Droplet", "Underwater Coral Reef", "Vibrant Oil Painting",
             "Stormy Ocean Waves", "Mechanical Watch Gears"
@@ -38,7 +39,7 @@ def get_creative_content():
         instruction = f"""
         Role: Art Director. Theme: "{theme}".
         TASK:
-        1. Write a prompt for 'Stable Diffusion XL'.
+        1. Write a prompt for 'Flux Realism'.
         2. Write a short English Tweet caption.
         3. Hashtags.
         
@@ -56,8 +57,8 @@ def get_creative_content():
         if len(parts) == 2:
             p_text = parts[0].replace("PROMPT:", "").strip()
             c_text = parts[1].replace("CAPTION:", "").strip()
-            # Real-ESRGAN için temiz prompt
-            final_prompt = p_text + ", sharp focus, 8k uhd, highly detailed"
+            # Temiz Prompt
+            final_prompt = p_text + ", sharp focus, 8k uhd, highly detailed, crystal clear"
             print(f"🎨 Theme: {theme}")
             return final_prompt, c_text
         else:
@@ -68,70 +69,57 @@ def get_creative_content():
         return "cyberpunk city street night neon, 8k, sharp focus", "Neon vibes. 🌃✨ #wallpaper"
 
 def download_base_image(prompt):
-    print("🎨 1. AŞAMA: SDXL Baz Resmi Çiziyor...")
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    print("🎨 1. AŞAMA: Pollinations (Flux-Realism) Resmi Çiziyor...")
     
-    for idx, token in enumerate(valid_tokens):
-        headers = {"Authorization": f"Bearer {token}"}
-        
-        # 768x1344 (En temiz ham görüntü)
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "width": 768,
-                "height": 1344,
-                "num_inference_steps": 35,
-                "guidance_scale": 7.5
-            }
-        }
-        
-        try:
-            print(f"➡️ Token {idx+1} deneniyor...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-            
-            if response.status_code == 200:
-                print("✅ Baz Resim Hazır.")
-                return response.content
-            elif "loading" in response.text:
-                time.sleep(5)
-            else:
-                print(f"❌ Hata: {response.status_code}")
-                
-        except Exception as e:
-            print(f"Bağlantı hatası: {e}")
-            
-    return None
+    # Hugging Face 410 hatası verdiği için, çalışan TEK kaynak Pollinations'dır.
+    # Resmi native boyutta (768x1344) indiriyoruz ki net olsun.
+    encoded = requests.utils.quote(prompt)
+    seed = random.randint(1, 100000)
+    
+    url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={seed}&model=flux-realism&nologo=true&enhance=true"
+    
+    try:
+        response = requests.get(url, timeout=60)
+        if response.status_code == 200:
+            print("✅ Baz Resim İndi.")
+            return response.content
+        else:
+            print(f"❌ Pollinations Hatası: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"İndirme Hatası: {e}")
+        return None
 
 def imgupscaler_engine(image_bytes):
-    print("🚀 2. AŞAMA: Real-ESRGAN Motoru Çalışıyor (ImgUpscaler Teknolojisi)...")
+    print("🚀 2. AŞAMA: Real-ESRGAN ile 4K Yapılıyor...")
     
-    # BU MODEL, RESMİ KALİTELİ BİR ŞEKİLDE BÜYÜTÜR VE NETLEŞTİRİR
+    # ImgUpscaler.com teknolojisi (Hugging Face üzerinden)
     UPSCALER_URL = "https://api-inference.huggingface.co/models/ai-forever/Real-ESRGAN"
     
     for token in valid_tokens:
         headers = {"Authorization": f"Bearer {token}"}
         
         try:
-            # Resmi modele gönderiyoruz
             response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
             
             if response.status_code == 200:
-                print("✅ MÜKEMMEL! Resim Upscale edildi.")
+                print("✅ MÜKEMMEL! Resim Upscale Edildi.")
                 return response.content
             
             elif "loading" in response.text:
-                print("⏳ Upscaler ısınıyor (Bekleyiniz)...")
+                print("⏳ Upscaler ısınıyor...")
                 time.sleep(15)
+                # Tekrar dene
                 response = requests.post(UPSCALER_URL, headers=headers, data=image_bytes, timeout=60)
                 if response.status_code == 200:
                     return response.content
-            
             else:
-                print(f"⚠️ Upscale Hatası (Kod {response.status_code}). Orijinal kullanılacak.")
+                print(f"⚠️ Upscale Model Hatası ({response.status_code}). Sonraki token deneniyor.")
                 
         except Exception as e:
             print(f"Upscale Bağlantı Hatası: {e}")
             
+    print("⚠️ Upscale yapılamadı, orijinal resim kullanılacak.")
     return None
 
 def save_and_post(final_image_bytes, tweet_text):
@@ -140,10 +128,10 @@ def save_and_post(final_image_bytes, tweet_text):
         f.write(final_image_bytes)
         
     size = os.path.getsize(filename) / 1024
-    print(f"💾 Paylaşılacak Dosya Boyutu: {size:.0f}KB")
+    print(f"💾 Dosya Boyutu: {size:.0f}KB")
     
     if size < 50:
-        print("❌ Hata: Dosya bozuk, paylaşılmıyor.")
+        print("❌ Hata: Dosya bozuk.")
         return
 
     print("🐦 Twitter'a yükleniyor...")
@@ -168,17 +156,16 @@ def save_and_post(final_image_bytes, tweet_text):
 if __name__ == "__main__":
     prompt_text, tweet_content = get_creative_content()
     
-    # 1. SDXL ile Resmi Oluştur
+    # 1. Resmi Çiz (Pollinations - Garantili)
     original_img = download_base_image(prompt_text)
     
     if original_img:
-        # 2. Real-ESRGAN (ImgUpscaler Teknolojisi) ile Kaliteyi Artır
+        # 2. Resmi Büyüt (Real-ESRGAN - Senin İstediğin)
         upscaled_img = imgupscaler_engine(original_img)
         
         if upscaled_img:
             save_and_post(upscaled_img, tweet_content)
         else:
-            print("⚠️ Upscale servisi yanıt vermedi, orijinal (HD) resim paylaşılıyor.")
             save_and_post(original_img, tweet_content)
     else:
         print("❌ Resim üretilemedi.")
