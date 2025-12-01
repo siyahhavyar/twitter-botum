@@ -1,0 +1,30 @@
+name: 4K AI Wallpaper Bot
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # Her 2 saatte bir çalışır (istediğin gibi değiştir)
+  workflow_dispatch:        # Elle de çalıştırabilirsin
+
+jobs:
+  tweet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bağımlılıkları kur
+        run: pip install -r requirements.txt
+
+      - name: Botu çalıştır
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
+          API_SECRET: ${{ secrets.API_SECRET }}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          PIXELCUT_API_KEY: ${{ secrets.PIXELCUT_API_KEY }}
+        run: python bot.py
