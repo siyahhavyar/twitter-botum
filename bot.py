@@ -24,11 +24,11 @@ def get_creative_content():
     print("🧠 Gemini: Thinking of a concept and caption in English...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
+        # SENİN İSTEDİĞİN GİBİ BURAYA DOKUNMADIM, AYNI KALIYOR
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # --- ZAR ATMA (Çeşitlilik İçin) ---
         themes = [
-            "Cyberpunk City with Neon Rain", "Minimalist Pastel Clouds", 
+            "Minimalist Pastel Clouds", 
             "Macro Photography of Water Droplets", "Abstract Fluid Colors", 
             "Retro 80s Synthwave Sunset", "Majestic Fantasy Castle", 
             "Deep Space Nebula", "Isometric Tiny Room 3D", 
@@ -40,7 +40,6 @@ def get_creative_content():
         ]
         selected_theme = random.choice(themes)
         
-        # --- İNGİLİZCE PAYLAŞIM EMRİ ---
         instruction = f"""
         You are a professional Social Media Manager and Art Director.
         
@@ -60,15 +59,14 @@ def get_creative_content():
         response = model.generate_content(instruction)
         raw_text = response.text.strip()
         
-        # Cevabı ayır
         parts = raw_text.split("|||")
         
         if len(parts) == 2:
             image_prompt = parts[0].replace("PROMPT:", "").strip()
             tweet_text = parts[1].replace("CAPTION:", "").strip()
             
-            # Kalite Garantisi
-            final_prompt = image_prompt + ", vertical wallpaper, 8k resolution, ultra detailed, high contrast, vivid colors, sharp focus, no blur"
+            # Kalite Garantisi (Burası promptu güçlendirir)
+            final_prompt = image_prompt + ", vertical wallpaper, 8k resolution, ultra detailed, high contrast, vivid colors, sharp focus, no blur, crystal clear"
             
             print(f"🎨 Theme: {selected_theme}")
             print(f"📝 Caption: {tweet_text}")
@@ -78,7 +76,6 @@ def get_creative_content():
             
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
-        # Yedek Plan (İngilizce)
         return "minimalist aesthetic sunset over ocean, vector art, 8k", "Nature vibes... 🌊✨ #wallpaper #art #aesthetic"
 
 def try_huggingface(prompt):
@@ -88,13 +85,14 @@ def try_huggingface(prompt):
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
         
-        # TELEFON İÇİN DİKEY (9:16)
+        # SDXL'in EN NET olduğu doğal çözünürlük budur (768x1344).
+        # Bunu değiştirirsek görüntü bulanıklaşır.
         payload = {
             "inputs": prompt,
             "parameters": {
                 "width": 768, 
                 "height": 1344,
-                "num_inference_steps": 40,
+                "num_inference_steps": 40, # Detay seviyesi yüksek
                 "guidance_scale": 7.5
             }
         }
@@ -122,12 +120,15 @@ def try_pollinations_backup(prompt):
     print("🛡️ BACKUP SYSTEM (Pollinations) Activated...")
     try:
         encoded = requests.utils.quote(prompt)
-        # 1080x1920 TAM HD
-        url = f"https://pollinations.ai/p/{encoded}?width=1080&height=1920&seed={random.randint(1,1000)}&model=flux&nologo=true&enhance=true"
+        
+        # --- İŞTE KALİTE AYARI BURADA ---
+        # 1920 yerine 1344 yapıyoruz. Bu sayede "sündürme" olmuyor, görüntü cam gibi net çıkıyor.
+        # model=flux-realism yaptık ki daha gerçekçi olsun.
+        url = f"https://pollinations.ai/p/{encoded}?width=768&height=1344&seed={random.randint(1,1000)}&model=flux-realism&nologo=true&enhance=true"
         
         response = requests.get(url, timeout=40)
         if response.status_code == 200:
-            print("✅ Backup system generated HD image!")
+            print("✅ Backup system generated SHARP HD image!")
             return response.content
     except Exception as e:
         print(f"Backup error: {e}")
