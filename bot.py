@@ -4,7 +4,6 @@ import random
 import time
 import google.generativeai as genai
 import tweepy
-from io import BytesIO
 
 # --- ŞİFRELER ---
 GEMINI_API_KEY = os.environ.get("GEMINI_KEY")
@@ -21,49 +20,96 @@ hf_tokens = [
 ]
 valid_tokens = [t for t in hf_tokens if t]
 
-def get_image_prompt():
-    print("🧠 Gemini: Konu düşünülüyor...")
+def get_creative_content():
+    print("🧠 Gemini: Hem resim hem de tweet metni düşünülüyor...")
     try:
-        # Analize uygun olarak 1.5 modelini kullanıyoruz
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Keskinlik için özel prompt yapısı
-        instruction = """
-        Create a prompt for AI Image Generator.
-        Style: Vector Art, Flat Design, or Hard-Surface 3D.
-        Rules: NO "Photo", NO "Realistic", NO "Blur".
-        Subject: Cyberpunk city, Minimalist nature, Space, Geometric shapes.
-        Output: ONLY the prompt text.
+        # --- ZAR ATMA MEKANİZMASI (Tekrarı Önler) ---
+        themes = [
+            "Cyberpunk City with Neon Rain", "Minimalist Pastel Clouds", 
+            "Macro Photography of Water Droplets", "Abstract Fluid Colors", 
+            "Retro 80s Synthwave Sunset", "Majestic Fantasy Castle", 
+            "Deep Space Nebula", "Isometric Tiny Room 3D", 
+            "Paper Cutout Art Style", "Bioluminescent Forest",
+            "Zen Japanese Garden", "Futuristic Glass Architecture",
+            "Cute Geometric Animal Vector", "Vibrant Oil Painting Style",
+            "Black and White Noir Detective Scene", "Underwater Coral Reef",
+            "Pixel Art Landscape", "Dreamy Surrealism Salvador Dali Style"
+        ]
+        selected_theme = random.choice(themes)
+        
+        # --- GEMINI EMİRLERİ ---
+        instruction = f"""
+        You are a creative Social Media Manager and Art Director.
+        
+        TASK:
+        1. Create a unique, highly detailed image prompt based on this theme: "{selected_theme}".
+        2. Write a short, engaging, cute tweet caption (in Turkish) for this image.
+        3. Add 3-4 relevant hashtags.
+        
+        FORMAT:
+        PROMPT: [English Image Prompt] ||| CAPTION: [Turkish Tweet Text]
+        
+        RULES:
+        - Image Prompt must imply "8k, vertical wallpaper, sharp focus, masterpiece".
+        - Do NOT simply describe the image; add artistic style keywords.
+        - Caption should be fun, inviting, or poetic. NOT robotic.
         """
+        
         response = model.generate_content(instruction)
-        prompt = response.text.strip()
-        final_prompt = prompt + ", vector art, sharp lines, flat color, 8k resolution, high contrast, masterpiece, no blur"
-        print(f"💡 Fikir: {prompt}")
-        return final_prompt
+        raw_text = response.text.strip()
+        
+        # Cevabı "|||" işaretinden ikiye bölüyoruz (Resim Emri ve Tweet Metni)
+        parts = raw_text.split("|||")
+        
+        if len(parts) == 2:
+            image_prompt = parts[0].replace("PROMPT:", "").strip()
+            tweet_text = parts[1].replace("CAPTION:", "").strip()
+            
+            # Kalite Garantisi İçin Eklemeler
+            final_prompt = image_prompt + ", vertical wallpaper, 8k resolution, ultra detailed, high contrast, vivid colors, sharp focus, no blur"
+            
+            print(f"🎨 Konu: {image_prompt[:50]}...")
+            print(f"📝 Tweet: {tweet_text}")
+            return final_prompt, tweet_text
+        else:
+            raise Exception("Format hatası")
+            
     except Exception as e:
         print(f"⚠️ Gemini Hatası: {e}")
-        return "cyberpunk city neon lights, vector art, sharp lines, flat design, 8k"
+        # Yedek Plan
+        return "minimalist aesthetic sunset over ocean, vector art, 8k", "Günün huzuru burada... 🌊✨ #wallpaper #huzur"
 
 def try_huggingface(prompt):
-    print("🎨 Hugging Face (SDXL) deneniyor...")
-    
-    # Analizde önerilen en stabil SDXL Modeli
+    print("🎨 Hugging Face (SDXL - Kaliteli Mod) deneniyor...")
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
-        payload = {"inputs": prompt}
+        
+        # TELEFON İÇİN DİKEY FORMAT (768x1344)
+        # SDXL bu oranda en keskin sonucu verir. 4K hissi yaratır.
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "width": 768, 
+                "height": 1344,
+                "num_inference_steps": 40, # Detay seviyesini artırır
+                "guidance_scale": 7.5      # Prompta sadık kalır
+            }
+        }
         
         try:
             print(f"➡️ Token {idx+1} deneniyor...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
             
             if response.status_code == 200:
                 print("✅ Hugging Face BAŞARILI!")
                 return response.content
             elif "loading" in response.text:
-                print("⏳ Model ısınıyor, bekleniyor...")
+                print("⏳ Model ısınıyor...")
                 time.sleep(5)
             else:
                 print(f"❌ Hata Kodu: {response.status_code}")
@@ -71,26 +117,25 @@ def try_huggingface(prompt):
         except Exception as e:
             print(f"Bağlantı hatası: {e}")
             
-    print("🚨 Hugging Face API yanıt vermedi. Yedeğe geçiliyor.")
+    print("🚨 Hugging Face yanıt vermedi. Yedeğe geçiliyor.")
     return None
 
 def try_pollinations_backup(prompt):
-    print("🛡️ YEDEK SİSTEM (Pollinations - Keskin Mod) Devrede...")
-    # Burada resmi bulanıklaştırmayan özel ayarlar (enhance=false, model=flux) kullanıyoruz
+    print("🛡️ YEDEK SİSTEM (Pollinations - HD Dikey) Devrede...")
     try:
         encoded = requests.utils.quote(prompt)
-        # 1080x1920 dikey format
-        url = f"https://pollinations.ai/p/{encoded}?width=1080&height=1920&seed={random.randint(1,1000)}&model=flux&nologo=true&enhance=false"
+        # 1080x1920 TAM HD FORMAT
+        url = f"https://pollinations.ai/p/{encoded}?width=1080&height=1920&seed={random.randint(1,1000)}&model=flux&nologo=true&enhance=true"
         
         response = requests.get(url, timeout=40)
         if response.status_code == 200:
-            print("✅ Yedek sistem resmi çizdi!")
+            print("✅ Yedek sistem HD resmi çizdi!")
             return response.content
     except Exception as e:
         print(f"Yedek sistem hatası: {e}")
     return None
 
-def save_and_post(image_bytes, prompt):
+def save_and_post(image_bytes, tweet_text):
     filename = "wallpaper.jpg"
     with open(filename, "wb") as f:
         f.write(image_bytes)
@@ -101,13 +146,13 @@ def save_and_post(image_bytes, prompt):
 
     print("🐦 Twitter'a yükleniyor...")
     try:
-        # V1.1 Yetkilendirme (Media Upload)
+        # Medya Yükleme
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = tweepy.API(auth)
         media = api.media_upload(filename)
         
-        # V2 Yetkilendirme (Tweet Post)
+        # Tweet Atma (Gemini'nin yazdığı metinle)
         client = tweepy.Client(
             consumer_key=CONSUMER_KEY,
             consumer_secret=CONSUMER_SECRET,
@@ -115,24 +160,22 @@ def save_and_post(image_bytes, prompt):
             access_token_secret=ACCESS_SECRET
         )
         
-        text = "Daily Wallpaper 🎨✨\n#wallpaper #art #ai #design"
-        client.create_tweet(text=text, media_ids=[media.media_id])
-        print("✅ TWEET ATILDI!")
+        client.create_tweet(text=tweet_text, media_ids=[media.media_id])
+        print("✅ TWEET VE RESİM PAYLAŞILDI!")
     except Exception as e:
         print(f"Twitter Hatası: {e}")
 
 if __name__ == "__main__":
-    prompt_text = get_image_prompt()
+    # 1. Gemini'den hem resim fikrini hem tweet metnini al
+    prompt_text, tweet_content = get_creative_content()
     
-    # 1. Hugging Face'i dene
+    # 2. Resmi üret (Hugging Face veya Pollinations)
     img_data = try_huggingface(prompt_text)
-    
-    # 2. Çalışmazsa Pollinations'ı dene
     if not img_data:
         img_data = try_pollinations_backup(prompt_text)
         
     # 3. Paylaş
     if img_data:
-        save_and_post(img_data, prompt_text)
+        save_and_post(img_data, tweet_content)
     else:
-        print("❌ Tüm sistemler başarısız oldu.")
+        print("❌ Resim üretilemediği için paylaşım yapılmadı.")
