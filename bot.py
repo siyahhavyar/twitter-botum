@@ -21,70 +21,78 @@ hf_tokens = [
 valid_tokens = [t for t in hf_tokens if t]
 
 def get_creative_content():
-    print("🧠 Gemini (Pro): Generating concept...")
+    print("🧠 Gemini: Thinking of a concept and caption in English...")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        # GÜNCELLEME: En güvenli model 'gemini-pro'dur.
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
+        # --- ZAR ATMA (Çeşitlilik İçin) ---
         themes = [
-            "Cyberpunk City Neon Rain", "Minimalist Zen Garden", "Space Nebula", 
-            "Futuristic Architecture", "Bioluminescent Forest", "Sunset Mountains",
-            "Abstract Liquid 3D", "Geometric Shapes", "Synthwave Retro",
-            "Macro Nature Photography", "Underwater Reef", "Vibrant Oil Painting",
-            "Stormy Ocean", "Mechanical Watch Gears", "Glitch Art"
+            "Cyberpunk City with Neon Rain", "Minimalist Pastel Clouds", 
+            "Macro Photography of Water Droplets", "Abstract Fluid Colors", 
+            "Retro 80s Synthwave Sunset", "Majestic Fantasy Castle", 
+            "Deep Space Nebula", "Isometric Tiny Room 3D", 
+            "Bioluminescent Forest", "Zen Japanese Garden", 
+            "Futuristic Glass Architecture", "Cute Geometric Animal Vector", 
+            "Vibrant Oil Painting Style", "Black and White Noir City", 
+            "Underwater Coral Reef", "Pixel Art Landscape", 
+            "Dreamy Surrealism", "Glitch Art Aesthetic"
         ]
-        theme = random.choice(themes)
+        selected_theme = random.choice(themes)
         
+        # --- İNGİLİZCE PAYLAŞIM EMRİ ---
         instruction = f"""
-        Act as an Art Director. Theme: "{theme}".
+        You are a professional Social Media Manager and Art Director.
         
         TASK:
-        1. Write a prompt for 'Stable Diffusion XL'.
-        2. Write a short English Tweet caption.
-        3. Hashtags.
-        
-        RULES:
-        - Keywords: "8k resolution, photorealistic, sharp focus, incredibly detailed, hard contrast".
-        - FORBIDDEN: "blur, bokeh, soft focus" (Must be sharp).
+        1. Create a unique, highly detailed image prompt based on: "{selected_theme}".
+        2. Write a short, engaging, aesthetic tweet caption (in English) for this image.
+        3. Add 3-4 relevant hashtags (e.g., #Wallpaper #Art).
         
         FORMAT:
-        PROMPT: [Image Prompt] ||| CAPTION: [Caption]
+        PROMPT: [Image Prompt] ||| CAPTION: [English Tweet Text]
+        
+        RULES:
+        - Image Prompt must imply "8k, vertical wallpaper, sharp focus, masterpiece".
+        - Caption should be cool, minimal, or poetic. NOT robotic.
         """
         
         response = model.generate_content(instruction)
-        parts = response.text.strip().split("|||")
+        raw_text = response.text.strip()
+        
+        # Cevabı ayır
+        parts = raw_text.split("|||")
         
         if len(parts) == 2:
-            p_text = parts[0].replace("PROMPT:", "").strip()
-            c_text = parts[1].replace("CAPTION:", "").strip()
-            # Keskinlik Garantisi
-            final_prompt = p_text + ", sharp focus, 8k uhd, crystal clear, high fidelity, no blur, highly detailed"
-            print(f"🎨 Theme: {theme}")
-            return final_prompt, c_text
+            image_prompt = parts[0].replace("PROMPT:", "").strip()
+            tweet_text = parts[1].replace("CAPTION:", "").strip()
+            
+            # Kalite Garantisi
+            final_prompt = image_prompt + ", vertical wallpaper, 8k resolution, ultra detailed, high contrast, vivid colors, sharp focus, no blur"
+            
+            print(f"🎨 Theme: {selected_theme}")
+            print(f"📝 Caption: {tweet_text}")
+            return final_prompt, tweet_text
         else:
             raise Exception("Format Error")
             
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
-        # Yedek Plan
-        return "cyberpunk city street night neon, vector art, sharp focus, 8k", "Neon vibes. 🌃✨ #wallpaper #cyberpunk"
+        # Yedek Plan (İngilizce)
+        return "minimalist aesthetic sunset over ocean, vector art, 8k", "Nature vibes... 🌊✨ #wallpaper #art #aesthetic"
 
-def download_image_hf(prompt):
-    print("🎨 Hugging Face (SDXL): Rendering HD image...")
-    
-    # SDXL Base 1.0 (En stabil ve kaliteli açık model)
+def try_huggingface(prompt):
+    print("🎨 Hugging Face (SDXL) attempting...")
     API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
     
-    # Her bir tokeni sırayla dene
     for idx, token in enumerate(valid_tokens):
         headers = {"Authorization": f"Bearer {token}"}
         
-        # 768x1344 = SDXL'in Dikey HD doğal çözünürlüğü. (Bulanık olmaz)
+        # TELEFON İÇİN DİKEY (9:16)
         payload = {
             "inputs": prompt,
             "parameters": {
-                "width": 768,
+                "width": 768, 
                 "height": 1344,
                 "num_inference_steps": 40,
                 "guidance_scale": 7.5
@@ -93,44 +101,56 @@ def download_image_hf(prompt):
         
         try:
             print(f"➡️ Trying Token {idx+1}...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=25)
             
             if response.status_code == 200:
                 print("✅ Hugging Face SUCCESS!")
-                
-                filename = "wallpaper.jpg"
-                with open(filename, 'wb') as f:
-                    f.write(response.content)
-                
-                size = os.path.getsize(filename) / 1024
-                # 50KB altıysa hata mesajıdır
-                if size < 50:
-                    print("❌ File too small (Error). Trying next token...")
-                    continue
-                    
-                print(f"✅ Image Ready! Size: {size:.0f}KB")
-                return filename
-                
+                return response.content
             elif "loading" in response.text:
-                print("⏳ Model loading... Waiting 10s")
-                time.sleep(10)
+                print("⏳ Model loading...")
+                time.sleep(5)
             else:
                 print(f"❌ Error Code: {response.status_code}")
                 
         except Exception as e:
             print(f"Connection error: {e}")
             
-    print("🚨 All tokens failed.")
+    print("🚨 Hugging Face failed. Switching to Backup.")
     return None
 
-def post_to_twitter(filename, text):
+def try_pollinations_backup(prompt):
+    print("🛡️ BACKUP SYSTEM (Pollinations) Activated...")
+    try:
+        encoded = requests.utils.quote(prompt)
+        # 1080x1920 TAM HD
+        url = f"https://pollinations.ai/p/{encoded}?width=1080&height=1920&seed={random.randint(1,1000)}&model=flux&nologo=true&enhance=true"
+        
+        response = requests.get(url, timeout=40)
+        if response.status_code == 200:
+            print("✅ Backup system generated HD image!")
+            return response.content
+    except Exception as e:
+        print(f"Backup error: {e}")
+    return None
+
+def save_and_post(image_bytes, tweet_text):
+    filename = "wallpaper.jpg"
+    with open(filename, "wb") as f:
+        f.write(image_bytes)
+        
+    if os.path.getsize(filename) < 1000:
+        print("❌ Corrupted file.")
+        return
+
     print("🐦 Uploading to Twitter...")
     try:
+        # Upload Media
         auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = tweepy.API(auth)
         media = api.media_upload(filename)
         
+        # Post Tweet
         client = tweepy.Client(
             consumer_key=CONSUMER_KEY,
             consumer_secret=CONSUMER_SECRET,
@@ -138,16 +158,19 @@ def post_to_twitter(filename, text):
             access_token_secret=ACCESS_SECRET
         )
         
-        client.create_tweet(text=text, media_ids=[media.media_id])
-        print("✅ SUCCESS! Tweet Posted.")
+        client.create_tweet(text=tweet_text, media_ids=[media.media_id])
+        print("✅ TWEET POSTED SUCCESSFULLY!")
     except Exception as e:
         print(f"Twitter Error: {e}")
 
 if __name__ == "__main__":
-    prompt, caption = get_creative_content()
-    image_file = download_image_hf(prompt)
+    prompt_text, tweet_content = get_creative_content()
     
-    if image_file:
-        post_to_twitter(image_file, caption)
+    img_data = try_huggingface(prompt_text)
+    if not img_data:
+        img_data = try_pollinations_backup(prompt_text)
+        
+    if img_data:
+        save_and_post(img_data, tweet_content)
     else:
-        print("❌ Process failed.")
+        print("❌ Failed to generate image.")
