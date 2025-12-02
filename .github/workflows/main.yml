@@ -1,37 +1,25 @@
-name: Twitter Botu
+name: Replicate HD Bot
 
 on:
   schedule:
-    # Günde 8 Kere Paylaşım (TR Saati)
-    - cron: '0 4 * * *'
-    - cron: '0 7 * * *'
-    - cron: '0 9 * * *'
-    - cron: '0 12 * * *'
-    - cron: '0 14 * * *'
-    - cron: '0 16 * * *'
-    - cron: '0 18 * * *'
-    - cron: '0 20 * * *'
+    - cron: '0 */3 * * *'    # Her 3 saatte bir (istersen */2 yap)
   workflow_dispatch:
 
 jobs:
-  calistir:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Python Kur
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Kutuphaneleri Yukle
-        run: pip install -r requirements.txt
-      - name: Botu Calistir
+      - run: pip install -r requirements.txt
+      - name: Botu çalıştır
         env:
-          # --- ESKİLER ---
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          # --- YENİ EKLENEN (Eksik Olan Buydu) ---
-          DEEPAI_KEY: ${{ secrets.DEEPAI_KEY }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: python bot.py
