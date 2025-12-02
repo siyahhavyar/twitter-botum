@@ -34,43 +34,46 @@ def get_prompt_caption():
         caption = "Neon dreams"
     return prompt, caption
 
-# REPLICATE – 1024×1024 HD (EN GÜNCEL HASH: SDXL-base-1.0 2025)
+# REPLICATE – 1024×1024 HD (STABIL HASH: c221b2b8 + Refiner için ekstra detay)
 def replicate_image(prompt):
     print("Replicate ile 1024×1024 HD resim üretiliyor...")
     url = "https://api.replicate.com/v1/predictions"
     headers = {"Authorization": f"Token {REPLICATE_TOKEN}", "Content-Type": "application/json"}
     payload = {
-        "version": "stability-ai/sdxl:7440042bbdc8a24813002c09b6b69b64dc90fded4472613437b7f55f9b7d9c5f",  # EN GÜNCEL SDXL hash (2025, Stability GitHub'dan)
+        "version": "stability-ai/sdxl:c221b2b8a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # Stabil hash (Replicate docs'tan, 2025)
         "input": {
             "prompt": prompt,
+            "negative_prompt": "blurry, low quality, distorted, ugly",  # Kalite için negatif prompt
             "width": 1024,
             "height": 1024,
             "num_outputs": 1,
-            "num_inference_steps": 28,
-            "guidance_scale": 7.5
+            "num_inference_steps": 50,  # Daha fazla step = daha detaylı
+            "guidance_scale": 7.5,
+            "refine": "expert_ensemble_refiner",  # Refiner aktif (detay artırır)
+            "high_noise_frac": 0.8  # Refiner oranı (base %80, refiner %20)
         }
     }
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=30)
-        print(f"Replicate create status: {r.status_code}")  # Debug: 201 mi?
+        print(f"Replicate create status: {r.status_code}")  # 201 bekliyoruz!
         if r.status_code != 201: 
             print(f"Replicate create error: {r.text[:300]}")
             return None
         pred_id = r.json()["id"]
-        print(f"Prediction ID: {pred_id} - Üretim başladı (20-60 sn bekle)...")
-        for i in range(30):  # Max 3 dk
+        print(f"Prediction ID: {pred_id} - Üretim başladı (30-90 sn bekle)...")
+        for i in range(25):  # Max 2.5 dk (5 sn aralık, daha hızlı)
             status = requests.get(f"{url}/{pred_id}", headers=headers, timeout=30).json()
-            print(f"Status check {i+1}: {status['status']}")  # Debug: Progress
+            print(f"Status check {i+1}: {status['status']}")  # Progress log
             if status["status"] == "succeeded":
                 img_url = status["output"][0]
                 img = requests.get(img_url, timeout=60).content
                 if len(img) > 50000:
-                    print("1024×1024 HD RESİM HAZIR! (SDXL 1.0 kalitesi)")
+                    print("1024×1024 HD RESİM HAZIR! (SDXL + Refiner kalitesi)")
                     return img
             elif status["status"] == "failed":
                 print(f"Replicate failed: {status.get('error', 'Bilinmeyen hata')}")
                 return None
-            time.sleep(6)
+            time.sleep(5)  # Hızlı polling
         print("Replicate timeout.")
         return None
     except Exception as e:
@@ -93,7 +96,7 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (En güncel hash ile!)\n")
+    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (Stabil hash + Refiner!)\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
