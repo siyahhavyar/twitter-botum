@@ -22,7 +22,7 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","
 
 def get_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')  # GÜNCEL MODEL: 1.5-flash emekli, 2.5-flash stabil ve daha iyi
     themes = ["Cyberpunk Tokyo","Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert"]
     theme = random.choice(themes)
     resp = model.generate_content(f"Tema: {theme} → Flux/DeepAI için ultra detaylı prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text
