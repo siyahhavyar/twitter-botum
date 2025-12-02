@@ -4,6 +4,7 @@ import random
 import base64
 import google.generativeai as genai
 import tweepy
+import json  # Replicate için eklendi
 
 # TÜM KEYLER GİTHUB SECRETS'TEN
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
@@ -12,10 +13,10 @@ API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
 PIXELCUT_KEY    = os.getenv("PIXELCUT_API_KEY")
-DEEPAI_KEY      = os.getenv("DEEPAI_API_KEY", "quickstart-QUdJIGlzIGNvbWluZy4uLi4K")  # Gerçek key’in varsa secrets’e koy
+REPLICATE_TOKEN = os.getenv("REPLICATE_API_TOKEN")  # Yeni: Replicate token'ını secrets'e koy
 
 # Eksik key kontrolü
-for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","PIXELCUT_API_KEY"]:
+for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","PIXELCUT_API_KEY","REPLICATE_API_TOKEN"]:
     if not os.getenv(var):
         print(f"EKSİK: {var}")
         exit(1)
@@ -40,40 +41,62 @@ def get_prompt_caption():
         caption = "Lost in the neon"
     return prompt, caption
 
-# DEEPAI – SADECE BU VAR, PATLARSA TWEET YOK
-def deepai_image(prompt):
-    print("DeepAI ile HD resim üretiliyor...")
+# REPLICATE – SADECE BU VAR, ÜCRETSİZ HD (1024x1024 native SDXL)
+def replicate_image(prompt):
+    print("Replicate ile HD resim üretiliyor (SDXL modeli)...")
+    # SDXL model version (stabil, ücretsiz)
+    version = "stability-ai/stable-diffusion-xl-base-1.0:93cc1a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"  # Güncel SDXL version
+    url = "https://api.replicate.com/v1/predictions"
+    headers = {
+        "Authorization": f"Token {REPLICATE_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "version": version,
+        "input": {
+            "prompt": prompt,
+            "width": 1024,      # HD genişlik
+            "height": 1024,     # HD yükseklik
+            "num_outputs": 1,
+            "num_inference_steps": 20  # Kalite için
+        }
+    }
     try:
-        r = requests.post(
-            "https://api.deepai.org/api/text2img",
-            headers={"api-key": DEEPAI_KEY},
-            data={"text": prompt},           # Form-data zorunlu!
-            timeout=120
-        )
-        if r.status_code != 200:
-            print(f"DeepAI hata kodu: {r.status_code} → {r.text[:200]}")
+        # Prediction oluştur
+        create_resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        if create_resp.status_code != 201:
+            print(f"Replicate create hata: {create_resp.status_code} → {create_resp.text[:200]}")
             return None
 
-        url = r.json().get("output_url")
-        if not url:
-            print("DeepAI output_url vermedi.")
-            return None
-
-        img = requests.get(url, timeout=60).content
-        if len(img) < 20000:
-            print("DeepAI bozuk/resim çok küçük.")
-            return None
-
-        print("DeepAI resim başarıyla alındı! (512x512 → Pixelcut ile 4K olacak)")
-        return img
-
-    except Exception as e:
-        print(f"DeepAI exception: {e}")
+        pred_id = create_resp.json()["id"]
+        
+        # Poll et (resim hazır olana kadar, max 2 dk)
+        status_url = f"{url}/{pred_id}"
+        for _ in range(20):  # 20 deneme, 6 sn aralık
+            status_resp = requests.get(status_url, headers=headers, timeout=30)
+            if status_resp.status_code == 200:
+                result = status_resp.json()
+                if result["status"] == "succeeded":
+                    img_url = result["output"][0]  # İlk resim URL
+                    img_bytes = requests.get(img_url, timeout=60).content
+                    if len(img_bytes) > 50000:
+                        print("Replicate HD resim hazır! (1024x1024 native)")
+                        return img_bytes
+                elif result["status"] == "failed":
+                    print(f"Replicate failed: {result.get('error', 'Unknown')}")
+                    return None
+            time.sleep(6)  # Bekle
+        
+        print("Replicate timeout (resim hazır değil).")
         return None
 
-# PIXELCUT 4K UPSCALE
+    except Exception as e:
+        print(f"Replicate exception: {e}")
+        return None
+
+# PIXELCUT 4K UPSCALE (Opsiyonel, Replicate zaten HD)
 def pixelcut_4k(img_bytes):
-    print("Pixelcut ile 4x upscale → Gerçek 4K yapılıyor...")
+    print("Pixelcut ile 4x upscale → Ekstra 4K...")
     try:
         r = requests.post(
             "https://api.pixelcut.ai/v1/image-upscaler/upscale",
@@ -110,17 +133,18 @@ def tweet(img_bytes, caption):
     print("TWEET BAŞARIYLA ATILDI!")
     os.remove(fn)
 
-# ANA PROGRAM – POLLİNATİONS YOK!
+# ANA PROGRAM – REPLICATE + PIXELCUT
 if __name__ == "__main__":
-    print("\nDEEPAI + PIXELCUT 4K BOT ÇALIŞIYOR (Pollinations yasaklandı!)\n")
+    import time  # Poll için eklendi
+    print("\nREPLICATE + PIXELCUT 4K BOT ÇALIŞIYOR (DeepAI de yasaklandı!)\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
 
-    img = deepai_image(prompt)
+    img = replicate_image(prompt)
     if not img:
-        print("DeepAI resim üretemedi → Tweet atılmadı (kalite düşürmek yok!)")
+        print("Replicate resim üretemedi → Tweet atılmadı (kalite düşürmek yok!)")
         exit(1)
 
-    final_img = pixelcut_4k(img) or img  # Pixelcut patlarsa bile DeepAI’nin temiz HD’si gider
+    final_img = pixelcut_4k(img) or img  # Upscale patlarsa HD Replicate gider
     tweet(final_img, caption)
