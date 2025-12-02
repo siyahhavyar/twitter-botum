@@ -1,49 +1,37 @@
-name: Günlük Duvar Kagidi Botu (Gemini)
+name: Twitter Botu
 
 on:
   schedule:
-    - cron: '0 5 * * *'
+    # Günde 8 Kere Paylaşım (TR Saati)
+    - cron: '0 4 * * *'
     - cron: '0 7 * * *'
-    - cron: '30 9 * * *'
+    - cron: '0 9 * * *'
     - cron: '0 12 * * *'
-    - cron: '30 14 * * *'
-    - cron: '0 17 * * *'
-    - cron: '30 19 * * *'
+    - cron: '0 14 * * *'
+    - cron: '0 16 * * *'
+    - cron: '0 18 * * *'
+    - cron: '0 20 * * *'
   workflow_dispatch:
 
 jobs:
   calistir:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - name: Depoyu Çek
-        uses: actions/checkout@v3
-
-      - name: Python 3.11 Kur
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v2
+      - name: Python Kur
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.11'
-
-      - name: Kütüphaneleri Yükle
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Botu Çalıştır
+          python-version: '3.12'
+      - name: Kutuphaneleri Yukle
+        run: pip install -r requirements.txt
+      - name: Botu Calistir
         env:
+          # --- ESKİLER ---
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          # Hugging Face Tokenları
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_TOKEN_1: ${{ secrets.HF_TOKEN_1 }}
-          HF_TOKEN_2: ${{ secrets.HF_TOKEN_2 }}
-          HF_TOKEN_3: ${{ secrets.HF_TOKEN_3 }}
-          HF_TOKEN_4: ${{ secrets.HF_TOKEN_4 }}
-          HF_TOKEN_5: ${{ secrets.HF_TOKEN_5 }}
-          HF_TOKEN_6: ${{ secrets.HF_TOKEN_6 }}
+          # --- YENİ EKLENEN (Eksik Olan Buydu) ---
+          DEEPAI_KEY: ${{ secrets.DEEPAI_KEY }}
         run: python bot.py
