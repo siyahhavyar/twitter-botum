@@ -1,3 +1,4 @@
+google-generativeai
 tweepy
 requests
-google-generativeai
+python-dotenv
