@@ -1,86 +1,105 @@
-import os
-import requests
-import random
-import base64
-import google.generativeai as genai
 import tweepy
+import os
+import time
+import json
+import requests
+import google.generativeai as genai
 
-# Tüm keyler GitHub Secrets'ten alınacak
-GEMINI_API_KEY      = os.getenv("GEMINI_KEY")
-CONSUMER_KEY        = os.getenv("API_KEY")
-CONSUMER_SECRET     = os.getenv("API_SECRET")
-ACCESS_TOKEN        = os.getenv("ACCESS_TOKEN")
-ACCESS_SECRET       = os.getenv("ACCESS_SECRET")
-PIXELCUT_API_KEY    = os.getenv("PIXELCUT_API_KEY")
+# --- ŞİFRELER ---
+api_key = os.environ['API_KEY']
+api_secret = os.environ['API_SECRET']
+access_token = os.environ['ACCESS_TOKEN']
+access_secret = os.environ['ACCESS_SECRET']
+GEMINI_KEY = os.environ['GEMINI_KEY']
+DEEPAI_KEY = os.environ['DEEPAI_KEY']  # Yeni Anahtarımız
 
-# Eksik key kontrolü
-required = ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","PIXELCUT_API_KEY"]
-missing = [x for x in required if not os.getenv(x)]
-if missing:
-    print(f"EKSİK KEYLER: {', '.join(missing)}")
-    exit(1)
+# --- AYARLAR ---
+genai.configure(api_key=GEMINI_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# ────────────────────────── GEMİNİ ──────────────────────────
-def get_creative_content():
-    print("Gemini düşünüyor...")
+def get_artistic_idea():
+    print("🧠 Gemini sanat yönetmeni modunda...")
+    
+    prompt_emir = """
+    Sen profesyonel bir dijital sanatçısın. Twitter için 'Günün Duvar Kağıdı'nı tasarlıyorsun.
+    
+    GÖREVİN:
+    1. Minimalist, Cyberpunk, Uzay, Doğa, Sürrealizm veya Geometri konularından birini seç.
+    2. Bana SADECE şu JSON formatında cevap ver:
+    {
+      "caption": "Twitter için İngilizce, kısa, havalı bir açıklama ve hashtagler.",
+      "image_prompt": "Resim için İNGİLİZCE prompt. Şunları EKLE: 'surrealist art, 8k resolution, masterpiece, cinematic lighting, sharp focus, vertical wallpaper style'."
+    }
+    """
+    
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        themes = ["Cyberpunk Tokyo","Cherry Blossom Forest","Interstellar Nebula","Crystal Cave","Floating Islands","Neon Arcade","Golden Desert","Underwater Ruins","Steampunk Airships","Aurora Iceland"]
-        theme = random.choice(themes)
-        resp = model.generate_content(f"Ultra detaylı Flux Realism prompt + kısa tweet caption. Tema: {theme}. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
-        prompt, caption = resp.split("|||")
-        prompt = prompt.replace("PROMPT:", "").strip() + ", 8k, ultra sharp, masterpiece"
-        caption = caption.replace("CAPTION:", "").strip()
-        print(f"Tema: {theme}")
-        return prompt, caption
+        response = model.generate_content(prompt_emir)
+        text = response.text.replace("```json", "").replace("```", "").strip()
+        if text.startswith("json"): text = text[4:] 
+        data = json.loads(text)
+        print(f"✅ Fikir Bulundu: {data['caption']}")
+        return data
     except Exception as e:
-        print("Gemini fallback:", e)
-        return "cyberpunk neon city night rain, ultra detailed, 8k", "Neon dreams 🌃✨ #AIArt"
+        print(f"⚠️ Gemini Hatası ({e}), yedek konu kullanılıyor.")
+        return {
+            "caption": "Cyber City 🌃 #Wallpaper #Art",
+            "image_prompt": "Futuristic cyberpunk city street at night with neon lights, raining, cinematic, 8k, vertical"
+        }
 
-# ────────────────────────── POLLİNATİONS ──────────────────────────
-def download_base_image(prompt):
-    print("Pollinations resim üretiyor...")
-    url = f"https://pollinations.ai/p/{requests.utils.quote(prompt)}?model=flux-realism&width=768&height=1344&nologo=true&enhance=true&seed={random.randint(1,999999)}"
-    r = requests.get(url, timeout=90)
-    return r.content if r.status_code == 200 and len(r.content) > 50000 else None
-
-# ────────────────────────── PIXELCUT 4K ──────────────────────────
-def pixelcut_upscale(img_bytes):
-    print("Pixelcut 4x upscale yapıyor...")
+def generate_image_deepai(prompt):
+    print("🎨 DeepAI Resmi Çiziyor...")
+    
     try:
-        resp = requests.post(
-            "https://api.pixelcut.ai/v1/image-upscaler/upscale",
-            json={"image": base64.b64encode(img_bytes).decode(), "scale": 4},
-            headers={"Authorization": f"Bearer {PIXELCUT_API_KEY}"},
-            timeout=120
+        # DeepAI API İsteği
+        r = requests.post(
+            "https://api.deepai.org/api/text2img",
+            data={
+                'text': prompt,
+                'grid_size': '1', # Tek resim
+            },
+            headers={'api-key': DEEPAI_KEY}
         )
-        if resp.status_code == 200:
-            url = resp.json().get("result_url")
-            if url:
-                return requests.get(url, timeout=60).content
-    except: pass
-    return None
+        
+        response_json = r.json()
+        
+        if 'output_url' in response_json:
+            image_url = response_json['output_url']
+            
+            # DeepAI bir link verir, o linkten resmi indirmemiz lazım
+            print("⬇️ Resim indiriliyor...")
+            img_data = requests.get(image_url).content
+            
+            with open("tweet_image.jpg", "wb") as f:
+                f.write(img_data)
+                
+            print("✅ Resim Hazır!")
+            return True
+        else:
+            print(f"❌ DeepAI Hatası: {response_json}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Bağlantı Hatası: {e}")
+        return False
 
-# ────────────────────────── TWEET ──────────────────────────
-def tweet_image(img_bytes, caption):
-    fn = "wallpaper.jpg"
-    open(fn, "wb").write(img_bytes)
-    auth = tweepy.OAuthHandler(CONSUMER_KEY, CONSUMER_SECRET)
-    auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-    api = tweepy.API(auth)
-    media = api.media_upload(fn)
-    client = tweepy.Client(consumer_key=CONSUMER_KEY, consumer_secret=CONSUMER_SECRET,
-                           access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET)
-    client.create_tweet(text=caption + " #AIArt #4K #Wallpaper", media_ids=[media.media_id])
-    print("TWEET ATILDI!")
-    os.remove(fn)
+def post_tweet():
+    content = get_artistic_idea()
+    
+    if generate_image_deepai(content['image_prompt']):
+        print("🐦 Twitter'a yükleniyor...")
+        try:
+            auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
+            api = tweepy.API(auth)
+            client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
 
-# ────────────────────────── ANA ──────────────────────────
+            media = api.media_upload(filename="tweet_image.jpg")
+            client.create_tweet(text=content['caption'], media_ids=[media.media_id])
+            print("✅ TWITTER BAŞARILI!")
+            
+        except Exception as e:
+            print(f"❌ Twitter Hatası: {e}")
+    else:
+        print("⚠️ Resim çizilemediği için iptal.")
+
 if __name__ == "__main__":
-    print("\n4K WALLPAPER BOT ÇALIŞIYOR\n")
-    prompt, caption = get_creative_content()
-    base = download_base_image(prompt)
-    if not base: exit("Resim üretilemedi!")
-    final = pixelcut_upscale(base) or base
-    tweet_image(final, caption)
+    post_tweet()
