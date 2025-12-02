@@ -22,7 +22,7 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","
 def get_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
-    themes = ["Cyberpunk Tokyo","Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
+    themes = ["Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Aurora Mountains"]
     theme = random.choice(themes)
     resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
@@ -34,40 +34,46 @@ def get_prompt_caption():
         caption = "Neon dreams"
     return prompt, caption
 
-# REPLICATE – 1024×1024 HD (Pixelcut’a gerek yok!)
+# REPLICATE – 1024×1024 HD (Güncel hash ile!)
 def replicate_image(prompt):
     print("Replicate ile 1024×1024 HD resim üretiliyor...")
     url = "https://api.replicate.com/v1/predictions"
     headers = {"Authorization": f"Token {REPLICATE_TOKEN}", "Content-Type": "application/json"}
     payload = {
-        "version": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7d38d6298c3633c5c9e94d929c94d",
+        "version": "stability-ai/sdxl:c221b2b8a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # Güncel SDXL hash (2025 stabil)
         "input": {
             "prompt": prompt,
             "width": 1024,
             "height": 1024,
             "num_outputs": 1,
-            "num_inference_steps": 28
+            "num_inference_steps": 28,
+            "guidance_scale": 7.5  # Kalite için
         }
     }
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=30)
         if r.status_code != 201: 
-            print(f"Replicate create error: {r.text[:200]}")
+            print(f"Replicate create error: {r.status_code} - {r.text[:200]}")
             return None
         pred_id = r.json()["id"]
-        for _ in range(25):
-            status = requests.get(f"{url}/{pred_id}", headers=headers).json()
+        print(f"Prediction ID: {pred_id} - İşlem başladı...")
+        for i in range(30):  # Max 3 dk bekle (6 sn aralık)
+            status = requests.get(f"{url}/{pred_id}", headers=headers, timeout=30).json()
             if status["status"] == "succeeded":
-                img = requests.get(status["output"][0]).content
-                print("1024×1024 HD RESİM HAZIR!")
-                return img
+                img_url = status["output"][0]
+                img = requests.get(img_url, timeout=60).content
+                if len(img) > 50000:
+                    print("1024×1024 HD RESİM HAZIR! (SDXL native kalite)")
+                    return img
             elif status["status"] == "failed":
-                print("Replicate failed")
+                print(f"Replicate failed: {status.get('error', 'Unknown')}")
                 return None
-            time.sleep(5)
+            time.sleep(6)
+        print("Replicate timeout - Resim hazır değil.")
+        return None
     except Exception as e:
         print(f"Replicate exception: {e}")
-    return None
+        return None
 
 # TWEET
 def tweet(img_bytes, caption):
@@ -85,8 +91,11 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (Pixelcut’suz!)\n")
+    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (Güncel hash ile!)\n")
     prompt, caption = get_prompt_caption()
+    print(f"Prompt: {prompt[:150]}...")
+    print(f"Caption: {caption}\n")
+
     img = replicate_image(prompt)
     if not img:
         print("Resim üretilemedi → Tweet atılmadı")
