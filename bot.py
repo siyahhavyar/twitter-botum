@@ -13,7 +13,7 @@ ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
 REPLICATE_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
-# Eksik kontrol (sadece 6 tane)
+# Eksik kontrol
 for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","REPLICATE_API_TOKEN"]:
     if not os.getenv(var):
         print(f"EKSİK: {var}")
@@ -22,7 +22,7 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","
 def get_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
-    themes = ["Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Aurora Mountains"]
+    themes = ["Cyberpunk Tokyo","Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
     theme = random.choice(themes)
     resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
@@ -34,42 +34,44 @@ def get_prompt_caption():
         caption = "Neon dreams"
     return prompt, caption
 
-# REPLICATE – 1024×1024 HD (Güncel hash ile!)
+# REPLICATE – 1024×1024 HD (EN GÜNCEL HASH: SDXL-base-1.0 2025)
 def replicate_image(prompt):
     print("Replicate ile 1024×1024 HD resim üretiliyor...")
     url = "https://api.replicate.com/v1/predictions"
     headers = {"Authorization": f"Token {REPLICATE_TOKEN}", "Content-Type": "application/json"}
     payload = {
-        "version": "stability-ai/sdxl:c221b2b8a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # Güncel SDXL hash (2025 stabil)
+        "version": "stability-ai/sdxl:7440042bbdc8a24813002c09b6b69b64dc90fded4472613437b7f55f9b7d9c5f",  # EN GÜNCEL SDXL hash (2025, Stability GitHub'dan)
         "input": {
             "prompt": prompt,
             "width": 1024,
             "height": 1024,
             "num_outputs": 1,
             "num_inference_steps": 28,
-            "guidance_scale": 7.5  # Kalite için
+            "guidance_scale": 7.5
         }
     }
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=30)
+        print(f"Replicate create status: {r.status_code}")  # Debug: 201 mi?
         if r.status_code != 201: 
-            print(f"Replicate create error: {r.status_code} - {r.text[:200]}")
+            print(f"Replicate create error: {r.text[:300]}")
             return None
         pred_id = r.json()["id"]
-        print(f"Prediction ID: {pred_id} - İşlem başladı...")
-        for i in range(30):  # Max 3 dk bekle (6 sn aralık)
+        print(f"Prediction ID: {pred_id} - Üretim başladı (20-60 sn bekle)...")
+        for i in range(30):  # Max 3 dk
             status = requests.get(f"{url}/{pred_id}", headers=headers, timeout=30).json()
+            print(f"Status check {i+1}: {status['status']}")  # Debug: Progress
             if status["status"] == "succeeded":
                 img_url = status["output"][0]
                 img = requests.get(img_url, timeout=60).content
                 if len(img) > 50000:
-                    print("1024×1024 HD RESİM HAZIR! (SDXL native kalite)")
+                    print("1024×1024 HD RESİM HAZIR! (SDXL 1.0 kalitesi)")
                     return img
             elif status["status"] == "failed":
-                print(f"Replicate failed: {status.get('error', 'Unknown')}")
+                print(f"Replicate failed: {status.get('error', 'Bilinmeyen hata')}")
                 return None
             time.sleep(6)
-        print("Replicate timeout - Resim hazır değil.")
+        print("Replicate timeout.")
         return None
     except Exception as e:
         print(f"Replicate exception: {e}")
@@ -91,7 +93,7 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (Güncel hash ile!)\n")
+    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (En güncel hash ile!)\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
