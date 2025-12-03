@@ -1,130 +1,183 @@
-import tweepy
 import os
-import time
-import json
-import random
 import requests
+import random
+import time
 import google.generativeai as genai
+import tweepy
 
-# --- ŞİFRELER ---
-api_key = os.environ['API_KEY']
-api_secret = os.environ['API_SECRET']
-access_token = os.environ['ACCESS_TOKEN']
-access_secret = os.environ['ACCESS_SECRET']
-GEMINI_KEY = os.environ['GEMINI_KEY']
+# SADECE BUNLAR LAZIM (Horde key opsiyonel)
+GEMINI_KEY      = os.getenv("GEMINI_KEY")
+API_KEY         = os.getenv("API_KEY")
+API_SECRET      = os.getenv("API_SECRET")
+ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
+ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
+HORDE_API_KEY   = os.getenv("HORDE_API_KEY") or "0000000000"  
 
-# --- 6 MOTORLU YEDEK DEPO (HUGGING FACE) ---
-TOKEN_LISTESI = [
-    os.environ.get('HF_TOKEN'),
-    os.environ.get('HF_TOKEN_1'),
-    os.environ.get('HF_TOKEN_2'),
-    os.environ.get('HF_TOKEN_3'),
-    os.environ.get('HF_TOKEN_4'),
-    os.environ.get('HF_TOKEN_5'),
-    os.environ.get('HF_TOKEN_6')
-]
-TOKEN_LISTESI = [t for t in TOKEN_LISTESI if t is not None]
+# Eksik kontrol
+for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
+    if not os.getenv(var):
+        print(f"EKSİK: {var}")
+        exit(1)
 
-# --- AYARLAR ---
-genai.configure(api_key=GEMINI_KEY)
-# Hata vermeyen güncel model
-model = genai.GenerativeModel('gemini-1.5-flash')
+# ---------------------------------------------------
+# 1) *** İngilizce Prompt + İngilizce Caption ***
+# ---------------------------------------------------
+def get_prompt_caption():
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel('gemini-2.5-flash')
 
-# SDXL API URL
-API_URL = "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0"
+    themes = [
+        "Cyberpunk City", "Crystal Forest", "Galactic Storm", 
+        "Mystic Waterfall", "Moonlight Desert", "Neon Jungle",
+        "Steam City", "Floating Islands"
+    ]
 
-def get_artistic_idea():
-    print("🧠 Gemini (Art Director) is thinking in English...")
-    
-    # --- İNGİLİZCE PROMPT EMRİ ---
-    prompt_emir = """
-    You are a professional digital art curator for a Twitter 'Daily Wallpaper' account.
-    
-    YOUR TASK:
-    1. Imagine a unique, stunning, and aesthetic scene based on: Minimalist Nature, Cyberpunk, Space, Abstract, or Surrealism.
-    2. Output ONLY the following JSON format (No markdown, no extra text):
-    
-    {
-      "caption": "Write a short, cool, engaging caption in ENGLISH. Use emojis. Add 3-5 popular hashtags (e.g. #Wallpaper #Art #4K #Aesthetic).",
-      "image_prompt": "Write a highly detailed image generation prompt in ENGLISH. MUST INCLUDE: 'vertical wallpaper, 8k resolution, photorealistic, masterpiece, cinematic lighting, sharp focus, --no text'."
-    }
-    """
-    
+    theme = random.choice(themes)
+
+    resp = model.generate_content(
+        f"Theme: {theme} → Create: PROMPT: ultra detailed portrait wallpaper prompt "
+        f"||| CAPTION: short poetic English caption with 2 hashtags"
+    ).text.strip()
+
     try:
-        response = model.generate_content(prompt_emir)
-        text = response.text.replace("```json", "").replace("```", "").strip()
-        if text.startswith("json"): text = text[4:] 
-        data = json.loads(text)
-        print(f"✅ Idea Found: {data['caption']}")
-        return data
+        p, c = resp.split("|||")
+        prompt = p.replace("PROMPT:", "").strip()
+
+        # *** PORTRAIT EKLENDİ ***
+        prompt += ", ultra detailed, portrait 1024x1792, 8k, sharp focus, cinematic lighting"
+
+        caption = c.replace("CAPTION:", "").strip()
+
+    except:
+        prompt = "majestic mountain portrait wallpaper, ultra detailed, portrait 1024x1792, 8k"
+        caption = "Mountain serenity #Wallpaper #AIArt"
+
+    return prompt, caption
+
+# ---------------------------------------------------
+# PERCHANCE – Portrait 1024x1792 Output
+# ---------------------------------------------------
+def perchance_image(prompt):
+    print("Perchance ile ücretsiz PORTRE 1024x1792 HD resim üretiliyor...")
+
+    encoded = requests.utils.quote(prompt)
+
+    # *** PORTRE ÇÖZÜNÜRLÜĞÜ EKLENDİ ***
+    url = (
+        f"https://perchance.org/ai-text-to-image-generator?"
+        f"prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
+    )
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*",
+        "Referer": "https://perchance.org/ai-text-to-image-generator"
+    }
+
+    try:
+        r = requests.get(url, headers=headers, timeout=60)
+        print(f"Perchance status: {r.status_code}")
+
+        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
+            img = r.content
+            if len(img) > 50000:
+                print("PORTRAIT 1024x1792 HD RESİM HAZIR!")
+                return img
+
     except Exception as e:
-        print(f"⚠️ Gemini Error ({e}), using backup.")
-        return {
-            "caption": "Serenity in the Stars 🌌 \n\n#Wallpaper #Space #Art #Aesthetic",
-            "image_prompt": "A majestic nebula in deep space, glowing stars, cinematic, 8k, vertical, masterpiece"
-        }
+        print(f"Perchance exception: {e}")
 
-def query_huggingface(payload, token):
-    headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response
+    return None
 
-def generate_image_raw(prompt):
-    # Tüm anahtarları sırayla dener
-    for i, token in enumerate(TOKEN_LISTESI):
-        print(f"🔄 Trying Token {i+1}...")
-        
-        payload = {
-            "inputs": prompt,
-            "parameters": {
-                "negative_prompt": "text, watermark, blurry, low quality, distorted, ugly, bad anatomy",
-                "width": 768, 
-                "height": 1344 
-            }
-        }
-        
-        try:
-            response = query_huggingface(payload, token)
-            
-            # MODEL UYUYORSA (503) - BEKLE
-            if response.status_code == 503:
-                print("💤 Model is loading... Waiting 20s...")
-                time.sleep(20)
-                print("🔄 Retrying...")
-                response = query_huggingface(payload, token)
-            
-            if response.status_code == 200:
-                with open("tweet_image.jpg", "wb") as f:
-                    f.write(response.content)
-                print(f"✅ Image Generated Successfully! (Token {i+1})")
-                return True
-            else:
-                print(f"❌ Error Code: {response.status_code} - Message: {response.text}")
-                
-        except Exception as e:
-            print(f"❌ Connection Error: {e}")
-            
-    print("🚨 ERROR: All tokens failed.")
-    return False
+# ---------------------------------------------------
+# HORDE – Portrait (Yedek)
+# ---------------------------------------------------
+def horde_image(prompt):
+    print("AI Horde ile portrait 1024x1792 HD resim üretiliyor...")
 
-def post_tweet():
-    content = get_artistic_idea()
-    
-    if generate_image_raw(content['image_prompt']):
-        print("🐦 Uploading to Twitter...")
-        try:
-            auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
-            api = tweepy.API(auth)
-            client = tweepy.Client(consumer_key=api_key, consumer_secret=api_secret, access_token=access_token, access_token_secret=access_secret)
+    url = "https://stablehorde.net/api/v2/generate/async"
+    headers = {"apikey": HORDE_API_KEY}
 
-            media = api.media_upload(filename="tweet_image.jpg")
-            client.create_tweet(text=content['caption'], media_ids=[media.media_id])
-            print("✅ TWITTER SUCCESS!")
-            
-        except Exception as e:
-            print(f"❌ Twitter Error: {e}")
-    else:
-        print("⚠️ Image generation failed, skipping tweet.")
+    payload = {
+        "prompt": prompt,
+        "params": {
+            "sampler_name": "k_euler_a",
+            "cfg_scale": 7.5,
+            "height": 1792,   # *** PORTRE ***
+            "width": 1024,    # *** PORTRE ***
+            "steps": 20,
+            "n": 1
+        },
+        "nsfw": False,
+        "models": ["SDXL 1.0"]
+    }
 
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=30)
+        if r.status_code != 202:
+            print("Horde create error:", r.text[:300])
+            return None
+
+        job_id = r.json()["id"]
+
+        for i in range(200):
+            check = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}")
+            if check.status_code == 200:
+                data = check.json()
+                if data["done"]:
+                    status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}")
+                    if status.status_code == 200:
+                        gen = status.json()["generations"]
+                        if gen:
+                            img = requests.get(gen[0]["img"]).content
+                            if len(img) > 50000:
+                                print("PORTRAIT 1024x1792 HD RESİM HAZIR!")
+                                return img
+            time.sleep(6)
+    except Exception as e:
+        print("AI Horde exception:", e)
+
+    return None
+
+# ---------------------------------------------------
+# Tweet At
+# ---------------------------------------------------
+def tweet(img_bytes, caption):
+    fn = "wallpaper.jpg"
+    with open(fn, "wb") as f:
+        f.write(img_bytes)
+
+    auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
+    auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+    api = tweepy.API(auth)
+
+    media = api.media_upload(fn)
+
+    client = tweepy.Client(
+        consumer_key=API_KEY, consumer_secret=API_SECRET,
+        access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET
+    )
+
+    client.create_tweet(text=caption, media_ids=[media.media_id])
+    print("TWEET BAŞARIYLA ATILDI!")
+
+    os.remove(fn)
+
+# ---------------------------------------------------
+# Çalıştır
+# ---------------------------------------------------
 if __name__ == "__main__":
-    post_tweet()
+    print("\nPORTRAIT HD TWITTER BOT ÇALIŞIYOR!\n")
+
+    prompt, caption = get_prompt_caption()
+    print("Prompt:", prompt)
+    print("Caption:", caption)
+
+    img = perchance_image(prompt)
+    if not img:
+        img = horde_image(prompt)
+    if not img:
+        print("Resim üretilemedi → Tweet gönderilmedi.")
+        exit(1)
+
+    tweet(img, caption)
