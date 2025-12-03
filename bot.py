@@ -1,20 +1,18 @@
 import os
 import requests
 import random
-import time
 import google.generativeai as genai
 import tweepy
 
-# SADECE BUNLAR LAZIM
+# SADECE BUNLAR LAZIM (No Replicate/Pixelcut!)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
-REPLICATE_TOKEN = os.getenv("REPLICATE_API_TOKEN")
 
-# Eksik kontrol
-for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","REPLICATE_API_TOKEN"]:
+# Eksik kontrol (sadece Twitter + Gemini)
+for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
     if not os.getenv(var):
         print(f"EKSİK: {var}")
         exit(1)
@@ -27,58 +25,30 @@ def get_prompt_caption():
     resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
         p, c = resp.split("|||")
-        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, 8k masterpiece, cinematic lighting"
+        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1024, 8k masterpiece, cinematic lighting"
         caption = c.replace("CAPTION:", "").strip()
     except:
-        prompt = "futuristic cyberpunk city night rain reflections, ultra detailed, 8k"
+        prompt = "futuristic cyberpunk city night rain reflections, ultra detailed, high resolution 1024x1024, 8k"
         caption = "Neon dreams"
     return prompt, caption
 
-# REPLICATE – 1024×1024 HD (ORİJİNAL HASH: Replicate docs'tan, 2025 stabil)
-def replicate_image(prompt):
-    print("Replicate ile 1024×1024 HD resim üretiliyor...")
-    url = "https://api.replicate.com/v1/predictions"
-    headers = {"Authorization": f"Token {REPLICATE_TOKEN}", "Content-Type": "application/json"}
-    payload = {
-        "version": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",  # Orijinal hash (Replicate PyPI ve docs'tan, 422'yi çözer)
-        "input": {
-            "prompt": prompt,
-            "negative_prompt": "blurry, low quality, distorted, ugly",
-            "width": 1024,
-            "height": 1024,
-            "num_outputs": 1,
-            "num_inference_steps": 50,
-            "guidance_scale": 7.5,
-            "refine": "expert_ensemble_refiner",
-            "high_noise_frac": 0.8
-        }
-    }
+# PERCHANCE – ÜCRETSİZ 1024x1024+ HD (No signup/credit!)
+def perchance_image(prompt):
+    print("Perchance ile ücretsiz 1024x1024+ HD resim üretiliyor...")
+    # Perchance API-like GET (no key, no limit)
+    encoded_prompt = requests.utils.quote(prompt)
+    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded_prompt}&resolution=1024x1024&quality=high&seed={random.randint(1,100000)}"
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=30)
-        print(f"Replicate create status: {r.status_code}")
-        if r.status_code != 201: 
-            print(f"Replicate create error: {r.text[:300]}")
-            return None
-        pred_id = r.json()["id"]
-        print(f"Prediction ID: {pred_id} - Üretim başladı...")
-        for i in range(25):
-            status = requests.get(f"{url}/{pred_id}", headers=headers, timeout=30).json()
-            print(f"Status check {i+1}: {status['status']}")
-            if status["status"] == "succeeded":
-                img_url = status["output"][0]
-                img = requests.get(img_url, timeout=60).content
-                if len(img) > 50000:
-                    print("1024×1024 HD RESİM HAZIR! (SDXL orijinal kalite)")
-                    return img
-            elif status["status"] == "failed":
-                print(f"Replicate failed: {status.get('error', 'Bilinmeyen')}")
-                return None
-            time.sleep(5)
-        print("Replicate timeout.")
-        return None
+        r = requests.get(url, timeout=60)
+        if r.status_code == 200 and 'image' in r.headers['Content-Type']:
+            img = r.content
+            if len(img) > 50000:
+                print("Ücretsiz HD RESİM HAZIR! (Perchance kalitesi, 4K'ya yakın)")
+                return img
+        print(f"Perchance error: {r.status_code}")
     except Exception as e:
-        print(f"Replicate exception: {e}")
-        return None
+        print(f"Perchance exception: {e}")
+    return None
 
 # TWEET
 def tweet(img_bytes, caption):
@@ -96,12 +66,12 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nREPLICATE 1024×1024 HD BOT ÇALIŞIYOR (Orijinal hash!)\n")
+    print("\nPERCHANCE ÜCRETSİZ HD BOT ÇALIŞIYOR (No credit/signup!)\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
 
-    img = replicate_image(prompt)
+    img = perchance_image(prompt)
     if not img:
         print("Resim üretilemedi → Tweet atılmadı")
         exit(1)
