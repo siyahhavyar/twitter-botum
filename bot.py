@@ -5,7 +5,7 @@ import time
 import google.generativeai as genai
 import tweepy
 
-# --- ŞİFRELER (Horde key opsiyonel) ---
+# --- ŞİFRELER ---
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
@@ -20,33 +20,34 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
         exit(1)
 
 def get_prompt_caption():
-    genai.configure(api_key=GEMINI_KEY)
-    # Model ismini en stabil olanla güncel tutuyorum (Hata almamak için)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    themes = ["Neon Forest", "Space Nebula", "Crystal Cave", "Floating Islands", "Golden Desert", "Steampunk City", "Aurora Mountains", "Cyberpunk Street", "Underwater Ruins"]
-    theme = random.choice(themes)
-    
-    # İNGİLİZCE VE DİKEY OLMA EMRİ BURADA
-    instruction = f"""
-    Theme: {theme}. 
-    Task: Create an ultra-detailed photorealistic image prompt and a short cool caption.
-    Constraint 1: Output LANGUAGE must be STRICTLY ENGLISH.
-    Constraint 2: Image prompt must target Vertical/Portrait Aspect Ratio (9:16).
-    Format: PROMPT: [...] ||| CAPTION: [...]
-    """
-    
-    resp = model.generate_content(instruction).text.strip()
     try:
+        genai.configure(api_key=GEMINI_KEY)
+        # HATA DÜZELTME: 1.5 yerine 2.0-flash-exp kullanıyoruz (Daha yeni ve hatasız)
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        
+        themes = ["Neon Forest", "Space Nebula", "Crystal Cave", "Floating Islands", "Golden Desert", "Steampunk City", "Aurora Mountains", "Cyberpunk Street", "Underwater Ruins", "Dreamy Clouds"]
+        theme = random.choice(themes)
+        
+        # İNGİLİZCE VE DİKEY OLMA EMRİ
+        instruction = f"""
+        Theme: {theme}. 
+        Task: Create an ultra-detailed photorealistic image prompt and a short cool caption.
+        Constraint 1: Output LANGUAGE must be STRICTLY ENGLISH.
+        Constraint 2: Image prompt must target Vertical/Portrait Aspect Ratio (9:16).
+        Format: PROMPT: [...] ||| CAPTION: [...]
+        """
+        
+        resp = model.generate_content(instruction).text.strip()
         p, c = resp.split("|||")
         # Prompt'a dikey olması için teknik terimler ekliyoruz
         prompt = p.replace("PROMPT:", "").strip() + ", vertical wallpaper, 9:16 aspect ratio, portrait mode, ultra detailed, sharp focus, 8k masterpiece, cinematic lighting"
         caption = c.replace("CAPTION:", "").strip()
-    except:
-        prompt = "beautiful mountain landscape, vertical wallpaper, portrait, ultra detailed, 8k"
-        caption = "Nature vibes 🌿 #wallpaper"
-    
-    return prompt, caption
+        return prompt, caption
+
+    except Exception as e:
+        print(f"Gemini Hatası ({e}), yedek prompt kullanılıyor.")
+        # Yedek Plan (İngilizce)
+        return "beautiful mountain landscape at sunset, vertical wallpaper, portrait, ultra detailed, 8k", "Nature vibes 🌿 #wallpaper"
 
 # PERCHANCE – ÜCRETSİZ HD (DİKEY MOD)
 def perchance_image(prompt):
@@ -152,7 +153,7 @@ def tweet(img_bytes, caption):
 
 # ANA DÖNGÜ
 if __name__ == "__main__":
-    print("\nPERCHANCE + HORDE (DİKEY/ENGLISH) BOT ÇALIŞIYOR!\n")
+    print("\nPERCHANCE + HORDE (DİKEY/ENGLISH/GEMINI 2.0) BOT ÇALIŞIYOR!\n")
     
     # 1. Gemini İngilizce Konu ve Prompt Üretsin
     prompt, caption = get_prompt_caption()
