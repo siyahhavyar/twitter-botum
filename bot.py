@@ -5,12 +5,13 @@ import time
 import google.generativeai as genai
 import tweepy
 
-# SADECE BUNLAR LAZIM (No extra keys!)
+# SADECE BUNLAR LAZIM (Horde key eklendi)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
+HORDE_API_KEY   = os.getenv("HORDE_API_KEY") or "0000000000"  # Gerçek anahtarını secrets'e koy, guest fallback
 
 # Eksik kontrol
 for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
@@ -21,7 +22,7 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
 def get_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
-    themes = ["Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
+    themes = ["Cyberpunk Tokyo","Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
     theme = random.choice(themes)
     resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
@@ -33,11 +34,11 @@ def get_prompt_caption():
         caption = "Neon dreams"
     return prompt, caption
 
-# AI HORDE – ÜCRETSİZ HD (1024x1024, Guest key, no signup!)
+# AI HORDE – ÜCRETSİZ HD (Gerçek key ile yüksek öncelik!)
 def horde_image(prompt):
-    print("AI Horde ile ücretsiz 1024x1024 HD resim üretiliyor (Guest key, low priority)...")
+    print("AI Horde ile ücretsiz 1024x1024 HD resim üretiliyor...")
     url = "https://stablehorde.net/api/v2/generate/async"
-    headers = {"apikey": "0000000000"}  # Guest key
+    headers = {"apikey": HORDE_API_KEY}
     payload = {
         "prompt": prompt,
         "params": {
@@ -61,21 +62,24 @@ def horde_image(prompt):
             print(f"Horde create error: {r.text[:300]}")
             return None
         job_id = r.json()["id"]
-        print(f"Job ID: {job_id} - Üretim başladı (1-5 dk bekle, low priority)...")
-        for i in range(50):  # Max 5 dk (6 sn aralık)
+        print(f"Job ID: {job_id} - Üretim başladı (bekle, gerçek key ile hızlı)...")
+        for i in range(100):  # Max 10 dk (6 sn aralık)
             check = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}", timeout=30)
-            if check.status_code == 200 and check.json()["done"]:
-                status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}", timeout=30)
-                if status.status_code == 200:
-                    generations = status.json()["generations"]
-                    if generations:
-                        img_url = generations[0]["img"]
-                        img = requests.get(img_url, timeout=60).content
-                        if len(img) > 50000:
-                            print("1024x1024 HD RESİM HAZIR! (AI Horde free kalite)")
-                            return img
+            if check.status_code == 200:
+                check_json = check.json()
+                print(f"Status check {i+1}: {check_json['wait_time']} sn kalan, kuyruk pozisyonu: {check_json['queue_position']}")
+                if check_json["done"]:
+                    status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}", timeout=30)
+                    if status.status_code == 200:
+                        generations = status.json()["generations"]
+                        if generations:
+                            img_url = generations[0]["img"]
+                            img = requests.get(img_url, timeout=60).content
+                            if len(img) > 50000:
+                                print("1024x1024 HD RESİM HAZIR!")
+                                return img
             time.sleep(6)
-        print("AI Horde timeout.")
+        print("AI Horde timeout (kuyruk çok uzun – gerçek key dene).")
         return None
     except Exception as e:
         print(f"AI Horde exception: {e}")
@@ -100,7 +104,7 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nAI HORDE ÜCRETSİZ HD BOT ÇALIŞIYOR (No signup/credit!)\n")
+    print("\nAI HORDE ÜCRETSİZ HD BOT ÇALIŞIYOR (Yüksek öncelikli!)\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
