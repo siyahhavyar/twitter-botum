@@ -24,21 +24,21 @@ def get_prompt_caption():
     model = genai.GenerativeModel('gemini-2.5-flash')
     themes = ["Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
     theme = random.choice(themes)
-    resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
+    resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa English caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
         p, c = resp.split("|||")
-        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1024, 8k masterpiece, cinematic lighting"
+        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1792, 8k masterpiece, cinematic lighting"
         caption = c.replace("CAPTION:", "").strip()
     except:
-        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1024, 8k"
+        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1792, 8k"
         caption = "Mountain serenity"
     return prompt, caption
 
 # PERCHANCE – ÜCRETSİZ HD (403 fix: Daha fazla header ekle, browser mimic)
 def perchance_image(prompt):
-    print("Perchance ile ücretsiz 1024x1024 HD resim üretiliyor (no signup)...")
+    print("Perchance ile ücretsiz 1024x1792 HD resim üretiliyor (no signup)...")
     encoded = requests.utils.quote(prompt)
-    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1024&quality=high&seed={random.randint(1,100000)}&model=flux"
+    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -56,7 +56,7 @@ def perchance_image(prompt):
         if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
             img = r.content
             if len(img) > 50000:
-                print("1024x1024 HD RESİM HAZIR! (Perchance free kalite)")
+                print("1024x1792 HD RESİM HAZIR! (Perchance free kalite)")
                 return img
         else:
             print(f"Perchance error: {r.text[:200]}")
@@ -66,7 +66,7 @@ def perchance_image(prompt):
 
 # HORDE – Yedek (Gerçek key ile, timeout artırıldı)
 def horde_image(prompt):
-    print("AI Horde ile ücretsiz 1024x1024 HD resim üretiliyor...")
+    print("AI Horde ile ücretsiz 1024x1792 HD resim üretiliyor...")
     url = "https://stablehorde.net/api/v2/generate/async"
     headers = {"apikey": HORDE_API_KEY}
     payload = {
@@ -75,7 +75,7 @@ def horde_image(prompt):
             "sampler_name": "k_euler_a",
             "cfg_scale": 7.5,
             "seed_variation": 1,
-            "height": 1024,
+            "height": 1792,
             "width": 1024,
             "karras": True,
             "steps": 20,
@@ -106,7 +106,7 @@ def horde_image(prompt):
                             img_url = generations[0]["img"]
                             img = requests.get(img_url, timeout=60).content
                             if len(img) > 50000:
-                                print("1024x1024 HD RESİM HAZIR!")
+                                print("1024x1792 HD RESİM HAZIR!")
                                 return img
             time.sleep(6)
         print("AI Horde timeout.")
@@ -138,7 +138,6 @@ if __name__ == "__main__":
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
-
     img = perchance_image(prompt)
     if not img:
         img = horde_image(prompt)
