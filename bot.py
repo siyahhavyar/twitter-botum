@@ -24,43 +24,54 @@ if not GEMINI_KEY:
 
 
 # -----------------------------
-# GEMINI: PROMPT + CAPTION
+# GEMINI: TEMA + PROMPT + CAPTION
 # -----------------------------
-def generate_prompt_caption():
+def generate_ai_theme_and_prompt():
+    """
+    Bu fonksiyon tamamen yapay zekanın kendisinin bir tema yaratmasını sağlar.
+    Tema, fantastik + minimal + karanlık + estetik olacak şekilde sınırlı yönlendirme alır.
+    AI temayı, prompt'u ve kısa caption'ı birlikte üretir.
+    """
+
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel("gemini-2.0-flash")
 
-    themes = [
-        "Warm Fantasy Landscape",
-        "Golden Clouds Sunset",
-        "Soft Pastel Mountains",
-        "Dreamy Forest Light Rays",
-        "Mystical Horizon Glow",
-        "Cosy Autumn Lake",
-        "Bright Magical Valley"
-    ]
+    prompt = """
+    Create a unique artistic theme that mixes:
+    - fantasy atmosphere
+    - minimal and clean visual style
+    - soft-dark or moody tones
+    - abstract or symbolic elements (no explicit witches, heroes, characters)
+    - elegant, aesthetic mood
 
-    theme = random.choice(themes)
+    After deciding the theme, generate:
+    PROMPT: a detailed AI image prompt describing that theme, including mood, lighting, color palette, and minimal fantasy symbolism.
+    CAPTION: a very short poetic caption (max 7 words).
 
-    prompt = f"""
-    Generate a beautiful artistic prompt about this theme: {theme}.
-    Return format:
+    Only return in this format:
+    THEME: <the unique theme name>
     PROMPT: <image prompt>
-    CAPTION: <short poetic caption>
+    CAPTION: <caption>
     """
 
     text = model.generate_content(prompt).text
-    parts = text.split("CAPTION:")
 
-    img_prompt = parts[0].replace("PROMPT:", "").strip()
-    caption = parts[1].strip()
+    # Parçalıyoruz
+    parts = text.split("PROMPT:")
 
+    theme = parts[0].replace("THEME:", "").strip()
+    rest = parts[1].split("CAPTION:")
+
+    img_prompt = rest[0].strip()
+    caption = rest[1].strip()
+
+    # Prompta ekstra stil eklentileri
     final_prompt = (
         img_prompt +
-        ", ultra detailed, 4k, soft light, artistic, vibrant colors, fantasy atmosphere, sharp focus"
+        ", ultra detailed, 4k, soft lighting, cinematic tone, minimal fantasy symbolism, muted colors, elegant aesthetic, sharp focus"
     )
 
-    return final_prompt, caption, theme
+    return theme, final_prompt, caption
 
 
 # -----------------------------
@@ -71,8 +82,9 @@ def generate_hashtags(theme):
     model = genai.GenerativeModel("gemini-2.0-flash")
 
     prompt = f"""
-    Based on the theme "{theme}", create 5 short, aesthetic, relevant, trending hashtags.
-    Only return the hashtags, space-separated, no explanation.
+    Based on the artistic theme "{theme}", generate 7 minimal, aesthetic, fantasy-inspired hashtags.
+    Style: short, elegant, trending, abstract.
+    No explanations, no numbering, only hashtags space-separated.
     """
 
     text = model.generate_content(prompt).text
@@ -85,7 +97,7 @@ def generate_hashtags(theme):
 # -----------------------------
 def generate_image(prompt_text):
 
-    print("Stability AI → 1024x1792 HD görsel oluşturuluyor...")
+    print("Stability AI → 1024x1792 görsel oluşturuluyor...")
 
     url = "https://api.stability.ai/v2beta/stable-image/generate/core"
 
@@ -146,11 +158,11 @@ def post_to_twitter(img_bytes, caption, hashtags):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    prompt, caption, theme = generate_prompt_caption()
+    theme, prompt, caption = generate_ai_theme_and_prompt()
 
+    print("Theme:", theme)
     print("Prompt:", prompt)
     print("Caption:", caption)
-    print("Theme:", theme)
 
     hashtags = generate_hashtags(theme)
     print("Hashtags:", hashtags)
