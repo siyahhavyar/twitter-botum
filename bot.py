@@ -1,58 +1,34 @@
 import os
 import requests
-import tweepy
-import random
 import time
+import base64
+import tweepy
 
-# -----------------------------------------
-# SABİT AYARLAR
-# -----------------------------------------
+# --------------------
+# API KEYS
+# --------------------
+HORDE_API_KEY = "6FoHyt8ewpxxOO57QXZZFw"
 
-HORDE_API_KEY = "6FoHyt8ewpxxOO57QXZZFw"   # API KEY doğrudan kodda
-PERCHANCE_URL = "https://your-model.perchance.org/api"   # kendi perchance api url'inle değiştir
-TWITTER_API_KEY = "TWITTER_API_KEY"
-TWITTER_API_SECRET = "TWITTER_API_SECRET"
-TWITTER_ACCESS_TOKEN = "TWITTER_ACCESS_TOKEN"
-TWITTER_ACCESS_SECRET = "TWITTER_ACCESS_SECRET"
+TW_API_KEY = os.getenv("TW_API_KEY")
+TW_API_SECRET = os.getenv("TW_API_SECRET")
+TW_ACCESS_TOKEN = os.getenv("TW_ACCESS_TOKEN")
+TW_ACCESS_SECRET = os.getenv("TW_ACCESS_SECRET")
 
-# -----------------------------------------
-# TWITTER BAĞLANTISI
-# -----------------------------------------
+# --------------------
+# TWITTER LOGIN
+# --------------------
+def twitter_client():
+    auth = tweepy.OAuth1UserHandler(
+        TW_API_KEY,
+        TW_API_SECRET,
+        TW_ACCESS_TOKEN,
+        TW_ACCESS_SECRET
+    )
+    return tweepy.API(auth)
 
-auth = tweepy.OAuthHandler(TWITTER_API_KEY, TWITTER_API_SECRET)
-auth.set_access_token(TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
-twitter = tweepy.API(auth)
-
-# -----------------------------------------
-# PROMPT HAVUZU (CYBERPUNK/STEAMPUNK YOK)
-# -----------------------------------------
-
-PROMPTS = [
-    "hyper-realistic portrait photography, soft lighting, beautiful depth",
-    "4k ultra-detailed landscape, warm fantasy atmosphere",
-    "cinematic shot, natural lighting, beautiful composition",
-    "studio-quality photo, detailed textures, soft colors",
-    "nature scenery, ultra high detail, photo-realistic",
-    "dreamy environment, magical realism, extremely detailed"
-]
-
-# -----------------------------------------
-# PERCHANCE AI İÇERİK ÜRETİMİ
-# -----------------------------------------
-
-def generate_text():
-    try:
-        r = requests.get(PERCHANCE_URL, timeout=15)
-        if r.status_code == 200:
-            return r.text.strip()
-        return "Harika bir gün! Yeni bir görsel daha hazırladım."
-    except:
-        return "Bugün sanat yaratma günü! İşte yeni bir görsel."
-
-# -----------------------------------------
-# HORDE İLE GÖRSEL ÜRETİMİ + UPSCALE
-# -----------------------------------------
-
+# --------------------
+# HORDE IMAGE GENERATOR
+# --------------------
 def generate_image(prompt):
     headers = {"apikey": HORDE_API_KEY}
 
@@ -69,54 +45,110 @@ def generate_image(prompt):
         }
     }
 
-    task = requests.post("https://aihorde.net/api/v2/generate/async", json=payload, headers=headers).json()
+    # ---- SEND ASYNC REQUEST ----
+    task = requests.post(
+        "https://aihorde.net/api/v2/generate/async",
+        json=payload,
+        headers=headers
+    ).json()
+
+    if "id" not in task:
+        print("HORDE ERROR:", task)
+        return None
+
     task_id = task["id"]
 
+    # ---- WAIT FOR GENERATION ----
     while True:
-        status = requests.get(f"https://aihorde.net/api/v2/generate/status/{task_id}").json()
+        status = requests.get(
+            f"https://aihorde.net/api/v2/generate/status/{task_id}"
+        ).json()
+
         if status.get("finished"):
-            img_url = status["generations"][0]["img"]
-            break
+            try:
+                img_url = status["generations"][0]["img"]
+                break
+            except:
+                print("GENERATION RESPONSE ERROR:", status)
+                return None
+
         time.sleep(3)
 
-    # HD UPSCALE
+    # --------------------
+    # UPSCALE (optional)
+    # --------------------
     upscale_payload = {
         "source_image": img_url,
         "source_processing": "upscale",
         "params": {"scale": 2}
     }
 
-    upscale = requests.post("https://aihorde.net/api/v2/generate/async", json=upscale_payload, headers=headers).json()
+    upscale = requests.post(
+        "https://aihorde.net/api/v2/generate/async",
+        json=upscale_payload,
+        headers=headers
+    ).json()
+
+    if "id" not in upscale:
+        print("UPSCALE ERROR:", upscale)
+        return img_url  # upscale başarısızsa orijinal resmi döndür
+
     upscale_id = upscale["id"]
 
     while True:
-        up_status = requests.get(f"https://aihorde.net/api/v2/generate/status/{upscale_id}").json()
+        up_status = requests.get(
+            f"https://aihorde.net/api/v2/generate/status/{upscale_id}"
+        ).json()
+
         if up_status.get("finished"):
-            return up_status["generations"][0]["img"]
+            try:
+                return up_status["generations"][0]["img"]
+            except:
+                print("UPSCALE STATUS ERROR:", up_status)
+                return img_url
+
         time.sleep(3)
 
-# -----------------------------------------
-# TWITTER POST
-# -----------------------------------------
 
-def post_to_twitter():
-    text = generate_text()
-    prompt = random.choice(PROMPTS)
-
-    print("Prompt:", prompt)
-
-    img_url = generate_image(prompt)
-    img_data = requests.get(img_url).content
-
-    with open("image.png", "wb") as f:
+# --------------------
+# DOWNLOAD IMAGE
+# --------------------
+def download_image(url, path="image.png"):
+    img_data = requests.get(url).content
+    with open(path, "wb") as f:
         f.write(img_data)
+    return path
 
-    twitter.update_status_with_media(status=text, filename="image.png")
-    print("Gönderildi!")
 
-# -----------------------------------------
-# ÇALIŞTIR
-# -----------------------------------------
+# --------------------
+# POST TO TWITTER
+# --------------------
+def post_to_twitter():
+    prompt = "4k ultra-detailed landscape, warm fantasy atmosphere"
 
+    print("Görüntü üretiliyor...")
+    img_url = generate_image(prompt)
+
+    if img_url is None:
+        print("GÖRSEL OLUŞTURULAMADI.")
+        return
+
+    print("Görüntü indiriliyor:", img_url)
+    img_path = download_image(img_url)
+
+    api = twitter_client()
+
+    print("Twitter'a yükleniyor...")
+    media = api.media_upload(img_path)
+
+    print("Tweet atılıyor...")
+    api.update_status(status=prompt, media_ids=[media.media_id])
+
+    print("Tweet paylaşıldı!")
+
+
+# --------------------
+# RUN BOT
+# --------------------
 if __name__ == "__main__":
     post_to_twitter()
