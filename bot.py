@@ -3,7 +3,8 @@ import requests
 import random
 import google.generativeai as genai
 import tweepy
-import cloudscraper  # Cloudflare 403 bypass
+import cloudscraper
+from bs4 import BeautifulSoup
 
 # ONLY THESE ARE NEEDED (No extra keys!)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
@@ -55,7 +56,7 @@ def get_completely_random_wallpaper():
     
     return prompt, caption
 
-# PERCHANCE – FREE HD (Cloudscraper for 403 bypass, 1080x1920 vertical)
+# PERCHANCE – FREE HD (Cloudscraper + BeautifulSoup for full 403/HTML fix)
 def perchance_image(prompt):
     print("Generating free 1080x1920 vertical HD image with Perchance (no signup)...")
     encoded = requests.utils.quote(prompt)
@@ -64,11 +65,24 @@ def perchance_image(prompt):
     try:
         r = scraper.get(url, timeout=90)
         print(f"Perchance status: {r.status_code}")
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
-            img = r.content
-            if len(img) > 50000:
-                print("1080x1920 VERTICAL HD IMAGE READY! (Perchance free quality)")
-                return img
+        if r.status_code == 200:
+            # Extract image from HTML (if not direct image response)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=True)
+            if img_tag and img_tag['src']:
+                img_url = img_tag['src']
+                if not img_url.startswith("http"):
+                    img_url = "https://perchance.org" + img_url
+                img = requests.get(img_url, timeout=60).content
+                if len(img) > 50000:
+                    print("1080x1920 VERTICAL HD IMAGE READY! (Perchance free quality)")
+                    return img
+            # If direct image
+            if 'image' in r.headers.get('Content-Type', ''):
+                img = r.content
+                if len(img) > 50000:
+                    print("1080x1920 VERTICAL HD IMAGE READY! (Perchance direct)")
+                    return img
         else:
             print(f"Perchance error: {r.text[:200]}")
     except Exception as e:
@@ -94,7 +108,7 @@ def tweet(img_bytes, caption):
 
 # MAIN
 if __name__ == "__main__":
-    print("\nPERCHANCE FREE HD BOT RUNNING (No signup/credit, 403 fixed with cloudscraper!)\n")
+    print("\nPERCHANCE FREE HD BOT RUNNING (No signup/credit, full 403/HTML fixed!)\n")
     prompt, caption = get_completely_random_wallpaper()
     print(f"Idea: {caption}")
     print(f"Prompt: {prompt[:150]}...\n")
