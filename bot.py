@@ -18,38 +18,56 @@ for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
         print(f"MISSING: {var}")
         exit(1)
 
-def get_prompt_caption():
+def get_completely_random_wallpaper():
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    resp = model.generate_content(
-        "Generate a random beautiful landscape or fantasy theme. Then create an ultra detailed photorealistic English prompt for it, and a short English tweet caption. "
-        "Format: THEME: [...] ||| PROMPT: [...] ||| CAPTION: [...]"
-    ).text.strip()
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    
+    instruction = """
+    You are a creative phone wallpaper artist.
+    Come up with ONE completely original, beautiful, aesthetic wallpaper idea.
+    
+    Allowed styles (only these):
+    - nature, forest, mountains, ocean, sunset, flowers, animals
+    - fantasy forest, magical creatures, fairy tale, enchanted
+    - minimal, pastel, cozy, soft colors, dreamy
+    - vintage, retro, polaroid, old film
+    - abstract watercolor, ink art, soft shapes
+    - surreal landscapes, floating islands, clouds
+    - cottagecore, garden, books, coffee, candles
+
+    STRICTLY FORBIDDEN:
+    - cyberpunk, neon, technology, robot, city, sci-fi, futuristic, digital art, glitch
+
+    Must be vertical phone wallpaper (9:16).
+    Output ONLY in English.
+    Format exactly:
+    PROMPT: [ultra detailed English prompt] ||| CAPTION: [short beautiful English caption]
+    """
+    
     try:
-        parts = resp.split("|||")
-        theme = parts[0].replace("THEME:", "").strip()
-        prompt = parts[1].replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1024, 8k masterpiece, cinematic lighting"
-        caption = parts[2].replace("CAPTION:", "").strip()
+        resp = model.generate_content(instruction).text.strip()
+        p, c = resp.split("|||")
+        prompt = p.replace("PROMPT:", "").strip() + ", vertical phone wallpaper, 9:16 ratio, ultra detailed, masterpiece, 8k, soft natural lighting"
+        caption = c.replace("CAPTION:", "").strip()
     except:
-        theme = "Beautiful mountain landscape"
-        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1024, 8k"
-        caption = "Mountain serenity"
-    print(f"Generated Theme: {theme}")
+        prompt = "soft pastel cherry blossom forest at twilight, vertical phone wallpaper, 9:16, ultra detailed, 8k"
+        caption = "Whispers of spring"
+    
     return prompt, caption
 
-# PERCHANCE – FREE HD (403 fix: Cloudscraper for bypass)
+# PERCHANCE – FREE HD (Cloudscraper for 403 bypass, 1080x1920 vertical)
 def perchance_image(prompt):
-    print("Generating free 1024x1024 HD image with Perchance (no signup)...")
+    print("Generating free 1080x1920 vertical HD image with Perchance (no signup)...")
     encoded = requests.utils.quote(prompt)
-    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1024&quality=high&seed={random.randint(1,100000)}&model=flux"
-    scraper = cloudscraper.create_scraper()  # Cloudflare 403 bypass
+    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1080x1920&quality=high&seed={random.randint(1,100000)}&model=flux"
+    scraper = cloudscraper.create_scraper()  # Bypasses Cloudflare 403
     try:
-        r = scraper.get(url, timeout=60)
+        r = scraper.get(url, timeout=90)
         print(f"Perchance status: {r.status_code}")
         if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
             img = r.content
             if len(img) > 50000:
-                print("1024x1024 HD IMAGE READY! (Perchance free quality)")
+                print("1080x1920 VERTICAL HD IMAGE READY! (Perchance free quality)")
                 return img
         else:
             print(f"Perchance error: {r.text[:200]}")
@@ -77,9 +95,9 @@ def tweet(img_bytes, caption):
 # MAIN
 if __name__ == "__main__":
     print("\nPERCHANCE FREE HD BOT RUNNING (No signup/credit, 403 fixed with cloudscraper!)\n")
-    prompt, caption = get_prompt_caption()
-    print(f"Prompt: {prompt[:150]}...")
-    print(f"Caption: {caption}\n")
+    prompt, caption = get_completely_random_wallpaper()
+    print(f"Idea: {caption}")
+    print(f"Prompt: {prompt[:150]}...\n")
 
     img = perchance_image(prompt)
     if not img:
