@@ -4,7 +4,7 @@ import random
 import time
 import google.generativeai as genai
 import tweepy
-import cloudscraper  # Cloudflare bypass for 403
+import cloudscraper  # Cloudflare 403 bypass için ekledik
 
 # SADECE BUNLAR LAZIM (Horde key opsiyonel)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
