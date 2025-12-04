@@ -1,18 +1,17 @@
 import os
 import requests
 import random
-import time
 import google.generativeai as genai
 import tweepy
-from bs4 import BeautifulSoup  # HTML scraping for image src
+from bs4 import BeautifulSoup  # HTML scraping for image URL
+import cloudscraper  # Cloudflare bypass
 
-# ONLY THESE ARE NEEDED (Horde key optional)
+# ONLY THESE ARE NEEDED (No extra keys!)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
-HORDE_API_KEY   = os.getenv("HORDE_API_KEY") or "0000000000"  # Put your real key in secrets
 
 # Check for missing keys
 for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
@@ -35,34 +34,29 @@ def get_prompt_caption():
         caption = "Mountain serenity"
     return prompt, caption
 
-# PERCHANCE – FREE HD (403 fix: More headers, browser mimic; scrape image from HTML)
+# PERCHANCE – FREE HD (Cloudflare 403 bypass with cloudscraper + scrape image from HTML)
 def perchance_image(prompt):
     print("Generating free 1024x1792 HD image with Perchance (no signup)...")
     encoded = requests.utils.quote(prompt)
     url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://perchance.org/ai-text-to-image-generator",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1"
-    }  # Wide header set, Cloudflare 403 bypass
+    scraper = cloudscraper.create_scraper()  # Bypass Cloudflare 403
     try:
-        r = requests.get(url, headers=headers, timeout=60)
+        r = scraper.get(url, timeout=60)
         print(f"Perchance status: {r.status_code}")
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
-            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=lambda s: s and 'generated' in s)
+            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=lambda s: s and 'generated' in s or 'data:image' in s)
             if img_tag:
                 img_url = img_tag['src']
-                if not img_url.startswith("http"):
-                    img_url = "https://perchance.org" + img_url
-                img_r = requests.get(img_url, timeout=60)
-                img = img_r.content
+                if 'data:image' in img_url:
+                    # Base64 image
+                    _, data = img_url.split(",", 1)
+                    img = base64.b64decode(data)
+                else:
+                    if not img_url.startswith("http"):
+                        img_url = "https://perchance.org" + img_url
+                    img_r = scraper.get(img_url, timeout=60)
+                    img = img_r.content
                 if len(img) > 50000:
                     print("1024x1792 HD IMAGE READY! (Perchance free quality)")
                     return img
