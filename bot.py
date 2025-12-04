@@ -3,7 +3,7 @@ import requests
 import random
 import google.generativeai as genai
 import tweepy
-import cloudscraper  # Cloudflare bypass
+import cloudscraper  # Cloudflare 403 bypass
 
 # ONLY THESE ARE NEEDED (No extra keys!)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
