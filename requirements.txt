@@ -3,3 +3,4 @@ tweepy
 requests
 cloudscraper
 beautifulsoup4
+lxml  # For BeautifulSoup parser
