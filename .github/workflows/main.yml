@@ -21,4 +21,5 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          STABILITY_KEY: ${{ secrets.STABILITY_KEY }}   # 🔥 BU EKLENDİ
         run: python bot.py
