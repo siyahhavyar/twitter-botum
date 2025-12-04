@@ -4,19 +4,20 @@ import random
 import time
 import google.generativeai as genai
 import tweepy
+from bs4 import BeautifulSoup  # HTML scraping for image src
 
-# SADECE BUNLAR LAZIM (Horde key opsiyonel)
+# ONLY THESE ARE NEEDED (Horde key optional)
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
-HORDE_API_KEY   = os.getenv("HORDE_API_KEY") or "0000000000"  # Gerçek key'ini secrets'e koy
+HORDE_API_KEY   = os.getenv("HORDE_API_KEY") or "0000000000"  # Put your real key in secrets
 
-# Eksik kontrol
+# Check for missing keys
 for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
     if not os.getenv(var):
-        print(f"EKSİK: {var}")
+        print(f"MISSING: {var}")
         exit(1)
 
 def get_prompt_caption():
@@ -24,19 +25,19 @@ def get_prompt_caption():
     model = genai.GenerativeModel('gemini-2.5-flash')
     themes = ["Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
     theme = random.choice(themes)
-    resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
+    resp = model.generate_content(f"Theme: {theme} → ultra detailed photorealistic prompt + short caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
         p, c = resp.split("|||")
-        prompt = p.replace("PROMPT:", "").strip() + ", no people, no humans, pure landscape, ultra detailed, sharp focus, high resolution 1024x1792, 8k masterpiece, cinematic lighting"
+        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1792, 8k masterpiece, cinematic lighting"
         caption = c.replace("CAPTION:", "").strip()
     except:
-        prompt = "beautiful mountain landscape, no people, no humans, pure landscape, ultra detailed, high resolution 1024x1792, 8k"
+        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1792, 8k"
         caption = "Mountain serenity"
     return prompt, caption
 
-# PERCHANCE – ÜCRETSİZ HD (403 fix: Daha fazla header ekle, browser mimic)
+# PERCHANCE – FREE HD (403 fix: More headers, browser mimic; scrape image from HTML)
 def perchance_image(prompt):
-    print("Perchance ile ücretsiz 1024x1792 HD resim üretiliyor (no signup)...")
+    print("Generating free 1024x1792 HD image with Perchance (no signup)...")
     encoded = requests.utils.quote(prompt)
     url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
     headers = {
@@ -49,24 +50,31 @@ def perchance_image(prompt):
         "Sec-Fetch-Site": "same-origin",
         "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1"
-    }  # Geniş header seti, Cloudflare 403 bypass
+    }  # Wide header set, Cloudflare 403 bypass
     try:
         r = requests.get(url, headers=headers, timeout=60)
         print(f"Perchance status: {r.status_code}")
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
-            img = r.content
-            if len(img) > 50000:
-                print("1024x1792 HD RESİM HAZIR! (Perchance free kalite)")
-                return img
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=lambda s: s and 'generated' in s)
+            if img_tag:
+                img_url = img_tag['src']
+                if not img_url.startswith("http"):
+                    img_url = "https://perchance.org" + img_url
+                img_r = requests.get(img_url, timeout=60)
+                img = img_r.content
+                if len(img) > 50000:
+                    print("1024x1792 HD IMAGE READY! (Perchance free quality)")
+                    return img
         else:
             print(f"Perchance error: {r.text[:200]}")
     except Exception as e:
         print(f"Perchance exception: {e}")
     return None
 
-# HORDE – Yedek (Gerçek key ile, timeout artırıldı)
+# HORDE – Backup (Real key, increased timeout)
 def horde_image(prompt):
-    print("AI Horde ile ücretsiz 1024x1792 HD resim üretiliyor...")
+    print("Generating free 1024x1792 HD image with AI Horde...")
     url = "https://stablehorde.net/api/v2/generate/async"
     headers = {"apikey": HORDE_API_KEY}
     payload = {
@@ -92,8 +100,8 @@ def horde_image(prompt):
             print(f"Horde create error: {r.text[:300]}")
             return None
         job_id = r.json()["id"]
-        print(f"Job ID: {job_id} - Üretim başladı...")
-        for i in range(200):  # Max 20 dk (6 sn aralık, uzun kuyruk için)
+        print(f"Job ID: {job_id} - Generation started...")
+        for i in range(200):  # Max 20 min (6 sec interval, for long queues)
             check = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}", timeout=30)
             if check.status_code == 200:
                 check_json = check.json()
@@ -106,7 +114,7 @@ def horde_image(prompt):
                             img_url = generations[0]["img"]
                             img = requests.get(img_url, timeout=60).content
                             if len(img) > 50000:
-                                print("1024x1792 HD RESİM HAZIR!")
+                                print("1024x1792 HD IMAGE READY!")
                                 return img
             time.sleep(6)
         print("AI Horde timeout.")
@@ -129,12 +137,12 @@ def tweet(img_bytes, caption):
         access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET
     )
     client.create_tweet(text=caption + " #AIArt #Wallpaper #4K", media_ids=[media.media_id])
-    print("TWEET BAŞARIYLA ATILDI!")
+    print("TWEET SUCCESSFULLY POSTED!")
     os.remove(fn)
 
 # ANA
 if __name__ == "__main__":
-    print("\nPERCHANCE + HORDE ÜCRETSİZ HD BOT ÇALIŞIYOR!\n")
+    print("\nPERCHANCE + HORDE FREE HD BOT RUNNING!\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
@@ -143,6 +151,6 @@ if __name__ == "__main__":
     if not img:
         img = horde_image(prompt)
     if not img:
-        print("Resim üretilemedi → Tweet atılmadı")
+        print("Image generation failed → Tweet not posted")
         exit(1)
     tweet(img, caption)
