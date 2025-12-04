@@ -11,17 +11,23 @@ API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
 ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-STABILITY_KEY = os.getenv("STABILITY_KEY")  # <<< BURAYA KEY GELECEK
+STABILITY_KEY = os.getenv("STABILITY_KEY")
+GEMINI_KEY    = os.getenv("GEMINI_KEY")
 
 if not STABILITY_KEY:
     print("ERROR: STABILITY_KEY eksik!")
     exit(1)
 
+if not GEMINI_KEY:
+    print("ERROR: GEMINI_KEY eksik!")
+    exit(1)
+
+
 # -----------------------------
-# GEMINI PROMPT GENERATOR
+# GEMINI: PROMPT + CAPTION
 # -----------------------------
 def generate_prompt_caption():
-    genai.configure(api_key=os.getenv("GEMINI_KEY"))
+    genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel("gemini-2.0-flash")
 
     themes = [
@@ -54,11 +60,28 @@ def generate_prompt_caption():
         ", ultra detailed, 4k, soft light, artistic, vibrant colors, fantasy atmosphere, sharp focus"
     )
 
-    return final_prompt, caption
+    return final_prompt, caption, theme
 
 
 # -----------------------------
-# STABILITY AI IMAGE GENERATOR
+# GEMINI: HASHTAG OLUŞTURUCU
+# -----------------------------
+def generate_hashtags(theme):
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel("gemini-2.0-flash")
+
+    prompt = f"""
+    Based on the theme "{theme}", create 5 short, aesthetic, relevant, trending hashtags.
+    Only return the hashtags, space-separated, no explanation.
+    """
+
+    text = model.generate_content(prompt).text
+    hashtags = text.strip().replace("\n", " ")
+    return hashtags
+
+
+# -----------------------------
+# STABILITY AI: GÖRSEL ÜRETİMİ
 # -----------------------------
 def generate_image(prompt_text):
 
@@ -90,7 +113,7 @@ def generate_image(prompt_text):
 # -----------------------------
 # TWITTER POST
 # -----------------------------
-def post_to_twitter(img_bytes, caption):
+def post_to_twitter(img_bytes, caption, hashtags):
     filename = "wallpaper.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
@@ -108,8 +131,10 @@ def post_to_twitter(img_bytes, caption):
         access_token_secret=ACCESS_SECRET
     )
 
+    tweet_text = f"{caption}\n\n{hashtags}"
+
     client.create_tweet(
-        text=caption + " #Wallpaper #AIArt #4K",
+        text=tweet_text,
         media_ids=[media.media_id]
     )
 
@@ -121,13 +146,18 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    prompt, caption = generate_prompt_caption()
+    prompt, caption, theme = generate_prompt_caption()
+
     print("Prompt:", prompt)
     print("Caption:", caption)
+    print("Theme:", theme)
+
+    hashtags = generate_hashtags(theme)
+    print("Hashtags:", hashtags)
 
     img = generate_image(prompt)
 
     if img:
-        post_to_twitter(img, caption)
+        post_to_twitter(img, caption, hashtags)
     else:
         print("Görsel oluşturulamadı!")
