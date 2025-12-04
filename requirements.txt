@@ -2,3 +2,4 @@ google-generativeai
 tweepy
 requests
 beautifulsoup4
+cloudscraper
