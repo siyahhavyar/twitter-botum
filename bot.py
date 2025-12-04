@@ -1,154 +1,133 @@
 import os
 import requests
-import time
-import base64
+import random
 import tweepy
+import google.generativeai as genai
 
-# --------------------
-# API KEYS
-# --------------------
-HORDE_API_KEY = "6FoHyt8ewpxxOO57QXZZFw"
+# -----------------------------
+# ENV KEYS
+# -----------------------------
+API_KEY       = os.getenv("API_KEY")
+API_SECRET    = os.getenv("API_SECRET")
+ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
+ACCESS_SECRET = os.getenv("ACCESS_SECRET")
+STABILITY_KEY = os.getenv("STABILITY_KEY")  # <<< BURAYA KEY GELECEK
 
-TW_API_KEY = os.getenv("TW_API_KEY")
-TW_API_SECRET = os.getenv("TW_API_SECRET")
-TW_ACCESS_TOKEN = os.getenv("TW_ACCESS_TOKEN")
-TW_ACCESS_SECRET = os.getenv("TW_ACCESS_SECRET")
+if not STABILITY_KEY:
+    print("ERROR: STABILITY_KEY eksik!")
+    exit(1)
 
-# --------------------
-# TWITTER LOGIN
-# --------------------
-def twitter_client():
-    auth = tweepy.OAuth1UserHandler(
-        TW_API_KEY,
-        TW_API_SECRET,
-        TW_ACCESS_TOKEN,
-        TW_ACCESS_SECRET
+# -----------------------------
+# GEMINI PROMPT GENERATOR
+# -----------------------------
+def generate_prompt_caption():
+    genai.configure(api_key=os.getenv("GEMINI_KEY"))
+    model = genai.GenerativeModel("gemini-2.0-flash")
+
+    themes = [
+        "Warm Fantasy Landscape",
+        "Golden Clouds Sunset",
+        "Soft Pastel Mountains",
+        "Dreamy Forest Light Rays",
+        "Mystical Horizon Glow",
+        "Cosy Autumn Lake",
+        "Bright Magical Valley"
+    ]
+
+    theme = random.choice(themes)
+
+    prompt = f"""
+    Generate a beautiful artistic prompt about this theme: {theme}.
+    Return format:
+    PROMPT: <image prompt>
+    CAPTION: <short poetic caption>
+    """
+
+    text = model.generate_content(prompt).text
+    parts = text.split("CAPTION:")
+
+    img_prompt = parts[0].replace("PROMPT:", "").strip()
+    caption = parts[1].strip()
+
+    final_prompt = (
+        img_prompt +
+        ", ultra detailed, 4k, soft light, artistic, vibrant colors, fantasy atmosphere, sharp focus"
     )
-    return tweepy.API(auth)
 
-# --------------------
-# HORDE IMAGE GENERATOR
-# --------------------
-def generate_image(prompt):
-    headers = {"apikey": HORDE_API_KEY}
+    return final_prompt, caption
 
-    payload = {
-        "prompt": prompt,
-        "models": ["Stable Diffusion XL"],
-        "params": {
-            "sampler_name": "k_euler",
-            "denoising_strength": 0.7,
-            "width": 1024,
-            "height": 1024,
-            "cfg_scale": 7,
-            "steps": 30
-        }
+
+# -----------------------------
+# STABILITY AI IMAGE GENERATOR
+# -----------------------------
+def generate_image(prompt_text):
+
+    print("Stability AI → 1024x1792 HD görsel oluşturuluyor...")
+
+    url = "https://api.stability.ai/v2beta/stable-image/generate/core"
+
+    headers = {
+        "authorization": f"Bearer {STABILITY_KEY}",
+        "accept": "image/*"
     }
 
-    # ---- SEND ASYNC REQUEST ----
-    task = requests.post(
-        "https://aihorde.net/api/v2/generate/async",
-        json=payload,
-        headers=headers
-    ).json()
+    data = {
+        "model": "stable-image-core",
+        "prompt": prompt_text,
+        "aspect_ratio": "9:16",
+        "output_format": "png"
+    }
 
-    if "id" not in task:
-        print("HORDE ERROR:", task)
+    response = requests.post(url, headers=headers, files={"none": ''}, data=data)
+
+    if response.status_code != 200:
+        print("STABILITY ERROR:", response.text[:500])
         return None
 
-    task_id = task["id"]
-
-    # ---- WAIT FOR GENERATION ----
-    while True:
-        status = requests.get(
-            f"https://aihorde.net/api/v2/generate/status/{task_id}"
-        ).json()
-
-        if status.get("finished"):
-            try:
-                img_url = status["generations"][0]["img"]
-                break
-            except:
-                print("GENERATION RESPONSE ERROR:", status)
-                return None
-
-        time.sleep(3)
-
-    # --------------------
-    # UPSCALE (optional)
-    # --------------------
-    upscale_payload = {
-        "source_image": img_url,
-        "source_processing": "upscale",
-        "params": {"scale": 2}
-    }
-
-    upscale = requests.post(
-        "https://aihorde.net/api/v2/generate/async",
-        json=upscale_payload,
-        headers=headers
-    ).json()
-
-    if "id" not in upscale:
-        print("UPSCALE ERROR:", upscale)
-        return img_url  # upscale başarısızsa orijinal resmi döndür
-
-    upscale_id = upscale["id"]
-
-    while True:
-        up_status = requests.get(
-            f"https://aihorde.net/api/v2/generate/status/{upscale_id}"
-        ).json()
-
-        if up_status.get("finished"):
-            try:
-                return up_status["generations"][0]["img"]
-            except:
-                print("UPSCALE STATUS ERROR:", up_status)
-                return img_url
-
-        time.sleep(3)
+    return response.content
 
 
-# --------------------
-# DOWNLOAD IMAGE
-# --------------------
-def download_image(url, path="image.png"):
-    img_data = requests.get(url).content
-    with open(path, "wb") as f:
-        f.write(img_data)
-    return path
+# -----------------------------
+# TWITTER POST
+# -----------------------------
+def post_to_twitter(img_bytes, caption):
+    filename = "wallpaper.png"
+    with open(filename, "wb") as f:
+        f.write(img_bytes)
+
+    auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
+    auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+    api = tweepy.API(auth)
+
+    media = api.media_upload(filename)
+
+    client = tweepy.Client(
+        consumer_key=API_KEY,
+        consumer_secret=API_SECRET,
+        access_token=ACCESS_TOKEN,
+        access_token_secret=ACCESS_SECRET
+    )
+
+    client.create_tweet(
+        text=caption + " #Wallpaper #AIArt #4K",
+        media_ids=[media.media_id]
+    )
+
+    print("TWEET BAŞARILI!")
+    os.remove(filename)
 
 
-# --------------------
-# POST TO TWITTER
-# --------------------
-def post_to_twitter():
-    prompt = "4k ultra-detailed landscape, warm fantasy atmosphere"
-
-    print("Görüntü üretiliyor...")
-    img_url = generate_image(prompt)
-
-    if img_url is None:
-        print("GÖRSEL OLUŞTURULAMADI.")
-        return
-
-    print("Görüntü indiriliyor:", img_url)
-    img_path = download_image(img_url)
-
-    api = twitter_client()
-
-    print("Twitter'a yükleniyor...")
-    media = api.media_upload(img_path)
-
-    print("Tweet atılıyor...")
-    api.update_status(status=prompt, media_ids=[media.media_id])
-
-    print("Tweet paylaşıldı!")
-
-
-# --------------------
-# RUN BOT
-# --------------------
+# -----------------------------
+# MAIN
+# -----------------------------
 if __name__ == "__main__":
-    post_to_twitter()
+    prompt, caption = generate_prompt_caption()
+    print("Prompt:", prompt)
+    print("Caption:", caption)
+
+    img = generate_image(prompt)
+
+    if img:
+        post_to_twitter(img, caption)
+    else:
+        print("Görsel oluşturulamadı!")
