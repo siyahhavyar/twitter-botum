@@ -1,6 +1,5 @@
 google-generativeai
 tweepy
 requests
-cloudscraper
-beautifulsoup4
-lxml  # For BeautifulSoup parser
+perchance  # Unofficial Perchance API
+asyncio  # For async generation
