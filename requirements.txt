@@ -1,5 +1,4 @@
 google-generativeai
 tweepy
 requests
-perchance  # Unofficial Perchance API
-asyncio  # For async generation
+perchance
