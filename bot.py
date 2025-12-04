@@ -1,82 +1,116 @@
 import os
 import requests
 import random
-import time         # EKLENDI: Bekleme süreleri için gerekli
-import base64       # EKLENDI: Resim çözme işlemleri için gerekli
 import google.generativeai as genai
 import tweepy
-from bs4 import BeautifulSoup  # HTML scraping for image URL
-import cloudscraper  # Cloudflare bypass
+from bs4 import BeautifulSoup
+import cloudscraper
+import base64
+import time
 
-# --- API KEY TANIMLAMALARI ---
+# ENV
 GEMINI_KEY      = os.getenv("GEMINI_KEY")
 API_KEY         = os.getenv("API_KEY")
 API_SECRET      = os.getenv("API_SECRET")
 ACCESS_TOKEN    = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET   = os.getenv("ACCESS_SECRET")
+HORDE_API_KEY   = os.getenv("HORDE_API_KEY")
 
-# Horde Key yoksa varsayılan anonim key (0000000000) kullanır
-HORDE_API_KEY   = os.getenv("HORDE_API_KEY", "0000000000") 
-
-# Check for CRITICAL missing keys (Horde opsiyonel olduğu için buraya eklemedim)
-for var in ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET"]:
-    if not os.getenv(var):
-        print(f"MISSING: {var}")
+required_vars = ["GEMINI_KEY","API_KEY","API_SECRET","ACCESS_TOKEN","ACCESS_SECRET","HORDE_API_KEY"]
+for v in required_vars:
+    if not os.getenv(v):
+        print(f"Missing ENV variable: {v}")
         exit(1)
+
+# NON-PUNK THEMES ONLY
+THEMES = [
+    "Misty Waterfall Valley",
+    "Golden Sunset Beach",
+    "Frozen Aurora Lake",
+    "Silent Autumn Forest",
+    "Ancient Marble Temple",
+    "Celestial Cloud Kingdom",
+    "Blue Crystal Mountains",
+    "Sacred Sakura Garden",
+    "Starry Dream Meadow",
+    "Shimmering Ice Cavern",
+]
 
 def get_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash') # 2.5 henüz yoksa 1.5 veya 2.0 kullan
-    themes = ["Neon Forest","Space Nebula","Crystal Cave","Floating Islands","Golden Desert","Steampunk City","Aurora Mountains"]
-    theme = random.choice(themes)
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    theme = random.choice(THEMES)
+
+    q = f"""
+Create:
+PROMPT = highly detailed, photorealistic wallpaper for theme: {theme}
+CAPTION = poetic, short (max 8 words)
+Format strictly:
+PROMPT: ...
+|||
+CAPTION: ...
+"""
+
+    resp = model.generate_content(q).text.strip()
+
     try:
-        resp = model.generate_content(f"Theme: {theme} -> ultra detailed photorealistic prompt + short caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
         p, c = resp.split("|||")
-        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1792, 8k masterpiece, cinematic lighting"
+        prompt = p.replace("PROMPT:", "").strip()
         caption = c.replace("CAPTION:", "").strip()
-    except Exception as e:
-        print(f"Gemini Error: {e}")
-        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1792, 8k"
-        caption = "Mountain serenity"
+    except:
+        prompt = "beautiful mountain landscape, ultra detailed"
+        caption = "Nature's silence"
+
+    prompt += ", ultra detailed, 1024x1792, 8k, natural colors, no punk style, no cyber elements"
     return prompt, caption
 
-# PERCHANCE – FREE HD
+
+# PERCHANCE
 def perchance_image(prompt):
-    print("Generating free 1024x1792 HD image with Perchance (no signup)...")
+    print("Generating free 1024x1792 HD image with Perchance...")
     encoded = requests.utils.quote(prompt)
-    url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
-    scraper = cloudscraper.create_scraper() 
+    url = (
+        f"https://perchance.org/ai-text-to-image-generator?"
+        f"prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
+    )
+
+    scraper = cloudscraper.create_scraper()
     try:
         r = scraper.get(url, timeout=60)
-        print(f"Perchance status: {r.status_code}")
+        print("Perchance status:", r.status_code)
+
         if r.status_code == 200:
-            soup = BeautifulSoup(r.text, 'html.parser')
-            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=lambda s: s and 'generated' in s or 'data:image' in s)
+            soup = BeautifulSoup(r.text, "html.parser")
+            img_tag = soup.find("img", {"id": "generated-image"}) or \
+                      soup.find("img", src=lambda s: s and ("generated" in s or "data:image" in s))
+
             if img_tag:
-                img_url = img_tag['src']
-                if 'data:image' in img_url:
-                    _, data = img_url.split(",", 1)
-                    img = base64.b64decode(data)
-                else:
-                    if not img_url.startswith("http"):
-                        img_url = "https://perchance.org" + img_url
-                    img_r = scraper.get(img_url, timeout=60)
-                    img = img_r.content
-                
-                if len(img) > 50000:
-                    print("1024x1792 HD IMAGE READY! (Perchance free quality)")
+                img_url = img_tag["src"]
+
+                if img_url.startswith("data:image"):
+                    img = base64.b64decode(img_url.split(",",1)[1])
                     return img
-        else:
-            print(f"Perchance error: {r.text[:200]}")
+
+                if not img_url.startswith("http"):
+                    img_url = "https://perchance.org" + img_url
+
+                raw = scraper.get(img_url, timeout=60).content
+                if len(raw) > 50000:
+                    print("Perchance HD READY!")
+                    return raw
     except Exception as e:
-        print(f"Perchance exception: {e}")
+        print("Perchance exception:", e)
+
     return None
 
-# HORDE – Backup
+
+# HORDE BACKUP
 def horde_image(prompt):
-    print("Generating free 1024x1792 HD image with AI Horde...")
+    print("Generating HD with AI Horde...")
+
     url = "https://stablehorde.net/api/v2/generate/async"
     headers = {"apikey": HORDE_API_KEY}
+
     payload = {
         "prompt": prompt,
         "params": {
@@ -93,74 +127,80 @@ def horde_image(prompt):
         "censor_nsfw": True,
         "models": ["SDXL 1.0"]
     }
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=30)
-        if r.status_code != 202:
-            print(f"Horde create error: {r.text[:300]}")
-            return None
-        job_id = r.json()["id"]
-        print(f"Job ID: {job_id} - Generation started...")
-        
-        for i in range(200): 
-            check = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}", timeout=30)
-            if check.status_code == 200:
-                check_json = check.json()
-                print(f"Status check {i+1}: {check_json['wait_time']}s left, queue: {check_json['queue_position']}")
-                if check_json["done"]:
-                    status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}", timeout=30)
-                    if status.status_code == 200:
-                        generations = status.json()["generations"]
-                        if generations:
-                            img_url = generations[0]["img"]
-                            img = requests.get(img_url, timeout=60).content
-                            if len(img) > 50000:
-                                print("1024x1792 HD IMAGE READY! (Horde)")
-                                return img
-            time.sleep(6)
-        print("AI Horde timeout.")
-        return None
-    except Exception as e:
-        print(f"AI Horde exception: {e}")
-        return None
 
-# TWEET
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=30)
+        print("Horde create status:", r.status_code)
+
+        if r.status_code != 202:
+            print(r.text[:300])
+            return None
+
+        job_id = r.json()["id"]
+        print("Job:", job_id)
+
+        for i in range(200):
+            chk = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}", timeout=30).json()
+            print(f"Check {i+1}: queue={chk['queue_position']} wait={chk['wait_time']}")
+
+            if chk["done"]:
+                status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}", timeout=30).json()
+                img_url = status["generations"][0]["img"]
+                raw = requests.get(img_url, timeout=60).content
+
+                if len(raw) > 50000:
+                    print("HORDE HD READY!")
+                    return raw
+
+            time.sleep(6)
+
+    except Exception as e:
+        print("Horde exception:", e)
+
+    return None
+
+
 def tweet(img_bytes, caption):
     fn = "wallpaper.jpg"
     with open(fn, "wb") as f:
         f.write(img_bytes)
-    
+
     auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
     api = tweepy.API(auth)
-    
-    try:
-        media = api.media_upload(fn)
-        client = tweepy.Client(
-            consumer_key=API_KEY, consumer_secret=API_SECRET,
-            access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET
-        )
-        client.create_tweet(text=caption + " #AIArt #Wallpaper #4K", media_ids=[media.media_id])
-        print("TWEET SUCCESSFULLY POSTED!")
-    except Exception as e:
-        print(f"Tweet Error: {e}")
-    finally:
-        if os.path.exists(fn):
-            os.remove(fn)
 
-# ANA
+    media = api.media_upload(fn)
+
+    client = tweepy.Client(
+        consumer_key=API_KEY,
+        consumer_secret=API_SECRET,
+        access_token=ACCESS_TOKEN,
+        access_token_secret=ACCESS_SECRET
+    )
+
+    client.create_tweet(
+        text=caption + " #AIArt #Wallpaper #4K",
+        media_ids=[media.media_id]
+    )
+
+    print("Tweet posted!")
+    os.remove(fn)
+
+
+# MAIN
 if __name__ == "__main__":
-    print("\nPERCHANCE + HORDE FREE HD BOT RUNNING!\n")
+    print("\nNON-PUNK HD TWITTER BOT RUNNING!\n")
+
     prompt, caption = get_prompt_caption()
-    print(f"Prompt: {prompt[:150]}...")
-    print(f"Caption: {caption}\n")
+    print("Prompt:", prompt[:150], "...")
+    print("Caption:", caption)
 
     img = perchance_image(prompt)
     if not img:
-        print("Perchance failed, trying Horde...")
         img = horde_image(prompt)
-    
+
     if not img:
-        print("Image generation failed -> Tweet not posted")
+        print("Image error! Tweet cancelled.")
         exit(1)
-        
+
     tweet(img, caption)
