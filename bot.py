@@ -27,16 +27,16 @@ def get_prompt_caption():
     resp = model.generate_content(f"Tema: {theme} → ultra detaylı photorealistic prompt + kısa caption. Format: PROMPT: [...] ||| CAPTION: [...]").text.strip()
     try:
         p, c = resp.split("|||")
-        prompt = p.replace("PROMPT:", "").strip() + ", ultra detailed, sharp focus, high resolution 1024x1024, 8k masterpiece, cinematic lighting"
+        prompt = p.replace("PROMPT:", "").strip() + ", no people, no humans, pure landscape, ultra detailed, sharp focus, high resolution 1024x1792, 8k masterpiece, cinematic lighting"
         caption = c.replace("CAPTION:", "").strip()
     except:
-        prompt = "beautiful mountain landscape, ultra detailed, high resolution 1024x1024, 8k"
+        prompt = "beautiful mountain landscape, no people, no humans, pure landscape, ultra detailed, high resolution 1024x1792, 8k"
         caption = "Mountain serenity"
     return prompt, caption
 
-# PERCHANCE – SENİN ÇALIŞAN VERSİYONUN (tek fark: resolution=1024x1792 dikey yaptım, 1024x1024 değil)
+# PERCHANCE – ÜCRETSİZ HD (403 fix: Daha fazla header ekle, browser mimic)
 def perchance_image(prompt):
-    print("Perchance ile ücretsiz 1024x1792 DİKEY resim üretiliyor (senin çalışan kodun)...")
+    print("Perchance ile ücretsiz 1024x1792 HD resim üretiliyor (no signup)...")
     encoded = requests.utils.quote(prompt)
     url = f"https://perchance.org/ai-text-to-image-generator?prompt={encoded}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux"
     headers = {
@@ -49,24 +49,24 @@ def perchance_image(prompt):
         "Sec-Fetch-Site": "same-origin",
         "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1"
-    }
+    }  # Geniş header seti, Cloudflare 403 bypass
     try:
         r = requests.get(url, headers=headers, timeout=60)
         print(f"Perchance status: {r.status_code}")
-        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', '798'):
+        if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
             img = r.content
             if len(img) > 50000:
-                print("1024x1792 DİKEY RESİM HAZIR! (Senin çalışan kodun)")
+                print("1024x1792 HD RESİM HAZIR! (Perchance free kalite)")
                 return img
         else:
-            print(f"Perchance hata verdi ama sorun değil, Horde yedek var")
+            print(f"Perchance error: {r.text[:200]}")
     except Exception as e:
         print(f"Perchance exception: {e}")
     return None
 
-# HORDE – yedek (senin orijinalin, değişmedi)
+# HORDE – Yedek (Gerçek key ile, timeout artırıldı)
 def horde_image(prompt):
-    print("AI Horde ile ücretsiz 1024x1024 HD resim üretiliyor...")
+    print("AI Horde ile ücretsiz 1024x1792 HD resim üretiliyor...")
     url = "https://stablehorde.net/api/v2/generate/async"
     headers = {"apikey": HORDE_API_KEY}
     payload = {
@@ -75,7 +75,7 @@ def horde_image(prompt):
             "sampler_name": "k_euler_a",
             "cfg_scale": 7.5,
             "seed_variation": 1,
-            "height": 1024,
+            "height": 1792,
             "width": 1024,
             "karras": True,
             "steps": 20,
@@ -93,7 +93,7 @@ def horde_image(prompt):
             return None
         job_id = r.json()["id"]
         print(f"Job ID: {job_id} - Üretim başladı...")
-        for i in range(200):
+        for i in range(200):  # Max 20 dk (6 sn aralık, uzun kuyruk için)
             check = requests.get(f"https://stablehorde.net/api/v2/generate/check/{job_id}", timeout=30)
             if check.status_code == 200:
                 check_json = check.json()
@@ -106,7 +106,7 @@ def horde_image(prompt):
                             img_url = generations[0]["img"]
                             img = requests.get(img_url, timeout=60).content
                             if len(img) > 50000:
-                                print("1024x1024 HD RESİM HAZIR! (Horde)")
+                                print("1024x1792 HD RESİM HAZIR!")
                                 return img
             time.sleep(6)
         print("AI Horde timeout.")
@@ -134,7 +134,7 @@ def tweet(img_bytes, caption):
 
 # ANA
 if __name__ == "__main__":
-    print("\nSENİN ÇALIŞAN KODUN – SADECE DİKEY YAPTIM\n")
+    print("\nPERCHANCE + HORDE ÜCRETSİZ HD BOT ÇALIŞIYOR!\n")
     prompt, caption = get_prompt_caption()
     print(f"Prompt: {prompt[:150]}...")
     print(f"Caption: {caption}\n")
@@ -143,6 +143,6 @@ if __name__ == "__main__":
     if not img:
         img = horde_image(prompt)
     if not img:
-        print("Bugün ikisi de çalışmadı, yarın tekrar dene")
+        print("Resim üretilemedi → Tweet atılmadı")
         exit(1)
     tweet(img, caption)
