@@ -36,7 +36,7 @@ def get_prompt_caption():
         caption = "Mountain serenity"
     return prompt, caption
 
-# PERCHANCE – ÜCRETSİZ HD (senin kodun + cloudscraper + scraping for HTML image)
+# PERCHANCE – ÜCRETSİZ HD (senin kodun + cloudscraper + scraping)
 def perchance_image(prompt):
     print("Perchance ile ücretsiz 1024x1792 HD resim üretiliyor (no signup)...")
     encoded = requests.utils.quote(prompt)
@@ -58,7 +58,7 @@ def perchance_image(prompt):
         print(f"Perchance status: {r.status_code}")
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
-            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=True)
+            img_tag = soup.find('img', {'id': 'generated-image'}) or soup.find('img', src=lambda s: s and 'generated' in s)
             if img_tag:
                 img_url = img_tag['src']
                 if not img_url.startswith("http"):
