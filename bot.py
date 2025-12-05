@@ -1,8 +1,8 @@
 import os
 import requests
 import random
-import tweepy
 import google.generativeai as genai
+import tweepy
 
 # -----------------------------
 # ENV KEYS
@@ -11,93 +11,50 @@ API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
 ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-STABILITY_KEY = os.getenv("STABILITY_KEY")
-GEMINI_KEY    = os.getenv("GEMINI_KEY")
+STABILITY_KEY = os.getenv("STABILITY_KEY")  # <<< BURAYA KEY GELECEK
 
 if not STABILITY_KEY:
     print("ERROR: STABILITY_KEY eksik!")
     exit(1)
 
-if not GEMINI_KEY:
-    print("ERROR: GEMINI_KEY eksik!")
-    exit(1)
-
-
 # -----------------------------
-# GEMINI: TEMA + PROMPT + CAPTION
+# GEMINI PROMPT GENERATOR (KENDİ FİKİR BULUYOR)
 # -----------------------------
-def generate_ai_theme_and_prompt():
-    """
-    Bu fonksiyon tamamen yapay zekanın kendisinin bir tema yaratmasını sağlar.
-    Tema, fantastik + minimal + karanlık + estetik olacak şekilde sınırlı yönlendirme alır.
-    AI temayı, prompt'u ve kısa caption'ı birlikte üretir.
-    """
+def generate_prompt_caption():
+    genai.configure(api_key=os.getenv("GEMINI_KEY"))
+    model = genai.GenerativeModel("gemini-2.0-flash-exp")
 
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
-    prompt = """
-    Create a unique artistic theme that mixes:
-    - fantasy atmosphere
-    - minimal and clean visual style
-    - soft-dark or moody tones
-    - abstract or symbolic elements (no explicit witches, heroes, characters)
-    - elegant, aesthetic mood
-
-    After deciding the theme, generate:
-    PROMPT: a detailed AI image prompt describing that theme, including mood, lighting, color palette, and minimal fantasy symbolism.
-    CAPTION: a very short poetic caption (max 7 words).
-
-    Only return in this format:
-    THEME: <the unique theme name>
-    PROMPT: <image prompt>
-    CAPTION: <caption>
+    instruction = """
+    Create ONE completely new, beautiful vertical phone wallpaper idea (9:16).
+    Only nature, fantasy, cozy, dreamy, pastel, minimal, cottagecore, surreal.
+    NO people, NO text, NO cyberpunk, NO technology.
+    Output exactly:
+    PROMPT: [ultra detailed English prompt]
+    CAPTION: [short beautiful English caption]
     """
 
-    text = model.generate_content(prompt).text
+    try:
+        text = model.generate_content(instruction).text.strip()
+        parts = text.split("CAPTION:")
+        p = parts[0].replace("PROMPT:", "").strip()
+        c = parts[1].strip()
+    except:
+        p = "soft pastel cherry blossom forest at twilight, vertical phone wallpaper"
+        c = "Whispers of spring"
 
-    # Parçalıyoruz
-    parts = text.split("PROMPT:")
-
-    theme = parts[0].replace("THEME:", "").strip()
-    rest = parts[1].split("CAPTION:")
-
-    img_prompt = rest[0].strip()
-    caption = rest[1].strip()
-
-    # Prompta ekstra stil eklentileri
     final_prompt = (
-        img_prompt +
-        ", ultra detailed, 4k, soft lighting, cinematic tone, minimal fantasy symbolism, muted colors, elegant aesthetic, sharp focus"
+        p +
+        ", vertical phone wallpaper, 9:16 ratio, ultra detailed, masterpiece, 8k, soft lighting, cinematic atmosphere"
     )
 
-    return theme, final_prompt, caption
+    return final_prompt, c
 
 
 # -----------------------------
-# GEMINI: HASHTAG OLUŞTURUCU
-# -----------------------------
-def generate_hashtags(theme):
-    genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
-    prompt = f"""
-    Based on the artistic theme "{theme}", generate 7 minimal, aesthetic, fantasy-inspired hashtags.
-    Style: short, elegant, trending, abstract.
-    No explanations, no numbering, only hashtags space-separated.
-    """
-
-    text = model.generate_content(prompt).text
-    hashtags = text.strip().replace("\n", " ")
-    return hashtags
-
-
-# -----------------------------
-# STABILITY AI: GÖRSEL ÜRETİMİ
+# STABILITY AI IMAGE GENERATOR
 # -----------------------------
 def generate_image(prompt_text):
-
-    print("Stability AI → 1024x1792 görsel oluşturuluyor...")
+    print("Stability AI → 1024x1792 HD görsel oluşturuluyor...")
 
     url = "https://api.stability.ai/v2beta/stable-image/generate/core"
 
@@ -109,7 +66,7 @@ def generate_image(prompt_text):
     data = {
         "model": "stable-image-core",
         "prompt": prompt_text,
-        "aspect_ratio": "9:16",
+        "aspect_ratio": "9:16",        # DİKEY
         "output_format": "png"
     }
 
@@ -125,7 +82,7 @@ def generate_image(prompt_text):
 # -----------------------------
 # TWITTER POST
 # -----------------------------
-def post_to_twitter(img_bytes, caption, hashtags):
+def post_to_twitter(img_bytes, caption):
     filename = "wallpaper.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
@@ -143,10 +100,8 @@ def post_to_twitter(img_bytes, caption, hashtags):
         access_token_secret=ACCESS_SECRET
     )
 
-    tweet_text = f"{caption}\n\n{hashtags}"
-
     client.create_tweet(
-        text=tweet_text,
+        text=caption + " #Wallpaper #AIArt #4K #Aesthetic",
         media_ids=[media.media_id]
     )
 
@@ -158,18 +113,13 @@ def post_to_twitter(img_bytes, caption, hashtags):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    theme, prompt, caption = generate_ai_theme_and_prompt()
-
-    print("Theme:", theme)
+    prompt, caption = generate_prompt_caption()
     print("Prompt:", prompt)
     print("Caption:", caption)
-
-    hashtags = generate_hashtags(theme)
-    print("Hashtags:", hashtags)
 
     img = generate_image(prompt)
 
     if img:
-        post_to_twitter(img, caption, hashtags)
+        post_to_twitter(img, caption)
     else:
         print("Görsel oluşturulamadı!")
