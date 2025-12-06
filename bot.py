@@ -14,7 +14,7 @@ ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 
-# Horde Key yoksa Anonim devam et
+# Horde Key
 HORDE_KEY = os.getenv("HORDE_KEY")
 if not HORDE_KEY or HORDE_KEY.strip() == "":
     print("Bilgi: Anonim mod (0000000000) kullanılıyor.")
@@ -60,8 +60,8 @@ def generate_prompt_caption():
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # ICBINP modeli için özel kalite komutları
-        final_prompt = f"{img_prompt}, (photorealistic:1.4), raw photo, dslr, soft lighting, high quality, 8k"
+        # Gerçekçilik ve kalite için eklemeler
+        final_prompt = f"{img_prompt}, (photorealistic:1.4), raw photo, dslr, soft lighting, high quality, 8k, masterpiece"
         
         return final_prompt, caption
     except Exception as e:
@@ -70,7 +70,7 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE (MAXIMUM FREE RESOLUTION)
+# 2. AI HORDE (CORRECTED RESOLUTION)
 # -----------------------------
 def generate_image_horde(prompt_text):
     print("AI Horde → İstek gönderiliyor...")
@@ -82,23 +82,24 @@ def generate_image_horde(prompt_text):
         "Client-Agent": "MyTwitterBot:v1.0"
     }
     
-    # --- KRİTİK AYARLAR ---
-    # Anonim limit: Toplam ~331.000 piksel.
-    # 432 x 768 = 331.776 piksel (Tam sınırda, dikey wallpaper)
+    # --- MATEMATİKSEL DÜZELTME ---
+    # Kurallar: 
+    # 1. Sayılar 64'ün katı olmalı (Örn: 448/64 = 7 tam sayı)
+    # 2. Toplam piksel anonim limiti (331.776) geçmemeli.
+    # 448 x 704 = 315.392 piksel (Limitin altında ve kurallara uygun)
     
     payload = {
         "prompt": prompt_text,
         "params": {
             "sampler_name": "k_euler_a",
             "cfg_scale": 7,
-            "width": 432,    # Anonim için maksimum genişlik (dikeyde)
-            "height": 768,   # Anonim için maksimum yükseklik
+            "width": 448,   
+            "height": 704,  
             "steps": 25,
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # ICBINP: "I Can't Believe It's Not Photography" (Daha gerçekçi model)
-        # Eğer bu model hata verirse ["stable_diffusion"] olarak değiştirin.
+        # ICBINP daha gerçekçi sonuç verir, yedek olarak stable_diffusion ekledik
         "models": ["ICBINP", "stable_diffusion"] 
     }
 
@@ -134,8 +135,11 @@ def generate_image_horde(prompt_text):
                 if len(generations) > 0:
                     img_url = generations[0]['img']
                     return requests.get(img_url).content
+                else:
+                    print("Horde resim üretmedi (Liste boş).")
+                    return None
             
-            print(f"Süre: {wait_time}sn | Sıra Bekleniyor...")
+            print(f"Süre: {wait_time}sn | Durum: {status_data.get('wait_time', 'Sıra bekleniyor')}sn...")
         except Exception as e:
             time.sleep(5) 
 
@@ -166,7 +170,7 @@ def post_to_twitter(img_bytes, caption):
         )
 
         client.create_tweet(
-            text=caption + " #AIArt #Wallpaper",
+            text=caption + " #AIArt #Wallpaper #Dreamy",
             media_ids=[media.media_id]
         )
         print("TWEET BAŞARILI!")
