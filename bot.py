@@ -25,22 +25,22 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (İNATÇI VE ÖZGÜR MOD)
+# 1. GEMINI PROMPT GENERATOR (TEK SEFERLİK)
 # -----------------------------
-def generate_prompt_caption():
+def get_idea_from_gemini():
+    """
+    Bu fonksiyon Gemini'yi sadece 1 kere arar.
+    Hata alırsa kendi içinde bekler, kotayı zorlamaz.
+    """
     genai.configure(api_key=GEMINI_KEY)
-    
     generation_config = genai.types.GenerationConfig(
         temperature=1.0, top_p=0.99, top_k=40,
     )
     model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
 
-    # --- SADECE GEMINI VAR, YEDEK YOK ---
-    # Bu döngü Gemini cevap verene kadar kırılmaz.
     while True:
         try:
-            print("Gemini'ye yeni bir fikir soruluyor...")
-            
+            print("🧠 Gemini fikir düşünüyor...")
             prompt = """
             Act as an unpredictable AI Art Curator. Invent a unique phone wallpaper concept.
             INSTRUCTIONS:
@@ -62,9 +62,8 @@ def generate_prompt_caption():
             parts = text.split("CAPTION:")
             
             if len(parts) < 2:
-                # Format bozuksa tekrar dene
-                print("Gemini formatı tutturamadı, tekrar soruluyor...")
-                time.sleep(5)
+                print("⚠️ Format hatası, tekrar deneniyor...")
+                time.sleep(2)
                 continue 
 
             img_prompt = parts[0].replace("PROMPT:", "").strip()
@@ -78,22 +77,21 @@ def generate_prompt_caption():
             return final_prompt, caption
 
         except Exception as e:
-            # HATA YAKALAMA (429 Quota Exceeded vb.)
-            print(f"⚠️ Gemini Hatası: {e}")
-            print("⏳ Kota dolmuş olabilir. 10 Dakika dinlenip TEKRAR GEMINI'YE soracağım. Yedek yok.")
-            time.sleep(600) # 10 Dakika bekle ve döngünün başına dön (Tekrar dene)
+            print(f"🛑 Gemini Kotası Doldu veya Hata: {e}")
+            print("⏳ 10 Dakika mecburi dinlenme molası...")
+            time.sleep(600) # 10 dakika bekle, sonra tekrar dene
 
 
 # -----------------------------
-# 2. AI HORDE (GENİŞLETİLMİŞ FULL EKRAN MODU)
+# 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
-def generate_image_horde(prompt_text):
-    print("AI Horde → Wallpaper isteği gönderiliyor...")
+def try_generate_image(prompt_text):
+    print("🎨 AI Horde → Resim çiziliyor...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v4.3-Patient"
+        "Client-Agent": "MyTwitterBot:v5.0-QuotaSaver"
     }
     
     payload = {
@@ -101,8 +99,8 @@ def generate_image_horde(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 704,    # Genişletilmiş (Yanlarda siyah boşluk kalmasın diye)             
-            "height": 1536,  # Full Ekran Yüksekliği             
+            "width": 704,    # İdeal Genişlik             
+            "height": 1536,  # İdeal Yükseklik             
             "steps": 30,                 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
@@ -114,17 +112,17 @@ def generate_image_horde(prompt_text):
     try:
         req = requests.post(generate_url, json=payload, headers=headers)
         if req.status_code != 202:
-            print(f"Horde Sunucu Hatası: {req.text}")
+            print(f"⚠️ Sunucu Hatası: {req.text}")
             return None 
         task_id = req.json()['id']
-        print(f"Görev ID: {task_id}. Sırada bekleniyor...")
+        print(f"✅ Görev alındı ID: {task_id}. Bekleniyor...")
     except Exception as e:
-        print(f"Bağlantı Hatası: {e}")
+        print(f"⚠️ Bağlantı Hatası: {e}")
         return None
 
-    # Bekleme (60 Dk)
+    # Bekleme (45 Dk limit)
     wait_time = 0
-    max_wait = 3600 
+    max_wait = 2700 
     
     while wait_time < max_wait:
         time.sleep(20) 
@@ -135,22 +133,22 @@ def generate_image_horde(prompt_text):
             status_data = check.json()
             
             if status_data['done']:
-                print("İşlem tamamlandı! Wallpaper indiriliyor...")
                 generations = status_data['generations']
                 if len(generations) > 0:
+                    print("⬇️ Resim indiriliyor...")
                     img_url = generations[0]['img']
                     return requests.get(img_url).content
                 else:
-                    print("Horde boş yanıt döndü.")
+                    print("⚠️ Horde boş yanıt döndü.")
                     return None
             
             wait_t = status_data.get('wait_time', '?')
             queue = status_data.get('queue_position', '?')
-            print(f"Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn")
+            print(f"⏳ Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn")
         except Exception as e:
             time.sleep(5) 
 
-    print("Zaman aşımı (60 dk).")
+    print("⚠️ Zaman aşımı.")
     return None
 
 
@@ -177,7 +175,7 @@ def post_to_twitter(img_bytes, caption):
             text=caption + " #AIArt #Wallpaper",
             media_ids=[media.media_id]
         )
-        print("✅ TWEET BAŞARIYLA ATILDI!")
+        print("🐦 TWEET BAŞARIYLA ATILDI!")
         return True 
     except Exception as e:
         print(f"❌ Twitter Hatası: {e}")
@@ -187,38 +185,43 @@ def post_to_twitter(img_bytes, caption):
             os.remove(filename)
 
 # -----------------------------
-# MAIN (SONSUZ DÖNGÜ - UZUN MOLA)
+# MAIN (TASARRUFLU DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Sadece Gemini + Sabır Modu.")
+    print("🚀 Bot Başlatılıyor... Kota Dostu Mod.")
     
+    # 1. ADIM: Sadece bir kere fikir al
+    prompt, caption = get_idea_from_gemini()
+    print("------------------------------------------------")
+    print("🎯 Hedeflenen Konu:", prompt[:100] + "...")
+    print("------------------------------------------------")
+
     basari = False
     deneme_sayisi = 1
     
+    # 2. ADIM: O fikri çizdirene kadar dene (Gemini'yi tekrar arama)
     while not basari:
-        print(f"\n=== DENEME {deneme_sayisi} BAŞLIYOR ===")
+        print(f"\n🔄 RESİM DENEMESİ: {deneme_sayisi}")
         
         try:
-            # Burası Gemini cevap verene kadar çıkmaz
-            prompt, caption = generate_prompt_caption()
-            print("Onaylanan Prompt:", prompt[:100] + "...") 
-            
-            img = generate_image_horde(prompt)
+            # Aynı promptu kullanıyoruz, Gemini'ye gitmiyoruz!
+            img = try_generate_image(prompt)
             
             if img:
                 if post_to_twitter(img, caption):
                     basari = True 
-                    print("🎉 İşlem tamam.")
+                    print("🎉 Görev Başarılı! Bot kapanıyor.")
                 else:
-                    print("⚠️ Tweet hatası.")
+                    print("⚠️ Resim var ama Tweet atılamadı.")
             else:
-                print("⚠️ Resim hatası.")
+                print("⚠️ Resim çizilemedi.")
                 
         except Exception as e:
-            print(f"⚠️ Beklenmeyen genel hata: {e}")
+            print(f"⚠️ Genel Hata: {e}")
         
         if not basari:
-            # Gemini'yi ve sistemi yormamak için hata durumunda 15 DAKİKA BEKLE
-            print("⏳ Hata oluştu. Kotayı korumak için 15 DAKİKA bekleyip tekrar deneyeceğim...")
-            time.sleep(900) # 900 saniye = 15 Dakika
+            # Resim çizilemediyse biraz bekle, tekrar aynı promptu dene
+            print("💤 Sunucular yoğun, 2 dakika dinlenip AYNI prompt ile tekrar deniyorum...")
+            time.sleep(120) 
             deneme_sayisi += 1
+            
