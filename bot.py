@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-import random
 import tweepy
 import google.generativeai as genai
 
@@ -27,28 +26,30 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR
+# 1. GEMINI PROMPT GENERATOR (ÖZGÜR MOD)
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel("gemini-2.0-flash")
 
-    themes = [
-        "Hyper-Realistic Cyberpunk City Vertical",
-        "Majestic Fantasy Landscape Vertical",
-        "Cinematic Sci-Fi Space Station Portrait",
-        "Mystical Ancient Ruins Tall",
-        "Vaporwave Sunset Highway Phone Wallpaper",
-        "Dark Gothic Castle Vertical",
-        "Neon Noir Detective Street Tall"
-    ]
-
-    theme = random.choice(themes)
-
-    prompt = f"""
-    Write a highly detailed image prompt for an AI based on: {theme}.
-    IMPORTANT: The image will be a vertical phone wallpaper.
-    Focus on vertical composition, tall structures, and depth.
+    # --- DEĞİŞİKLİK BURADA: Sabit liste silindi ---
+    # Artık Gemini'ye "Sen bir sanat yönetmenisin, aklına gelen en iyi fikri bul" diyoruz.
+    
+    prompt = """
+    Act as a world-class AI Art Director.
+    Invent a completely unique, creative, and artistic concept for a phone wallpaper.
+    
+    The theme can be anything: 
+    - Minimalism, Abstract Art, Nature, Landscapes
+    - Sci-Fi, Cyberpunk, Fantasy, Heroes, Mythology
+    - Architecture, Macro Photography, Surrealism, etc.
+    
+    RULES:
+    1. NO HORROR, NO GORE, NO SCARY THEMES.
+    2. NO NSFW, NO SEXUAL CONTENT.
+    3. The image must be suitable for a vertical phone wallpaper.
+    
+    Based on your invented concept, write a highly detailed image prompt.
     Return exactly two lines:
     PROMPT: <english detailed description>
     CAPTION: <short tweet caption>
@@ -59,12 +60,12 @@ def generate_prompt_caption():
         parts = text.split("CAPTION:")
         
         if len(parts) < 2:
-            return f"{theme}, 8k, masterpiece", f"{theme} #AIArt"
+            return "Beautiful artistic landscape, 8k, masterpiece", "Artistic Vibes #AIArt"
 
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # Dikey kompozisyonu güçlendiren kelimeler ekledim
+        # Dikey kompozisyon ve kalite garantisi
         final_prompt = (
             f"{img_prompt}, "
             "vertical aspect ratio, tall composition, looking up, "
@@ -75,7 +76,7 @@ def generate_prompt_caption():
         return final_prompt, caption
     except Exception as e:
         print(f"Gemini Hatası: {e}")
-        return f"High quality {theme}", f"{theme} #AI"
+        return "High quality artistic wallpaper", "#AIArt"
 
 
 # -----------------------------
@@ -88,7 +89,7 @@ def generate_image_horde(prompt_text):
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v2.2-PhoneWait"
+        "Client-Agent": "MyTwitterBot:v2.3-Creative"
     }
     
     payload = {
@@ -96,10 +97,7 @@ def generate_image_horde(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            # --- DEĞİŞİKLİK BURADA ---
-            # Eski: 832x1216 (Biraz genişti)
-            # Yeni: 768x1344 (Tam İnce Uzun Telefon Formatı)
-            "width": 768,                 
+            "width": 768,    # İnce Uzun Telefon Formatı             
             "height": 1344,               
             "steps": 35,                  
             "post_processing": ["RealESRGAN_x4plus"] 
@@ -197,7 +195,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN (SONSUZ DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Telefon formatında resim üretilecek.")
+    print("Bot Başlatılıyor... Konuyu Gemini belirleyecek.")
     
     basari = False
     deneme_sayisi = 1
@@ -206,8 +204,9 @@ if __name__ == "__main__":
         print(f"\n=== DENEME {deneme_sayisi} BAŞLIYOR ===")
         
         try:
+            # Rastgele tema seçimi artık yok, Gemini sıfırdan üretecek
             prompt, caption = generate_prompt_caption()
-            print("Prompt:", prompt)
+            print("Gemini'nin Seçtiği Konu ve Prompt:", prompt)
             
             img = generate_image_horde(prompt)
             
@@ -227,3 +226,4 @@ if __name__ == "__main__":
             print("⏳ 1 Dakika mola...")
             time.sleep(60)
             deneme_sayisi += 1
+            
