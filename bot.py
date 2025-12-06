@@ -17,7 +17,7 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY = os.getenv("HORDE_API_KEY")
 
 if not HORDE_KEY or HORDE_KEY.strip() == "":
-    print("UYARI: Key yok, Anonim mod. (Öncelik düşük)")
+    print("UYARI: Key yok, Anonim mod.")
     HORDE_KEY = "0000000000"
 else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)")
@@ -34,21 +34,21 @@ def generate_prompt_caption():
     model = genai.GenerativeModel("gemini-2.0-flash")
 
     themes = [
-        "Hyper-Realistic Cyberpunk City",
-        "Majestic Fantasy Landscape",
-        "Cinematic Sci-Fi Space Station",
-        "Mystical Ancient Ruins",
-        "Vaporwave Sunset Highway",
-        "Dark Gothic Castle",
-        "Neon Noir Detective Street",
-        "Post-Apocalyptic Nature Takeover"
+        "Hyper-Realistic Cyberpunk City Vertical",
+        "Majestic Fantasy Landscape Vertical",
+        "Cinematic Sci-Fi Space Station Portrait",
+        "Mystical Ancient Ruins Tall",
+        "Vaporwave Sunset Highway Phone Wallpaper",
+        "Dark Gothic Castle Vertical",
+        "Neon Noir Detective Street Tall"
     ]
 
     theme = random.choice(themes)
 
     prompt = f"""
     Write a highly detailed image prompt for an AI based on: {theme}.
-    Focus on lighting, texture, and realism.
+    IMPORTANT: The image will be a vertical phone wallpaper.
+    Focus on vertical composition, tall structures, and depth.
     Return exactly two lines:
     PROMPT: <english detailed description>
     CAPTION: <short tweet caption>
@@ -64,9 +64,10 @@ def generate_prompt_caption():
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # Kalite artırıcı eklemeler
+        # Dikey kompozisyonu güçlendiren kelimeler ekledim
         final_prompt = (
             f"{img_prompt}, "
+            "vertical aspect ratio, tall composition, looking up, "
             "masterpiece, best quality, ultra-detailed, 8k resolution, "
             "sharp focus, ray tracing, unreal engine 5, cinematic lighting, "
             "photorealistic, intricate details, clean lines"
@@ -74,21 +75,20 @@ def generate_prompt_caption():
         return final_prompt, caption
     except Exception as e:
         print(f"Gemini Hatası: {e}")
-        # Hata durumunda basit prompt döndür
         return f"High quality {theme}", f"{theme} #AI"
 
 
 # -----------------------------
-# 2. AI HORDE (HD & UZUN BEKLEMELİ)
+# 2. AI HORDE (9:16 TELEFON MODU)
 # -----------------------------
 def generate_image_horde(prompt_text):
-    print("AI Horde → HD Görsel isteği gönderiliyor...")
+    print("AI Horde → 9:16 Wallpaper isteği gönderiliyor...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v2.1-Persistent"
+        "Client-Agent": "MyTwitterBot:v2.2-PhoneWait"
     }
     
     payload = {
@@ -96,10 +96,13 @@ def generate_image_horde(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 832,                 
-            "height": 1216,               
+            # --- DEĞİŞİKLİK BURADA ---
+            # Eski: 832x1216 (Biraz genişti)
+            # Yeni: 768x1344 (Tam İnce Uzun Telefon Formatı)
+            "width": 768,                 
+            "height": 1344,               
             "steps": 35,                  
-            "post_processing": ["RealESRGAN_x4plus"] # Upscaling (Kalite)
+            "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
@@ -119,12 +122,12 @@ def generate_image_horde(prompt_text):
         print(f"Bağlantı Hatası: {e}")
         return None
 
-    # --- DEĞİŞİKLİK: BEKLEME SÜRESİ UZATILDI ---
+    # Bekleme (60 Dk - İnatçı Mod)
     wait_time = 0
-    max_wait = 3600 # 60 Dakika (Sıra 75'teyken kesilmesin diye)
+    max_wait = 3600 
     
     while wait_time < max_wait:
-        time.sleep(20) # 20 saniyede bir kontrol
+        time.sleep(20) 
         wait_time += 20
         
         try:
@@ -133,7 +136,7 @@ def generate_image_horde(prompt_text):
             status_data = check.json()
             
             if status_data['done']:
-                print("İşlem tamamlandı! HD Resim indiriliyor...")
+                print("İşlem tamamlandı! Wallpaper indiriliyor...")
                 generations = status_data['generations']
                 if len(generations) > 0:
                     img_url = generations[0]['img']
@@ -147,11 +150,10 @@ def generate_image_horde(prompt_text):
             print(f"Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn")
             
         except Exception as e:
-            # Ufak bağlantı kopmalarında döngüyü kırma, devam et
-            print(f"Kontrol hatası (önemsiz): {e}")
+            print(f"Kontrol hatası: {e}")
             time.sleep(5) 
 
-    print("Bu deneme için zaman aşımı (60 dk) doldu.")
+    print("Zaman aşımı (60 dk).")
     return None
 
 
@@ -159,7 +161,7 @@ def generate_image_horde(prompt_text):
 # 3. TWITTER POST
 # -----------------------------
 def post_to_twitter(img_bytes, caption):
-    filename = "wallpaper_hd.png"
+    filename = "wallpaper_mobile.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
 
@@ -178,55 +180,50 @@ def post_to_twitter(img_bytes, caption):
         )
 
         client.create_tweet(
-            text=caption + " #AIArt #4K #Wallpaper",
+            text=caption + " #AIArt #PhoneWallpaper #4K",
             media_ids=[media.media_id]
         )
         print("✅ TWEET BAŞARIYLA ATILDI!")
-        return True # Başarılı olduğunu bildir
+        return True 
         
     except Exception as e:
         print(f"❌ Twitter Hatası: {e}")
-        return False # Başarısız
+        return False
     finally:
         if os.path.exists(filename):
             os.remove(filename)
 
 # -----------------------------
-# MAIN (İNATÇI MOD / RETRY LOOP)
+# MAIN (SONSUZ DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Paylaşım yapılana kadar durmayacak.")
+    print("Bot Başlatılıyor... Telefon formatında resim üretilecek.")
     
     basari = False
     deneme_sayisi = 1
     
-    # Sonsuz döngü (Başarılı olana kadar)
     while not basari:
         print(f"\n=== DENEME {deneme_sayisi} BAŞLIYOR ===")
         
         try:
-            # 1. Prompt Oluştur
             prompt, caption = generate_prompt_caption()
             print("Prompt:", prompt)
             
-            # 2. Resim Oluştur (Horde)
             img = generate_image_horde(prompt)
             
             if img:
-                # 3. Tweet At
                 if post_to_twitter(img, caption):
-                    basari = True # Döngüden çıkış bileti
-                    print("🎉 İşlem başarıyla tamamlandı. Bot kapanıyor.")
+                    basari = True 
+                    print("🎉 İşlem tamam. Bot dinlenmeye geçiyor.")
                 else:
-                    print("⚠️ Resim oluştu ama Twitter'a atılamadı. Tekrar deneniyor...")
+                    print("⚠️ Tweet hatası. Tekrar deneniyor...")
             else:
-                print("⚠️ Resim oluşturulamadı (Zaman aşımı veya Hata). Tekrar deneniyor...")
+                print("⚠️ Resim hatası. Tekrar deneniyor...")
                 
         except Exception as e:
-            print(f"⚠️ Beklenmeyen genel hata: {e}")
+            print(f"⚠️ Beklenmeyen hata: {e}")
         
         if not basari:
-            print("⏳ 1 Dakika dinlenip tekrar deniyoruz...")
-            time.sleep(60) # Sunucuları spamlamamak için 1 dk mola
+            print("⏳ 1 Dakika mola...")
+            time.sleep(60)
             deneme_sayisi += 1
-            
