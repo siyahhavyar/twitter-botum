@@ -3,6 +3,7 @@ import requests
 import random
 import tweepy
 import google.generativeai as genai
+import base64  # Base64 image for some backups
 
 # -----------------------------
 # ENV KEYS
@@ -87,63 +88,61 @@ def generate_image_stability(prompt_text):
 
 
 # -----------------------------
-# FREE NO-KEY BACKUPS (20 Stability-like APIs, no signup)
+# FREE NO-KEY BACKUPS (20 Stability-like Sites, No Signup, Vertical)
 # -----------------------------
 def generate_image_backup(prompt_text):
     print("Switching to free no-key backup...")
     backups = [
-        # 1. DeepAI (free tier, SD model, vertical)
+        # 1. Vheer (free, no signup, vertical)
+        lambda p: requests.get(f"https://vheer.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}&width=1024&height=1792", timeout=30).content if len(requests.get(f"https://vheer.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}&width=1024&height=1792", timeout=30).content) > 50000 else None,
+        # 2. Perchance (free, no signup, unlimited)
+        lambda p: requests.get(f"https://perchance.org/ai-text-to-image-generator?prompt={requests.utils.quote(p)}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux", timeout=30).content if len(requests.get(f"https://perchance.org/ai-text-to-image-generator?prompt={requests.utils.quote(p)}&resolution=1024x1792&quality=high&seed={random.randint(1,100000)}&model=flux", timeout=30).content) > 50000 else None,
+        # 3. Raphael AI (free, unlimited, no sign-up)
+        lambda p: requests.get(f"https://raphaelai.org/api/generate?prompt={requests.utils.quote(p + ', vertical 9:16')}", timeout=30).content if len(requests.get(f"https://raphaelai.org/api/generate?prompt={requests.utils.quote(p + ', vertical 9:16')}", timeout=30).content) > 50000 else None,
+        # 4. Artguru (free, no signup, HD)
+        lambda p: requests.get(f"https://www.artguru.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content if len(requests.get(f"https://www.artguru.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content) > 50000 else None,
+        # 5. Zoviz (free, quick, 2025 top)
+        lambda p: requests.get(f"https://zoviz.com/api/generate?prompt={requests.utils.quote(p + ', vertical wallpaper')}", timeout=30).content if len(requests.get(f"https://zoviz.com/api/generate?prompt={requests.utils.quote(p + ', vertical wallpaper')}", timeout=30).content) > 50000 else None,
+        # 6. Pixlr (free credits, no signup, portrait)
+        lambda p: requests.post("https://api.pixlr.com/v1/generate", data={"prompt": p + ', portrait'}, timeout=30).content if len(requests.post("https://api.pixlr.com/v1/generate", data={"prompt": p + ', portrait'}, timeout=30).content) > 50000 else None,
+        # 7. Bing Image Creator (free, DALL-E, vertical)
+        lambda p: requests.post("https://www.bing.com/images/create?prompt={requests.utils.quote(p + ', vertical')}", timeout=30).content if len(requests.post("https://www.bing.com/images/create?prompt={requests.utils.quote(p + ', vertical')}", timeout=30).content) > 50000 else None,
+        # 8. Mage Space (free, no restrictions, 2025)
+        lambda p: requests.get(f"https://www.magespace.com/api/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content if len(requests.get(f"https://www.magespace.com/api/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content) > 50000 else None,
+        # 9. Craiyon (free, DALL-E mini, vertical)
+        lambda p: requests.post("https://api.craiyon.com/v3", json={"prompt": p + ', vertical 9:16'}).json()['images'][0] if len(requests.post("https://api.craiyon.com/v3", json={"prompt": p + ', vertical 9:16'}).content) > 50000 else None,
+        # 10. Hotpot.ai (free tier, Stable Diffusion, portrait)
+        lambda p: requests.get(f"https://api.hotpot.ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content if len(requests.get(f"https://api.hotpot.ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content) > 50000 else None,
+        # 11. NightCafe (free credits, SD, portrait)
+        lambda p: requests.get(f"https://api.nightcafe.studio/v1/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content if len(requests.get(f"https://api.nightcafe.studio/v1/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content) > 50000 else None,
+        # 12. Artbreeder (free, no signup, vertical)
+        lambda p: requests.post("https://www.artbreeder.com/api/v2/generate", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content if len(requests.post("https://www.artbreeder.com/api/v2/generate", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content) > 50000 else None,
+        # 13. Freepik (free trial, Flux, portrait)
+        lambda p: requests.get(f"https://api.freepik.com/v1/ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content if len(requests.get(f"https://api.freepik.com/v1/ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content) > 50000 else None,
+        # 14. DeepAI (free tier, SD model, vertical)
         lambda p: requests.post("https://api.deepai.org/api/text2img", data={"text": p + ', vertical, 9:16'}, headers={"api-key": "quickstart-QUdJIGlzIGNvbWluZy4uLi4gandhbj8="}).json()['output'],
-        # 2. Vheer (free, no signup, portrait 9:16)
-        lambda p: requests.get(f"https://vheer.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}&width=1024&height=1792", timeout=30).content,
-        # 3. DeepFloyd IF (HuggingFace, free, HD)
-        lambda p: requests.post("https://api-inference.huggingface.co/models/deepfloyd/if", json={"inputs": p + ', vertical 9:16'}, headers={"Authorization": "Bearer hf_anonymous"}).content,
-        # 4. Replit DALLE-E Mini (free, no key, 1024x1024)
-        lambda p: requests.get(f"https://replit.com/@AjaySinghUsesGi/AI-image-generator-free-API-for-everyone-no-restrictions?prompt={requests.utils.quote(p)}", timeout=30).content,
-        # 5. Wepik (free, Stable Diffusion, vertical)
-        lambda p: requests.get(f"https://wepik.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}", timeout=30).content,
-        # 6. TinyWow (free, no signup, image gen)
-        lambda p: requests.post("https://tinywow.com/api/ai-image-generator", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content,
-        # 7. Remaker.ai (free, no key, portrait)
-        lambda p: requests.get(f"https://remaker.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}&aspect=9:16", timeout=30).content,
-        # 8. DynaPictures (free tier, HD)
-        lambda p: requests.post("https://api.dynapictures.com/v1/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content,
-        # 9. Puter.js (free, no signup, vertical)
-        lambda p: requests.get(f"https://puter.com/api/ai/image?prompt={requests.utils.quote(p + ', vertical, 9:16')}", timeout=30).content,
-        # 10. MonsterAPI (free, SD model)
-        lambda p: requests.post("https://api.monsterapi.ai/v1/text-to-image", data={"prompt": p + ', 9:16'}, timeout=30).content,
-        # 11. EdenAI (free tier, multi-model, vertical)
-        lambda p: requests.post("https://api.edenai.run/v2/image/generation", json={"providers": "deepai", "text": p + ', vertical 9:16'}, headers={"Authorization": "Bearer free"}).json()['deepai']['image']['base64'],
-        # 12. Freepik (free trial, Flux, portrait)
-        lambda p: requests.get(f"https://api.freepik.com/v1/ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content,
-        # 13. OpenJourney (HuggingFace, free, Stable Diffusion variant)
-        lambda p: requests.post("https://api-inference.huggingface.co/models/prompthero/openjourney", json={"inputs": p + ', vertical 9:16'}, headers={"Authorization": "Bearer hf_anonymous"}).content,
-        # 14. Cloudflare Workers AI (free, no key, Llama/Stable, 9:16)
-        lambda p: requests.post("https://api.cloudflare.com/client/v4/accounts/023e105f4ecef8ad9ca31a8372d0c353/ai/run/@cf/meta/stable-diffusion-xl-base-1.0", json={"prompt": p + ', vertical 9:16'}, headers={"Authorization": "Bearer free"}).content,
-        # 15. Kodular AiVisionary (free, no key, HD)
-        lambda p: requests.get(f"https://kodular.ai/api/generate?prompt={requests.utils.quote(p + ', vertical')}", timeout=30).content,
-        # 16. WriteSonic (free tier, image gen, vertical)
-        lambda p: requests.post("https://api.writesonic.com/v2/business/content/image-generation", json={"prompt": p + ', 9:16'}, headers={"X-API-KEY": "free"}).json()['data']['image'],
-        # 17. NightCafe (free credits, SD, portrait)
-        lambda p: requests.get(f"https://api.nightcafe.studio/v1/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content,
-        # 18. Artbreeder (free, no signup, vertical)
-        lambda p: requests.post("https://www.artbreeder.com/api/v2/generate", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content,
-        # 19. Craiyon (free, DALL-E mini, 9:16)
-        lambda p: requests.post("https://api.craiyon.com/v3", json={"prompt": p + ', vertical 9:16'}).json()['images'][0],
-        # 20. Hotpot.ai (free tier, Stable Diffusion, portrait)
-        lambda p: requests.get(f"https://api.hotpot.ai/generate?prompt={requests.utils.quote(p + ', portrait')}", timeout=30).content,
+        # 15. Wepik (free, Stable Diffusion, vertical)
+        lambda p: requests.get(f"https://wepik.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}", timeout=30).content if len(requests.get(f"https://wepik.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}", timeout=30).content) > 50000 else None,
+        # 16. TinyWow (free, no signup, image gen)
+        lambda p: requests.post("https://tinywow.com/api/ai-image-generator", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content if len(requests.post("https://tinywow.com/api/ai-image-generator", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content) > 50000 else None,
+        # 17. Remaker.ai (free, no key, portrait)
+        lambda p: requests.get(f"https://remaker.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}&aspect=9:16", timeout=30).content if len(requests.get(f"https://remaker.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}&aspect=9:16", timeout=30).content) > 50000 else None,
+        # 18. DynaPictures (free tier, HD)
+        lambda p: requests.post("https://api.dynapictures.com/v1/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content if len(requests.post("https://api.dynapictures.com/v1/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content) > 50000 else None,
+        # 19. Puter.js (free, no signup, vertical)
+        lambda p: requests.get(f"https://puter.com/api/ai/image?prompt={requests.utils.quote(p + ', vertical, 9:16')}", timeout=30).content if len(requests.get(f"https://puter.com/api/ai/image?prompt={requests.utils.quote(p + ', vertical, 9:16')}", timeout=30).content) > 50000 else None,
+        # 20. MonsterAPI (free, SD model)
+        lambda p: requests.post("https://api.monsterapi.ai/v1/text-to-image", data={"prompt": p + ', 9:16'}, timeout=30).content if len(requests.post("https://api.monsterapi.ai/v1/text-to-image", data={"prompt": p + ', 9:16'}, timeout=30).content) > 50000 else None,
     ]
     for i, backup in enumerate(backups, 1):
         print(f"Trying backup {i}...")
         try:
-            response = backup(prompt_text)
-            if isinstance(response, dict):
-                img_url = response['image'] or response['output']
-                response = requests.get(img_url, timeout=30).content
-            if len(response) > 50000:
+            img = backup(prompt_text)
+            if len(img) > 50000:
                 print(f"BACKUP {i} → HD READY!")
-                return response
-        except:
+                return img
+        except Exception as e:
+            print(f"Backup {i} error: {e}")
             continue
     return None
 
