@@ -11,6 +11,7 @@ API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
 ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
+BEARER_TOKEN  = os.getenv("BEARER_TOKEN")  # Add this to Secrets
 STABILITY_KEY = os.getenv("STABILITY_KEY")  # <<< BURAYA KEY GELECEK
 
 if not STABILITY_KEY:
@@ -18,42 +19,50 @@ if not STABILITY_KEY:
     exit(1)
 
 # -----------------------------
-# GEMINI PROMPT GENERATOR (Otomatik, no fixed themes)
+# GEMINI PROMPT GENERATOR
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=os.getenv("GEMINI_KEY"))
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
-    instruction = """
-    Create ONE completely new, beautiful vertical phone wallpaper idea (9:16).
-    Only nature, fantasy, cozy, dreamy, pastel, minimal, cottagecore, surreal.
-    NO people, NO text, NO cyberpunk, NO technology.
-    Output exactly:
-    PROMPT: [ultra detailed English prompt]
-    CAPTION: [short beautiful English caption]
+    themes = [
+        "Warm Fantasy Landscape",
+        "Golden Clouds Sunset",
+        "Soft Pastel Mountains",
+        "Dreamy Forest Light Rays",
+        "Mystical Horizon Glow",
+        "Cosy Autumn Lake",
+        "Bright Magical Valley"
+    ]
+
+    theme = random.choice(themes)
+
+    prompt = f"""
+    Generate a beautiful artistic prompt about this theme: {theme}.
+    Return format:
+    PROMPT: <image prompt>
+    CAPTION: <short poetic caption>
     """
 
-    try:
-        text = model.generate_content(instruction).text.strip()
-        parts = text.split("CAPTION:")
-        img_prompt = parts[0].replace("PROMPT:", "").strip()
-        caption = parts[1].strip()
-    except:
-        img_prompt = "soft pastel cherry blossom forest at twilight, vertical phone wallpaper"
-        caption = "Whispers of spring"
+    text = model.generate_content(prompt).text
+    parts = text.split("CAPTION:")
+
+    img_prompt = parts[0].replace("PROMPT:", "").strip()
+    caption = parts[1].strip()
 
     final_prompt = (
         img_prompt +
-        ", vertical phone wallpaper, 9:16 ratio, ultra detailed, 4k, soft light, artistic, vibrant colors, fantasy atmosphere, sharp focus"
+        ", ultra detailed, 4k, soft light, artistic, vibrant colors, fantasy atmosphere, sharp focus"
     )
 
     return final_prompt, caption
 
 
 # -----------------------------
-# STABILITY AI IMAGE GENERATOR (Senin orijinalin)
+# STABILITY AI IMAGE GENERATOR
 # -----------------------------
-def generate_image_stability(prompt_text):
+def generate_image(prompt_text):
+
     print("Stability AI → 1024x1792 HD görsel oluşturuluyor...")
 
     url = "https://api.stability.ai/v2beta/stable-image/generate/core"
@@ -80,46 +89,7 @@ def generate_image_stability(prompt_text):
 
 
 # -----------------------------
-# FREE NO-KEY BACKUPS (10 Stability-like APIs, no signup)
-# -----------------------------
-def generate_image_backup(prompt_text):
-    print("Switching to free no-key backup...")
-    backups = [
-        # 1. Cloudflare Workers AI (free, no key, vertical)
-        lambda p: requests.get(f"https://api.cloudflare.com/client/v4/accounts/023e105f4ecef8ad9ca31a8372d0c353/ai/run/@cf/meta/llama-2-7b-chat-int8?prompt={requests.utils.quote(p + ', vertical wallpaper, 9:16')}", timeout=30).content,
-        # 2. Replit DALLE-E mini (free, no key, 1024x1024)
-        lambda p: requests.get(f"https://replit.com/@AjaySinghUsesGi/AI-image-generator-free-API-for-everyone-no-restrictions?prompt={requests.utils.quote(p)}", timeout=30).content,
-        # 3. Vheer (free, no signup, vertical)
-        lambda p: requests.get(f"https://vheer.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}&width=1024&height=1792", timeout=30).content,
-        # 4. DeepAI free tier (no key, HD)
-        lambda p: requests.post("https://api.deepai.org/api/text2img", data={"text": p + ', vertical, 9:16'}, headers={"api-key": "quickstart-QUdJIGlzIGNvbWluZy4uLi4gandhbj8="}).json()['output_url'],
-        # 5. Wepik (free, Stable Diffusion, vertical)
-        lambda p: requests.get(f"https://wepik.com/api/generate?prompt={requests.utils.quote(p + ', portrait, 9:16')}", timeout=30).content,
-        # 6. TinyWow (free, no signup, image gen)
-        lambda p: requests.post("https://tinywow.com/api/ai-image-generator", data={"prompt": p + ', vertical wallpaper'}, timeout=30).content,
-        # 7. Remaker.ai (free, no key, portrait)
-        lambda p: requests.get(f"https://remaker.ai/api/generate?prompt={requests.utils.quote(p + ', portrait')}&aspect=9:16", timeout=30).content,
-        # 8. DynaPictures free (no key, HD)
-        lambda p: requests.post("https://api.dynapictures.com/v1/generate?prompt={requests.utils.quote(p + ', 9:16')}", timeout=30).content,
-        # 9. Puter.js (free, no signup, vertical)
-        lambda p: requests.get(f"https://puter.com/api/ai/image?prompt={requests.utils.quote(p + ', vertical, 9:16')}", timeout=30).content,
-        # 10. MonsterAPI free (no key, SD model)
-        lambda p: requests.post("https://api.monsterapi.ai/v1/text-to-image", data={"prompt": p + ', 9:16'}, timeout=30).content,
-    ]
-    for i, backup in enumerate(backups, 1):
-        print(f"Trying backup {i}...")
-        try:
-            img = backup(prompt_text)
-            if len(img) > 50000:
-                print(f"BACKUP {i} → HD READY!")
-                return img
-        except:
-            continue
-    return None
-
-
-# -----------------------------
-# TWITTER POST (Senin orijinalin)
+# TWITTER POST (Bearer Token added for v2 stability)
 # -----------------------------
 def post_to_twitter(img_bytes, caption):
     filename = "wallpaper.png"
@@ -133,6 +103,7 @@ def post_to_twitter(img_bytes, caption):
     media = api.media_upload(filename)
 
     client = tweepy.Client(
+        bearer_token=BEARER_TOKEN,  # Add Bearer Token for v2
         consumer_key=API_KEY,
         consumer_secret=API_SECRET,
         access_token=ACCESS_TOKEN,
@@ -149,17 +120,14 @@ def post_to_twitter(img_bytes, caption):
 
 
 # -----------------------------
-# MAIN (Stability primary, backups if fail)
+# MAIN
 # -----------------------------
 if __name__ == "__main__":
     prompt, caption = generate_prompt_caption()
     print("Prompt:", prompt)
     print("Caption:", caption)
 
-    img = generate_image_stability(prompt)
-
-    if not img:
-        img = generate_image_backup(prompt)
+    img = generate_image(prompt)
 
     if img:
         post_to_twitter(img, caption)
