@@ -14,7 +14,6 @@ ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 
-# --- DÜZELTİLEN KISIM ---
 # Eğer Secret yoksa veya boşsa, Anonim Key (0000000000) kullan.
 HORDE_KEY = os.getenv("HORDE_KEY")
 if not HORDE_KEY or HORDE_KEY.strip() == "":
@@ -65,8 +64,8 @@ def generate_prompt_caption():
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
 
-        # Kalite artırıcı tagler
-        final_prompt = f"{img_prompt}, masterpiece, best quality, ultra detailed, 8k, cinematic lighting"
+        # Prompt'u biraz daha zenginleştirelim
+        final_prompt = f"{img_prompt}, highly detailed, artstation, sharp focus, illustration"
         
         return final_prompt, caption
     except Exception as e:
@@ -75,7 +74,7 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE IMAGE GENERATOR (BEDAVA & GPU AĞI)
+# 2. AI HORDE IMAGE GENERATOR (DÜZELTİLDİ)
 # -----------------------------
 def generate_image_horde(prompt_text):
     print("AI Horde → İstek gönderiliyor (Sıra beklenecek)...")
@@ -87,24 +86,26 @@ def generate_image_horde(prompt_text):
         "Client-Agent": "MyTwitterBot:v1.0"
     }
     
+    # --- DEĞİŞİKLİK BURADA ---
+    # SDXL modeli anonimlere kapalı olduğu için standart modele geçtik.
+    # Boyutları da modelin bozulmaması için 512x768 yaptık.
     payload = {
         "prompt": prompt_text,
         "params": {
-            "sampler_name": "k_euler",
-            "cfg_scale": 7,
-            "width": 576,    # Ücretsizler için en güvenli boyut
-            "height": 1024,  # 9:16 Dikey
-            "steps": 25,     # Hızlanması için 30 yerine 25 yaptım
+            "sampler_name": "k_euler_a",
+            "cfg_scale": 7.5,
+            "width": 512,     # Standart Stable Diffusion genişliği
+            "height": 768,    # Dikey format
+            "steps": 25,
         },
         "nsfw": False,
         "censor_nsfw": True,
-        "models": ["SDXL_beta::stability.ai#6901"] 
+        "models": ["stable_diffusion"] # <<< ARTIK HERKESİN KULLANABİLDİĞİ MODEL
     }
 
     try:
         req = requests.post(generate_url, json=payload, headers=headers)
         
-        # Hata kontrolü
         if req.status_code != 202:
             print(f"Horde Başvuru Hatası: {req.text}")
             return None
@@ -115,12 +116,12 @@ def generate_image_horde(prompt_text):
         print(f"Bağlantı Hatası (İstek): {e}")
         return None
 
-    # Bekleme Döngüsü (Polling)
+    # Bekleme Döngüsü
     wait_time = 0
-    max_wait = 180 # 3 dakika bekle
+    max_wait = 240 # 4 dakika bekle
     
     while wait_time < max_wait:
-        time.sleep(10) # Her 10 saniyede bir sor
+        time.sleep(10)
         wait_time += 10
         
         try:
@@ -138,7 +139,6 @@ def generate_image_horde(prompt_text):
                     print("Horde resim üretmedi (Liste boş).")
                     return None
             
-            # Bekleme bilgisini yazdır
             print(f"Bekleniyor... (Geçen süre: {wait_time}sn | Sıra: {status_data.get('wait_time', '?')}sn)")
         except Exception as e:
             print(f"Kontrol sırasında hata: {e}")
