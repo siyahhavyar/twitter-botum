@@ -26,42 +26,38 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (TAM ÖZGÜR YARATICI MOD)
+# 1. GEMINI PROMPT GENERATOR (TAMAMEN ÖZGÜR MOD)
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     
-    # Yaratıcılık ayarını maksimuma çekiyoruz
+    # Yaratıcılığı (Rastgeleliği) maksimuma çekiyoruz
     generation_config = genai.types.GenerationConfig(
-        temperature=1.0, # Maksimum yaratıcılık (Rastgelelik)
+        temperature=1.0, 
         top_p=0.99,
         top_k=40,
     )
     
     model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
 
-    # --- GEMINI'YE VERİLEN "ÖZGÜR SANATÇI" EMRİ ---
+    # --- GEMINI'YE VERİLEN "SEN SEÇ" EMRİ ---
+    # Python listesi YOK. Gemini her şeyi kendi hayal gücüyle bulacak.
     prompt = """
     Act as an unpredictable, world-class AI Art Curator.
-    Your goal is to generate a UNIQUE phone wallpaper concept.
-    
-    STEP 1: Randomly select an ART STYLE from this endless variety:
-    (Minimalism, Flat Art, Vector Illustration, Ukiyo-e, Oil Painting, 
-     Watercolor, Synthwave, Cyberpunk, 3D Render, Abstract Expressionism, 
-     Line Art, Pop Art, Low Poly, Photorealistic, etc.)
-    
-    STEP 2: Randomly select a SUBJECT.
-    
-    STEP 3: Combine them into a detailed image prompt.
-    
+    Your task is to invent a unique phone wallpaper concept from scratch.
+
+    INSTRUCTIONS:
+    1. First, mentally select a RANDOM Art Style (e.g. Minimalism, Ukiyo-e, Cyberpunk, Oil Painting, Sketch, Abstract, Pop Art, etc.). Do not stick to one style.
+    2. Then, select a RANDOM Subject that fits that style.
+    3. Combine them into a highly detailed image prompt.
+
     CRITICAL RULES:
-    1. DO NOT always make it realistic. If you chose realistic last time, choose Minimalist or Abstract now.
-    2. VARIETY is key. Surprise me.
-    3. NO HORROR, NO GORE, NO NSFW.
-    4. The composition must be VERTICAL (Portrait) for a phone screen.
-    
+    - NO HORROR, NO GORE, NO NSFW.
+    - DO NOT use the word "photorealistic" or "unreal engine" unless the chosen style is actually photography. If the style is "Vector Art", keep it flat!
+    - The image must be composed for an ULTRA-TALL vertical phone screen (Aspect Ratio 9:21).
+
     Return exactly two lines:
-    PROMPT: <The full english prompt including style keywords like 'minimalist', 'flat', etc.>
+    PROMPT: <The full english prompt describing the style and subject>
     CAPTION: <A short, engaging tweet caption>
     """
     
@@ -70,20 +66,17 @@ def generate_prompt_caption():
         parts = text.split("CAPTION:")
         
         if len(parts) < 2:
-            return "Minimalist abstract wallpaper, high quality", "Minimal vibes #Art"
+            return "Minimalist abstract wallpaper, tall format", "#Art #Minimalist"
 
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # --- ÖNEMLİ DEĞİŞİKLİK ---
-        # Buradan "photorealistic", "unreal engine" gibi zorlayıcı kelimeleri KALDIRDIM.
-        # Sadece teknik kalite (netlik) ve boyut komutlarını bıraktım.
-        # Böylece Gemini "Minimalist" derse, kod onu bozup gerçekçi yapmaya çalışmayacak.
-        
+        # --- BOYUT KOMUTLARI ---
+        # Sadece boyut ve netlik komutları. Tarzı bozan "realistic" kelimeleri YOK.
         final_prompt = (
             f"{img_prompt}, "
-            "vertical aspect ratio, tall composition, 9:16 format, "
-            "high quality, 8k resolution, clean details, wallpaper aesthetics"
+            "ultra-tall vertical aspect ratio, 9:21 format, full screen wallpaper, "
+            "8k resolution, high quality, clean details"
         )
         return final_prompt, caption
     except Exception as e:
@@ -92,16 +85,16 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE (9:16 TELEFON MODU)
+# 2. AI HORDE (ULTRA-UZUN EKRAN MODU)
 # -----------------------------
 def generate_image_horde(prompt_text):
-    print("AI Horde → Wallpaper isteği gönderiliyor...")
+    print("AI Horde → Ultra-Uzun (Full Ekran) Wallpaper isteği gönderiliyor...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v2.5-Freedom"
+        "Client-Agent": "MyTwitterBot:v4.0-FullScreen"
     }
     
     payload = {
@@ -109,14 +102,15 @@ def generate_image_horde(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 768,    # İnce Uzun Telefon Formatı             
-            "height": 1344,               
-            "steps": 30,     # Hız/Kalite dengesi             
+            # --- YENİ BOYUTLAR (ASTRONOT FORMATI) ---
+            # Bu boyutlar 9:21 oranındadır ve modern telefonları tam doldurur.
+            "width": 640,                 
+            "height": 1536,               
+            "steps": 30,                 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # Çeşitlilik için modelleri koruyoruz
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -208,7 +202,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN (SONSUZ DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Gemini TAM ÖZGÜR.")
+    print("Bot Başlatılıyor... Ultra-Uzun Ekran Modu.")
     
     basari = False
     deneme_sayisi = 1
@@ -219,7 +213,7 @@ if __name__ == "__main__":
         try:
             prompt, caption = generate_prompt_caption()
             print("------------------------------------------------")
-            print("Gemini'nin Seçtiği Stil ve Konu:")
+            print("Gemini'nin Özgür Seçimi:")
             print(prompt)
             print("------------------------------------------------")
             
