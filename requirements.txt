@@ -1,4 +1,3 @@
 google-generativeai
 tweepy
 requests
-perchance  # Unofficial Perchance API (free, no key)
