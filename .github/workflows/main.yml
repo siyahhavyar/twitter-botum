@@ -1,4 +1,4 @@
-name: Perchance HD Bot
+name: Wallpaper Bot
 
 on:
   schedule:
@@ -21,5 +21,5 @@ jobs:
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          STABILITY_KEY: ${{ secrets.STABILITY_KEY }}   # 🔥 BU EKLENDİ
+          STABILITY_KEY: ${{ secrets.STABILITY_KEY }}
         run: python bot.py
