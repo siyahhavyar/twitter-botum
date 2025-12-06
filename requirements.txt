@@ -1,5 +1,4 @@
 google-generativeai
 tweepy
 requests
-cloudscraper
-beautifulsoup4
+perchance  # Unofficial Perchance API (free, no key)
