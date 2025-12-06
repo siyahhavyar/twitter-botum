@@ -2,8 +2,8 @@ name: Twitter Bot
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # Her 3 saatte bir çalışır
-  workflow_dispatch:      # GitHub sayfasından elle "Run workflow" butonu ile çalıştırmak için
+    - cron: "0 */3 * * *" # Her 3 saatte bir
+  workflow_dispatch:      # Elle çalıştırmak için
 
 jobs:
   run:
@@ -24,10 +24,18 @@ jobs:
 
       - name: Run bot
         env:
+          # Twitter Keyleri
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
+          
+          # Gemini Key
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
-          HORDE_KEY: ${{ secrets.HORDE_KEY }} # Ekledim (Secret yoksa boş geçer, bot "Anonim" çalışır)
+          
+          # --- KRİTİK EKLEME BURASI ---
+          # Sizin secret isminiz HORDE_API_KEY olduğu için buraya bunu yazdım:
+          HORDE_API_KEY: ${{ secrets.HORDE_API_KEY }} 
+          
         run: python bot.py
+        
