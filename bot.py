@@ -14,11 +14,14 @@ ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 
-# Horde Key
-HORDE_KEY = os.getenv("HORDE_KEY")
+# SİZİN TANIMLADIĞINIZ İSİM: HORDE_API_KEY
+HORDE_KEY = os.getenv("HORDE_API_KEY")
+
 if not HORDE_KEY or HORDE_KEY.strip() == "":
-    print("Bilgi: Anonim mod (0000000000) kullanılıyor.")
+    print("UYARI: HORDE_API_KEY bulunamadı! Anonim mod (Yavaş) devreye giriyor.")
     HORDE_KEY = "0000000000"
+else:
+    print(f"BAŞARILI: Kullanıcı API Key algılandı! ({HORDE_KEY[:4]}***)")
 
 if not GEMINI_KEY:
     print("ERROR: GEMINI_KEY eksik!")
@@ -55,14 +58,12 @@ def generate_prompt_caption():
         parts = text.split("CAPTION:")
         
         if len(parts) < 2:
-            return f"{theme}, cinematic lighting, realistic", f"{theme} #AIArt"
+            return f"{theme}, cinematic lighting, 8k", f"{theme} #AIArt"
 
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # Gerçekçilik ve kalite için eklemeler
-        final_prompt = f"{img_prompt}, (photorealistic:1.4), raw photo, dslr, soft lighting, high quality, 8k, masterpiece"
-        
+        final_prompt = f"{img_prompt}, masterpiece, best quality, ultra detailed, 8k, cinematic lighting"
         return final_prompt, caption
     except Exception as e:
         print(f"Gemini Hatası: {e}")
@@ -70,10 +71,10 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE (CORRECTED RESOLUTION)
+# 2. AI HORDE (ÜYELİK MODU - SDXL)
 # -----------------------------
 def generate_image_horde(prompt_text):
-    print("AI Horde → İstek gönderiliyor...")
+    print("AI Horde → İstek gönderiliyor (Üyelik Modu)...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
@@ -82,25 +83,19 @@ def generate_image_horde(prompt_text):
         "Client-Agent": "MyTwitterBot:v1.0"
     }
     
-    # --- MATEMATİKSEL DÜZELTME ---
-    # Kurallar: 
-    # 1. Sayılar 64'ün katı olmalı (Örn: 448/64 = 7 tam sayı)
-    # 2. Toplam piksel anonim limiti (331.776) geçmemeli.
-    # 448 x 704 = 315.392 piksel (Limitin altında ve kurallara uygun)
-    
+    # KEY OLDUĞU İÇİN ARTIK SDXL VE BÜYÜK BOYUT KULLANABİLİRİZ
     payload = {
         "prompt": prompt_text,
         "params": {
-            "sampler_name": "k_euler_a",
+            "sampler_name": "k_euler",
             "cfg_scale": 7,
-            "width": 448,   
-            "height": 704,  
-            "steps": 25,
+            "width": 576,    # SDXL için dikey oran
+            "height": 1024,  # Wallpaper boyutu
+            "steps": 30,
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # ICBINP daha gerçekçi sonuç verir, yedek olarak stable_diffusion ekledik
-        "models": ["ICBINP", "stable_diffusion"] 
+        "models": ["SDXL_beta::stability.ai#6901"] # Kaliteli SDXL Modeli
     }
 
     try:
@@ -111,14 +106,14 @@ def generate_image_horde(prompt_text):
             return None
             
         task_id = req.json()['id']
-        print(f"Görev ID: {task_id}. Bekleniyor...")
+        print(f"Görev ID: {task_id}. İşleniyor...")
     except Exception as e:
         print(f"Bağlantı Hatası: {e}")
         return None
 
     # Bekleme
     wait_time = 0
-    max_wait = 300
+    max_wait = 600 # 10 Dakika (Key olduğu için hızlı gelecektir)
     
     while wait_time < max_wait:
         time.sleep(10)
@@ -136,10 +131,12 @@ def generate_image_horde(prompt_text):
                     img_url = generations[0]['img']
                     return requests.get(img_url).content
                 else:
-                    print("Horde resim üretmedi (Liste boş).")
+                    print("Horde resim üretmedi.")
                     return None
             
-            print(f"Süre: {wait_time}sn | Durum: {status_data.get('wait_time', 'Sıra bekleniyor')}sn...")
+            # Kalan kudos ve sıra bilgisini görelim
+            print(f"Süre: {wait_time}sn | Sırada bekleyen: {status_data.get('queue_position', '?')}")
+            
         except Exception as e:
             time.sleep(5) 
 
@@ -170,7 +167,7 @@ def post_to_twitter(img_bytes, caption):
         )
 
         client.create_tweet(
-            text=caption + " #AIArt #Wallpaper #Dreamy",
+            text=caption + " #AIArt #SDXL #Wallpaper",
             media_ids=[media.media_id]
         )
         print("TWEET BAŞARILI!")
