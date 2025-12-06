@@ -26,12 +26,11 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (TAMAMEN ÖZGÜR MOD)
+# 1. GEMINI PROMPT GENERATOR (ÖZGÜR VE GENİŞLETİLMİŞ)
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     
-    # Yaratıcılığı (Rastgeleliği) maksimuma çekiyoruz
     generation_config = genai.types.GenerationConfig(
         temperature=1.0, 
         top_p=0.99,
@@ -40,24 +39,22 @@ def generate_prompt_caption():
     
     model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
 
-    # --- GEMINI'YE VERİLEN "SEN SEÇ" EMRİ ---
-    # Python listesi YOK. Gemini her şeyi kendi hayal gücüyle bulacak.
     prompt = """
     Act as an unpredictable, world-class AI Art Curator.
-    Your task is to invent a unique phone wallpaper concept from scratch.
+    Your task is to invent a unique phone wallpaper concept.
 
     INSTRUCTIONS:
-    1. First, mentally select a RANDOM Art Style (e.g. Minimalism, Ukiyo-e, Cyberpunk, Oil Painting, Sketch, Abstract, Pop Art, etc.). Do not stick to one style.
-    2. Then, select a RANDOM Subject that fits that style.
-    3. Combine them into a highly detailed image prompt.
+    1. Select a RANDOM Art Style (e.g. Minimalism, Ukiyo-e, Cyberpunk, Oil Painting, Sketch, Abstract, Pop Art, etc.).
+    2. Select a RANDOM Subject.
+    3. Combine them into a detailed image prompt.
 
     CRITICAL RULES:
     - NO HORROR, NO GORE, NO NSFW.
-    - DO NOT use the word "photorealistic" or "unreal engine" unless the chosen style is actually photography. If the style is "Vector Art", keep it flat!
-    - The image must be composed for an ULTRA-TALL vertical phone screen (Aspect Ratio 9:21).
+    - DO NOT use the word "photorealistic" or "unreal engine" unless the style is photography.
+    - The composition must be vertical but WIDE ENOUGH to fill the screen edges.
 
     Return exactly two lines:
-    PROMPT: <The full english prompt describing the style and subject>
+    PROMPT: <The full english prompt>
     CAPTION: <A short, engaging tweet caption>
     """
     
@@ -66,17 +63,15 @@ def generate_prompt_caption():
         parts = text.split("CAPTION:")
         
         if len(parts) < 2:
-            return "Minimalist abstract wallpaper, tall format", "#Art #Minimalist"
+            return "Artistic wallpaper, 8k", "#Art"
 
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # --- BOYUT KOMUTLARI ---
-        # Sadece boyut ve netlik komutları. Tarzı bozan "realistic" kelimeleri YOK.
         final_prompt = (
             f"{img_prompt}, "
-            "ultra-tall vertical aspect ratio, 9:21 format, full screen wallpaper, "
-            "8k resolution, high quality, clean details"
+            "vertical wallpaper, 9:19 aspect ratio, full screen coverage, "
+            "8k resolution, high quality"
         )
         return final_prompt, caption
     except Exception as e:
@@ -85,16 +80,16 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE (ULTRA-UZUN EKRAN MODU)
+# 2. AI HORDE (GENİŞLETİLMİŞ FULL EKRAN MODU)
 # -----------------------------
 def generate_image_horde(prompt_text):
-    print("AI Horde → Ultra-Uzun (Full Ekran) Wallpaper isteği gönderiliyor...")
+    print("AI Horde → Genişletilmiş Full Ekran isteği gönderiliyor...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v4.0-FullScreen"
+        "Client-Agent": "MyTwitterBot:v4.1-WideFix"
     }
     
     payload = {
@@ -102,9 +97,10 @@ def generate_image_horde(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            # --- YENİ BOYUTLAR (ASTRONOT FORMATI) ---
-            # Bu boyutlar 9:21 oranındadır ve modern telefonları tam doldurur.
-            "width": 640,                 
+            # --- DÜZELTİLEN BOYUTLAR ---
+            # 640 çok dardı, siyah boşluk yaptı.
+            # 704 tam ideal genişliktir. Yükseklik aynı kaldı.
+            "width": 704,                 
             "height": 1536,               
             "steps": 30,                 
             "post_processing": ["RealESRGAN_x4plus"] 
@@ -202,7 +198,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN (SONSUZ DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Ultra-Uzun Ekran Modu.")
+    print("Bot Başlatılıyor... Genişletilmiş Full Ekran.")
     
     basari = False
     deneme_sayisi = 1
@@ -212,10 +208,7 @@ if __name__ == "__main__":
         
         try:
             prompt, caption = generate_prompt_caption()
-            print("------------------------------------------------")
-            print("Gemini'nin Özgür Seçimi:")
-            print(prompt)
-            print("------------------------------------------------")
+            print("Gemini'nin Seçimi:", prompt)
             
             img = generate_image_horde(prompt)
             
