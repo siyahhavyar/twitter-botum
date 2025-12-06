@@ -1,25 +1,30 @@
-name: Wallpaper Bot
+name: Twitter Bot
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-      - run: pip install -r requirements.txt
-      - name: Botu çalıştır
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run bot
         env:
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           API_KEY: ${{ secrets.API_KEY }}
           API_SECRET: ${{ secrets.API_SECRET }}
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           ACCESS_SECRET: ${{ secrets.ACCESS_SECRET }}
-          STABILITY_KEY: ${{ secrets.STABILITY_KEY }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
         run: python bot.py
