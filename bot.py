@@ -17,17 +17,17 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY = os.getenv("HORDE_API_KEY")
 
 if not HORDE_KEY or HORDE_KEY.strip() == "":
-    print("UYARI: Key yok, Anonim mod. Kalite düşük olabilir.")
+    print("UYARI: Key yok, Anonim mod. (Öncelik düşük)")
     HORDE_KEY = "0000000000"
 else:
-    print(f"BAŞARILI: Key aktif! HD Modu Açılıyor... ({HORDE_KEY[:4]}***)")
+    print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)")
 
 if not GEMINI_KEY:
     print("ERROR: GEMINI_KEY eksik!")
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (KALİTE ODAKLI)
+# 1. GEMINI PROMPT GENERATOR
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
@@ -40,7 +40,8 @@ def generate_prompt_caption():
         "Mystical Ancient Ruins",
         "Vaporwave Sunset Highway",
         "Dark Gothic Castle",
-        "Neon Noir Detective Street"
+        "Neon Noir Detective Street",
+        "Post-Apocalyptic Nature Takeover"
     ]
 
     theme = random.choice(themes)
@@ -63,8 +64,7 @@ def generate_prompt_caption():
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # --- SİHİRLİ KALİTE KELİMELERİ ---
-        # Bu kelimeler yapay zekayı daha net çizmeye zorlar
+        # Kalite artırıcı eklemeler
         final_prompt = (
             f"{img_prompt}, "
             "masterpiece, best quality, ultra-detailed, 8k resolution, "
@@ -74,11 +74,12 @@ def generate_prompt_caption():
         return final_prompt, caption
     except Exception as e:
         print(f"Gemini Hatası: {e}")
+        # Hata durumunda basit prompt döndür
         return f"High quality {theme}", f"{theme} #AI"
 
 
 # -----------------------------
-# 2. AI HORDE (HD & UPSCALING MODU)
+# 2. AI HORDE (HD & UZUN BEKLEMELİ)
 # -----------------------------
 def generate_image_horde(prompt_text):
     print("AI Horde → HD Görsel isteği gönderiliyor...")
@@ -87,27 +88,21 @@ def generate_image_horde(prompt_text):
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v2.0-HD"
+        "Client-Agent": "MyTwitterBot:v2.1-Persistent"
     }
     
-    # --- KALİTE AYARLARI ---
     payload = {
         "prompt": prompt_text,
         "params": {
-            "sampler_name": "k_dpmpp_2m", # Daha modern ve keskin bir örnekleyici
-            "cfg_scale": 6,               # 7 yerine 6, renkleri daha doğal yapar
-            "width": 832,                 # SDXL için "Altın Oran" Genişlik
-            "height": 1216,               # SDXL için "Altın Oran" Yükseklik (Çok net sonuç verir)
-            "steps": 35,                  # Adım sayısını artırdık (Daha temiz resim)
-            
-            # --- GİZLİ SİLAH: UPSCALING ---
-            # Bu ayar resmi yapay zeka ile 4 kat büyütüp netleştirir
-            # Not: Bu işlem süreyi biraz uzatır ama değecektir.
-            "post_processing": ["RealESRGAN_x4plus"] 
+            "sampler_name": "k_dpmpp_2m", 
+            "cfg_scale": 6,               
+            "width": 832,                 
+            "height": 1216,               
+            "steps": 35,                  
+            "post_processing": ["RealESRGAN_x4plus"] # Upscaling (Kalite)
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # Juggernaut XL: Şu an dünyanın en iyi fotorealistik modellerinden biri
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -115,22 +110,22 @@ def generate_image_horde(prompt_text):
         req = requests.post(generate_url, json=payload, headers=headers)
         
         if req.status_code != 202:
-            print(f"Horde Hata: {req.text}")
+            print(f"Horde Sunucu Hatası: {req.text}")
             return None
             
         task_id = req.json()['id']
-        print(f"Görev ID: {task_id}. HD İşleme başladı (Bu biraz sürebilir)...")
+        print(f"Görev ID: {task_id}. Sırada bekleniyor...")
     except Exception as e:
         print(f"Bağlantı Hatası: {e}")
         return None
 
-    # Bekleme
+    # --- DEĞİŞİKLİK: BEKLEME SÜRESİ UZATILDI ---
     wait_time = 0
-    max_wait = 900 # 15 Dakika (HD işlem uzun sürer)
+    max_wait = 3600 # 60 Dakika (Sıra 75'teyken kesilmesin diye)
     
     while wait_time < max_wait:
-        time.sleep(15)
-        wait_time += 15
+        time.sleep(20) # 20 saniyede bir kontrol
+        wait_time += 20
         
         try:
             status_url = f"https://stablehorde.net/api/v2/generate/status/{task_id}"
@@ -144,18 +139,19 @@ def generate_image_horde(prompt_text):
                     img_url = generations[0]['img']
                     return requests.get(img_url).content
                 else:
-                    print("Horde resim üretmedi.")
+                    print("Horde boş yanıt döndü.")
                     return None
             
-            # Durum
             wait_t = status_data.get('wait_time', '?')
             queue = status_data.get('queue_position', '?')
             print(f"Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn")
             
         except Exception as e:
+            # Ufak bağlantı kopmalarında döngüyü kırma, devam et
+            print(f"Kontrol hatası (önemsiz): {e}")
             time.sleep(5) 
 
-    print("Zaman aşımı (15 dk).")
+    print("Bu deneme için zaman aşımı (60 dk) doldu.")
     return None
 
 
@@ -182,28 +178,55 @@ def post_to_twitter(img_bytes, caption):
         )
 
         client.create_tweet(
-            text=caption + " #AIArt #4K #Wallpaper #Design",
+            text=caption + " #AIArt #4K #Wallpaper",
             media_ids=[media.media_id]
         )
-        print("TWEET BAŞARILI!")
+        print("✅ TWEET BAŞARIYLA ATILDI!")
+        return True # Başarılı olduğunu bildir
         
     except Exception as e:
-        print(f"Twitter Hatası: {e}")
+        print(f"❌ Twitter Hatası: {e}")
+        return False # Başarısız
     finally:
         if os.path.exists(filename):
             os.remove(filename)
 
 # -----------------------------
-# MAIN
+# MAIN (İNATÇI MOD / RETRY LOOP)
 # -----------------------------
 if __name__ == "__main__":
-    prompt, caption = generate_prompt_caption()
-    print("Prompt:", prompt)
+    print("Bot Başlatılıyor... Paylaşım yapılana kadar durmayacak.")
     
-    img = generate_image_horde(prompt)
+    basari = False
+    deneme_sayisi = 1
     
-    if img:
-        post_to_twitter(img, caption)
-    else:
-        print("Resim oluşturulamadı.")
+    # Sonsuz döngü (Başarılı olana kadar)
+    while not basari:
+        print(f"\n=== DENEME {deneme_sayisi} BAŞLIYOR ===")
         
+        try:
+            # 1. Prompt Oluştur
+            prompt, caption = generate_prompt_caption()
+            print("Prompt:", prompt)
+            
+            # 2. Resim Oluştur (Horde)
+            img = generate_image_horde(prompt)
+            
+            if img:
+                # 3. Tweet At
+                if post_to_twitter(img, caption):
+                    basari = True # Döngüden çıkış bileti
+                    print("🎉 İşlem başarıyla tamamlandı. Bot kapanıyor.")
+                else:
+                    print("⚠️ Resim oluştu ama Twitter'a atılamadı. Tekrar deneniyor...")
+            else:
+                print("⚠️ Resim oluşturulamadı (Zaman aşımı veya Hata). Tekrar deneniyor...")
+                
+        except Exception as e:
+            print(f"⚠️ Beklenmeyen genel hata: {e}")
+        
+        if not basari:
+            print("⏳ 1 Dakika dinlenip tekrar deniyoruz...")
+            time.sleep(60) # Sunucuları spamlamamak için 1 dk mola
+            deneme_sayisi += 1
+            
