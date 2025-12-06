@@ -1,264 +1,188 @@
 import os
-import requests
-import tweepy
-import base64
-import google.generativeai as genai
-import random
 import time
-import json
+import requests
+import random
+import tweepy
+import google.generativeai as genai
 
-# ----------------------------------------------------
-# TWITTER AUTH
-# ----------------------------------------------------
-API_KEY       = os.getenv("API_KEY")
-API_SECRET    = os.getenv("API_SECRET")
-ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
-ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-GEMINI_KEY    = os.getenv("GEMINI_KEY")
+# -----------------------------
+# ENV KEYS
+# -----------------------------
+API_KEY       = os.getenv("API_KEY")       # Twitter
+API_SECRET    = os.getenv("API_SECRET")    # Twitter
+ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")  # Twitter
+ACCESS_SECRET = os.getenv("ACCESS_SECRET") # Twitter
+GEMINI_KEY    = os.getenv("GEMINI_KEY")    # Gemini
+
+# HORDE_KEY opsiyoneldir. Yoksa Anonim (0000000000) kullanılır.
+# Kendi keyinizi alırsanız (stablehorde.net) daha hızlı resim üretir.
+HORDE_KEY     = os.getenv("HORDE_KEY", "0000000000") 
 
 if not GEMINI_KEY:
-    print("GEMINI_KEY eksik!")
+    print("ERROR: GEMINI_KEY eksik!")
     exit(1)
 
-# ----------------------------------------------------
-# GEMINI PROMPT GENERATOR
-# ----------------------------------------------------
+# -----------------------------
+# 1. GEMINI PROMPT GENERATOR
+# -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel("gemini-2.0-flash")
 
     themes = [
-        "4K Magical Fantasy Landscape",
-        "Hyperrealistic Golden Sunset",
-        "Dreamy Pastel Mountains",
-        "Cinematic Forest Light",
-        "Ultra Realistic Horizon Glow",
-        "Autumn Lake Reflections",
-        "Mystical Valley Fog",
-        "Epic Galaxy Nebula Sky",
-        "Ancient Temple in Jungle",
-        "Cyberpunk Neon Rain City"
+        "Cyberpunk City Rain",
+        "Ethereal Forest Magic",
+        "Space Colony on Mars",
+        "Underwater Ancient Ruins",
+        "Steampunk Airship Adventure",
+        "Vaporwave Sunset Road",
+        "Gothic Vampire Castle"
     ]
 
     theme = random.choice(themes)
 
     prompt = f"""
-    Create an artistic, cinematic prompt for theme: {theme}.
-    Format:
-    PROMPT: <image prompt>
-    CAPTION: <short poetic caption>
+    Write a prompt for an AI image generator based on this theme: {theme}.
+    Return exactly two lines:
+    PROMPT: <english detailed description>
+    CAPTION: <short tweet caption>
     """
+    
+    try:
+        text = model.generate_content(prompt).text
+        parts = text.split("CAPTION:")
+        
+        img_prompt = parts[0].replace("PROMPT:", "").strip()
+        caption = parts[1].strip() if len(parts) > 1 else f"{theme} #AI"
 
-    text = model.generate_content(prompt).text
-    parts = text.split("CAPTION:")
-    img_prompt = parts[0].replace("PROMPT:", "").strip()
-    caption = parts[1].strip()
-
-    final_prompt = (
-        img_prompt +
-        ", 4k, ultra detailed, volumetric light, highly cinematic, dramatic atmosphere, photorealistic textures"
-    )
-
-    return final_prompt, caption
-
-
-# ----------------------------------------------------
-# IMAGE SOURCES (100+ FALLBACK)
-# ----------------------------------------------------
-IMAGE_SOURCES = {
-
-    "simple_get": [
-        "https://imageapi.xyz/sdxl?prompt={prompt}",
-        "https://imageapi.xyz/realistic?prompt={prompt}",
-        "https://imageapi.xyz/anime?prompt={prompt}",
-        "https://aiimage.world/api/sdxl?prompt={prompt}",
-        "https://aiimage.world/api/realistic?prompt={prompt}",
-        "https://aiimage.world/api/anime?prompt={prompt}",
-        "https://freeimage.ai/api/sdxl?prompt={prompt}",
-        "https://freeimage.ai/api/anime?prompt={prompt}",
-        "https://freeimage.ai/api/realistic?prompt={prompt}",
-        "https://imageshield.net/sdxl?prompt={prompt}",
-        "https://imageshield.net/v1?prompt={prompt}",
-        "https://imgen.cc/api?model=sdxl&prompt={prompt}",
-        "https://imgen.cc/api?model=realistic&prompt={prompt}",
-        "https://imgen.cc/api?model=anime&prompt={prompt}"
-    ],
-
-    "base64_post": [
-        ("https://api.freeimages.ai/generate", {"prompt": "{prompt}"}),
-        ("https://api.aiquick.art/sdxl", {"text": "{prompt}"}),
-        ("https://genimg.ai/api/sdxl", {"prompt": "{prompt}"}),
-        ("https://imgforfree.net/api", {"prompt": "{prompt}"}),
-        ("https://aiart.world/api/generate", {"input": "{prompt}"}),
-        ("https://sdxlapi.org/free", {"p": "{prompt}"}),
-        ("https://fastdraw.ai/api/flux", {"prompt": "{prompt}"}),
-        ("https://publicimagegen.net/api", {"text": "{prompt}"}),
-        ("https://imaginefree.ai/api/sd", {"prompt": "{prompt}"}),
-        ("https://imageflux.org/api", {"input": "{prompt}"}),
-        ("https://unlimitedimage.ai/api/sdxl", {"prompt": "{prompt}"})
-    ],
-
-    "hf_spaces": [
-        "https://hf.space/embed/stabilityai/stable-diffusion-xl-base-1.0/api/predict/",
-        "https://hf.space/embed/stabilityai/stable-diffusion-xl-refiner-1.0/api/predict/",
-        "https://hf.space/embed/segmind/Segmind-Vega/api/predict/",
-        "https://hf.space/embed/segmind/SSD-1B/api/predict/",
-        "https://hf.space/embed/havenhq/Realistic-Vision-V6.0-fp16/api/predict/",
-        "https://hf.space/embed/havenhq/DreamShaper-v8/api/predict/",
-        "https://hf.space/embed/havenhq/RevAnimated-v1.3/api/predict/",
-        "https://hf.space/embed/nitrosocke/RealisticVision-v5/api/predict/",
-        "https://hf.space/embed/hakurei/waifu-diffusion-v1-5/api/predict/",
-        "https://hf.space/embed/shi-labs/Real-ESRGAN/api/predict/",
-        "https://hf.space/embed/cagliostrolab/animagine-xl-3.1/api/predict/",
-        "https://hf.space/embed/hikkousha/epiCRealism-v5.1/api/predict/",
-        "https://hf.space/embed/mobiuslab/Niji-Diffusion/api/predict/",
-        "https://hf.space/embed/Jam-es/IC-Light-SDXL/api/predict/",
-        "https://hf.space/embed/CrucibleAI/Crucible-XL-Lightning/api/predict/",
-        "https://hf.space/embed/CrucibleAI/Crucible-Dreams/api/predict/"
-    ]
-}
+        # Kalite artırıcı tagler
+        final_prompt = f"{img_prompt}, masterpiece, best quality, ultra detailed, 8k, cinematic lighting"
+        
+        return final_prompt, caption
+    except Exception as e:
+        print(f"Gemini Hatası: {e}")
+        return f"A beautiful {theme}", f"{theme} generated by AI"
 
 
-# ----------------------------------------------------
-# TRY SIMPLE GET IMAGES
-# ----------------------------------------------------
-def try_simple_get(prompt):
-    for url in IMAGE_SOURCES["simple_get"]:
-        try:
-            final_url = url.format(prompt=prompt)
-            print("Trying GET:", final_url)
-            r = requests.get(final_url, timeout=25)
+# -----------------------------
+# 2. AI HORDE IMAGE GENERATOR (BEDAVA & GPU AĞI)
+# -----------------------------
+def generate_image_horde(prompt_text):
+    print("AI Horde → İstek gönderiliyor (Sıra beklenecek)...")
+    
+    # Adım 1: İsteği Gönder (Task Oluştur)
+    generate_url = "https://stablehorde.net/api/v2/generate/async"
+    
+    headers = {
+        "apikey": HORDE_KEY,
+        "Client-Agent": "MyTwitterBot:v1.0"
+    }
+    
+    payload = {
+        "prompt": prompt_text,
+        "params": {
+            "sampler_name": "k_euler",
+            "cfg_scale": 7,
+            "width": 576,    # Horde'da ücretsizler için güvenli boyutlar
+            "height": 1024,  # Dikey (9:16) format
+            "steps": 30,
+        },
+        "nsfw": False,
+        "censor_nsfw": True,
+        "models": ["SDXL_beta::stability.ai#6901"] # SDXL Modeli
+        # Eğer SDXL yavaş gelirse ["stable_diffusion"] yazabilirsiniz.
+    }
 
-            if r.status_code == 200 and r.content:
-                print("SUCCESS: GET method worked")
-                return r.content
+    try:
+        req = requests.post(generate_url, json=payload, headers=headers)
+        if req.status_code != 202:
+            print(f"Horde Gönderim Hatası: {req.text}")
+            return None
+            
+        task_id = req.json()['id']
+        print(f"Görev alındı ID: {task_id}. İşlenmesi bekleniyor...")
+    except Exception as e:
+        print(f"Bağlantı Hatası: {e}")
+        return None
 
-        except Exception:
-            pass
+    # Adım 2: Bekleme Döngüsü (Polling)
+    # Resim bitene kadar her 5 saniyede bir soracağız.
+    wait_time = 0
+    max_wait = 120 # En fazla 2 dakika bekle
+    
+    while wait_time < max_wait:
+        time.sleep(5)
+        wait_time += 5
+        
+        status_url = f"https://stablehorde.net/api/v2/generate/status/{task_id}"
+        check = requests.get(status_url)
+        status_data = check.json()
+        
+        if status_data['done']:
+            print("İşlem tamamlandı! Resim indiriliyor...")
+            # Resim URL'sini al
+            generations = status_data['generations']
+            if len(generations) > 0:
+                img_url = generations[0]['img']
+                return requests.get(img_url).content
+            else:
+                print("Horde resim üretmedi (Hata).")
+                return None
+        
+        print(f"Bekleniyor... ({status_data['wait_time']}sn tahmini süre)")
 
+    print("Zaman aşımı! Resim çok uzun sürdü.")
     return None
 
 
-# ----------------------------------------------------
-# TRY BASE64 POST ENDPOINTS
-# ----------------------------------------------------
-def try_base64_post(prompt):
-    for url, body in IMAGE_SOURCES["base64_post"]:
-        try:
-            print("Trying BASE64:", url)
-            data = json.loads(json.dumps(body).replace("{prompt}", prompt))
-            r = requests.post(url, json=data, timeout=40)
-
-            if r.status_code == 200:
-                j = r.json()
-                if "image" in j:
-                    return base64.b64decode(j["image"])
-                if "img" in j:
-                    return base64.b64decode(j["img"])
-
-        except Exception:
-            pass
-
-    return None
-
-
-# ----------------------------------------------------
-# TRY HUGGINGFACE SPACES (image binary)
-# ----------------------------------------------------
-def try_hf_spaces(prompt):
-    for space in IMAGE_SOURCES["hf_spaces"]:
-        payload = {
-            "data": [prompt]
-        }
-        try:
-            print("Trying HF Space:", space)
-            r = requests.post(space, json=payload, timeout=80)
-
-            if r.status_code == 200:
-                j = r.json()
-
-                output = j["data"][0]
-                if isinstance(output, str) and output.startswith("data:image"):
-                    base64_data = output.split(",")[1]
-                    return base64.b64decode(base64_data)
-
-                if isinstance(output, dict) and "name" in output:
-                    file_url = space.replace("/api/predict/", f"/file={output['name']}")
-                    img = requests.get(file_url, timeout=40)
-                    if img.status_code == 200:
-                        return img.content
-
-        except Exception:
-            pass
-
-    return None
-
-
-# ----------------------------------------------------
-# IMAGE GENERATOR MASTER FUNCTION
-# ----------------------------------------------------
-def generate_image(prompt):
-
-    print("== Trying SIMPLE GET ==")
-    img = try_simple_get(prompt)
-    if img:
-        return img
-
-    print("== Trying BASE64 providers ==")
-    img = try_base64_post(prompt)
-    if img:
-        return img
-
-    print("== Trying HF Spaces ==")
-    img = try_hf_spaces(prompt)
-    if img:
-        return img
-
-    print("FAILED: All sources exhausted.")
-    return None
-
-
-# ----------------------------------------------------
-# Twitter Post
-# ----------------------------------------------------
+# -----------------------------
+# 3. TWITTER POST
+# -----------------------------
 def post_to_twitter(img_bytes, caption):
-    filename = "output.png"
+    filename = "horde_image.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
 
-    auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
-    auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-    api = tweepy.API(auth)
+    try:
+        auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
+        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+        api = tweepy.API(auth)
+        
+        print("Twitter'a yükleniyor...")
+        media = api.media_upload(filename)
+        
+        client = tweepy.Client(
+            consumer_key=API_KEY,
+            consumer_secret=API_SECRET,
+            access_token=ACCESS_TOKEN,
+            access_token_secret=ACCESS_SECRET
+        )
 
-    media = api.media_upload(filename)
+        client.create_tweet(
+            text=caption + " #AIHorde #SDXL #Art",
+            media_ids=[media.media_id]
+        )
+        print("TWEET BAŞARILI!")
+        
+    except Exception as e:
+        print(f"Twitter Hatası: {e}")
+    finally:
+        if os.path.exists(filename):
+            os.remove(filename)
 
-    client = tweepy.Client(
-        consumer_key=API_KEY,
-        consumer_secret=API_SECRET,
-        access_token=ACCESS_TOKEN,
-        access_token_secret=ACCESS_SECRET
-    )
-
-    client.create_tweet(
-        text=caption + " #AIArt #Wallpaper #4K",
-        media_ids=[media.media_id]
-    )
-
-    print("Tweet successful.")
-    os.remove(filename)
-
-
-# ----------------------------------------------------
+# -----------------------------
 # MAIN
-# ----------------------------------------------------
+# -----------------------------
 if __name__ == "__main__":
     prompt, caption = generate_prompt_caption()
+    print("-" * 30)
     print("Prompt:", prompt)
-    print("Caption:", caption)
-
-    img = generate_image(prompt)
-
-    if img:
-        post_to_twitter(img, caption)
+    print("-" * 30)
+    
+    img_data = generate_image_horde(prompt)
+    
+    if img_data:
+        post_to_twitter(img_data, caption)
     else:
-        print("ERROR: No image generated.")
+        print("Görsel oluşturulamadı.")
+        
