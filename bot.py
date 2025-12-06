@@ -26,33 +26,43 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (ÖZGÜR MOD)
+# 1. GEMINI PROMPT GENERATOR (TAM ÖZGÜR YARATICI MOD)
 # -----------------------------
 def generate_prompt_caption():
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    
+    # Yaratıcılık ayarını maksimuma çekiyoruz
+    generation_config = genai.types.GenerationConfig(
+        temperature=1.0, # Maksimum yaratıcılık (Rastgelelik)
+        top_p=0.99,
+        top_k=40,
+    )
+    
+    model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
 
-    # --- DEĞİŞİKLİK BURADA: Sabit liste silindi ---
-    # Artık Gemini'ye "Sen bir sanat yönetmenisin, aklına gelen en iyi fikri bul" diyoruz.
-    
+    # --- GEMINI'YE VERİLEN "ÖZGÜR SANATÇI" EMRİ ---
     prompt = """
-    Act as a world-class AI Art Director.
-    Invent a completely unique, creative, and artistic concept for a phone wallpaper.
+    Act as an unpredictable, world-class AI Art Curator.
+    Your goal is to generate a UNIQUE phone wallpaper concept.
     
-    The theme can be anything: 
-    - Minimalism, Abstract Art, Nature, Landscapes
-    - Sci-Fi, Cyberpunk, Fantasy, Heroes, Mythology
-    - Architecture, Macro Photography, Surrealism, etc.
+    STEP 1: Randomly select an ART STYLE from this endless variety:
+    (Minimalism, Flat Art, Vector Illustration, Ukiyo-e, Oil Painting, 
+     Watercolor, Synthwave, Cyberpunk, 3D Render, Abstract Expressionism, 
+     Line Art, Pop Art, Low Poly, Photorealistic, etc.)
     
-    RULES:
-    1. NO HORROR, NO GORE, NO SCARY THEMES.
-    2. NO NSFW, NO SEXUAL CONTENT.
-    3. The image must be suitable for a vertical phone wallpaper.
+    STEP 2: Randomly select a SUBJECT.
     
-    Based on your invented concept, write a highly detailed image prompt.
+    STEP 3: Combine them into a detailed image prompt.
+    
+    CRITICAL RULES:
+    1. DO NOT always make it realistic. If you chose realistic last time, choose Minimalist or Abstract now.
+    2. VARIETY is key. Surprise me.
+    3. NO HORROR, NO GORE, NO NSFW.
+    4. The composition must be VERTICAL (Portrait) for a phone screen.
+    
     Return exactly two lines:
-    PROMPT: <english detailed description>
-    CAPTION: <short tweet caption>
+    PROMPT: <The full english prompt including style keywords like 'minimalist', 'flat', etc.>
+    CAPTION: <A short, engaging tweet caption>
     """
     
     try:
@@ -60,36 +70,38 @@ def generate_prompt_caption():
         parts = text.split("CAPTION:")
         
         if len(parts) < 2:
-            return "Beautiful artistic landscape, 8k, masterpiece", "Artistic Vibes #AIArt"
+            return "Minimalist abstract wallpaper, high quality", "Minimal vibes #Art"
 
         img_prompt = parts[0].replace("PROMPT:", "").strip()
         caption = parts[1].strip()
         
-        # Dikey kompozisyon ve kalite garantisi
+        # --- ÖNEMLİ DEĞİŞİKLİK ---
+        # Buradan "photorealistic", "unreal engine" gibi zorlayıcı kelimeleri KALDIRDIM.
+        # Sadece teknik kalite (netlik) ve boyut komutlarını bıraktım.
+        # Böylece Gemini "Minimalist" derse, kod onu bozup gerçekçi yapmaya çalışmayacak.
+        
         final_prompt = (
             f"{img_prompt}, "
-            "vertical aspect ratio, tall composition, looking up, "
-            "masterpiece, best quality, ultra-detailed, 8k resolution, "
-            "sharp focus, ray tracing, unreal engine 5, cinematic lighting, "
-            "photorealistic, intricate details, clean lines"
+            "vertical aspect ratio, tall composition, 9:16 format, "
+            "high quality, 8k resolution, clean details, wallpaper aesthetics"
         )
         return final_prompt, caption
     except Exception as e:
         print(f"Gemini Hatası: {e}")
-        return "High quality artistic wallpaper", "#AIArt"
+        return "Abstract artistic wallpaper", "#Art"
 
 
 # -----------------------------
 # 2. AI HORDE (9:16 TELEFON MODU)
 # -----------------------------
 def generate_image_horde(prompt_text):
-    print("AI Horde → 9:16 Wallpaper isteği gönderiliyor...")
+    print("AI Horde → Wallpaper isteği gönderiliyor...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v2.3-Creative"
+        "Client-Agent": "MyTwitterBot:v2.5-Freedom"
     }
     
     payload = {
@@ -99,11 +111,12 @@ def generate_image_horde(prompt_text):
             "cfg_scale": 6,               
             "width": 768,    # İnce Uzun Telefon Formatı             
             "height": 1344,               
-            "steps": 35,                  
+            "steps": 30,     # Hız/Kalite dengesi             
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
+        # Çeşitlilik için modelleri koruyoruz
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -178,7 +191,7 @@ def post_to_twitter(img_bytes, caption):
         )
 
         client.create_tweet(
-            text=caption + " #AIArt #PhoneWallpaper #4K",
+            text=caption + " #AIArt #Wallpaper",
             media_ids=[media.media_id]
         )
         print("✅ TWEET BAŞARIYLA ATILDI!")
@@ -195,7 +208,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN (SONSUZ DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("Bot Başlatılıyor... Konuyu Gemini belirleyecek.")
+    print("Bot Başlatılıyor... Gemini TAM ÖZGÜR.")
     
     basari = False
     deneme_sayisi = 1
@@ -204,20 +217,22 @@ if __name__ == "__main__":
         print(f"\n=== DENEME {deneme_sayisi} BAŞLIYOR ===")
         
         try:
-            # Rastgele tema seçimi artık yok, Gemini sıfırdan üretecek
             prompt, caption = generate_prompt_caption()
-            print("Gemini'nin Seçtiği Konu ve Prompt:", prompt)
+            print("------------------------------------------------")
+            print("Gemini'nin Seçtiği Stil ve Konu:")
+            print(prompt)
+            print("------------------------------------------------")
             
             img = generate_image_horde(prompt)
             
             if img:
                 if post_to_twitter(img, caption):
                     basari = True 
-                    print("🎉 İşlem tamam. Bot dinlenmeye geçiyor.")
+                    print("🎉 İşlem tamam.")
                 else:
-                    print("⚠️ Tweet hatası. Tekrar deneniyor...")
+                    print("⚠️ Tweet hatası.")
             else:
-                print("⚠️ Resim hatası. Tekrar deneniyor...")
+                print("⚠️ Resim hatası.")
                 
         except Exception as e:
             print(f"⚠️ Beklenmeyen hata: {e}")
