@@ -71,7 +71,7 @@ def generate_prompt_caption():
 
 
 # -----------------------------
-# 2. AI HORDE (ÜYELİK MODU - SDXL)
+# 2. AI HORDE (GARANTİCİ MOD - ÇOKLU MODEL)
 # -----------------------------
 def generate_image_horde(prompt_text):
     print("AI Horde → İstek gönderiliyor (Üyelik Modu)...")
@@ -83,26 +83,37 @@ def generate_image_horde(prompt_text):
         "Client-Agent": "MyTwitterBot:v1.0"
     }
     
-    # KEY OLDUĞU İÇİN ARTIK SDXL VE BÜYÜK BOYUT KULLANABİLİRİZ
+    # --- MODEL GÜNCELLEMESİ ---
+    # Tek bir modele bağlı kalmak yerine, en iyi 3 modeli listeledik.
+    # Sistem ilkini bulamazsa otomatik olarak ikincisini dener.
+    # 1. Juggernaut XL: Çok popüler ve gerçekçi SDXL modeli
+    # 2. AlbedoBase XL: Harika renkler ve detaylar
+    # 3. SDXL_beta: Standart Stability AI modeli
+    
     payload = {
         "prompt": prompt_text,
         "params": {
             "sampler_name": "k_euler",
             "cfg_scale": 7,
-            "width": 576,    # SDXL için dikey oran
-            "height": 1024,  # Wallpaper boyutu
+            "width": 576,    
+            "height": 1024,  
             "steps": 30,
         },
         "nsfw": False,
         "censor_nsfw": True,
-        "models": ["SDXL_beta::stability.ai#6901"] # Kaliteli SDXL Modeli
+        "models": [
+            "Juggernaut XL", 
+            "AlbedoBase XL (SDXL)", 
+            "SDXL_beta"
+        ] 
     }
 
     try:
         req = requests.post(generate_url, json=payload, headers=headers)
         
+        # Eğer yine sunucu hatası alırsak loglayalım
         if req.status_code != 202:
-            print(f"Horde Hata: {req.text}")
+            print(f"Horde Sunucu Hatası: {req.text}")
             return None
             
         task_id = req.json()['id']
@@ -113,7 +124,7 @@ def generate_image_horde(prompt_text):
 
     # Bekleme
     wait_time = 0
-    max_wait = 600 # 10 Dakika (Key olduğu için hızlı gelecektir)
+    max_wait = 600 # 10 Dakika
     
     while wait_time < max_wait:
         time.sleep(10)
@@ -134,8 +145,10 @@ def generate_image_horde(prompt_text):
                     print("Horde resim üretmedi.")
                     return None
             
-            # Kalan kudos ve sıra bilgisini görelim
-            print(f"Süre: {wait_time}sn | Sırada bekleyen: {status_data.get('queue_position', '?')}")
+            # Kuyruk bilgisi
+            queue_pos = status_data.get('queue_position', '?')
+            wait_t = status_data.get('wait_time', '?')
+            print(f"Süre: {wait_time}sn | Sıra: {queue_pos} | Tahmini: {wait_t}sn")
             
         except Exception as e:
             time.sleep(5) 
