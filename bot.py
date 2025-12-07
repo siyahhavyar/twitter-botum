@@ -23,77 +23,85 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 if not GEMINI_KEY:
-    print("ERROR: GEMINI_KEY eksik!", flush=True)
+    print("ERROR: GEMINI_KEY eksik! GitHub Secrets'ı kontrol et.", flush=True)
     exit(1)
 
 # -----------------------------
-# 1. GEMINI (2.0 FLASH) - FİKİR BABASI
+# 1. GEMINI (1.5 FLASH LATEST) - SANAT YÖNETMENİ
 # -----------------------------
 def get_idea_from_gemini():
     """
-    Gemini 2.0 Flash modelini kullanır.
-    Sadece 1 kez çalışır, bu yüzden kota doldurmaz.
+    Gemini'nin en güncel versiyonunu (1.5 Flash Latest) kullanır.
+    Yüksek yaratıcılık ayarı ve zaman damgası ile benzersiz fikirler üretir.
+    Sadece 1 kez çalışır, kotayı korur.
     """
     genai.configure(api_key=GEMINI_KEY)
     
+    # --- YARATICILIK AYARLARI ---
+    # temperature 1.3 = Çok yüksek yaratıcılık ve rastgelelik.
     generation_config = genai.types.GenerationConfig(
-        temperature=1.1, # Yüksek yaratıcılık
+        temperature=1.3,
         top_p=0.95,
-        top_k=40,
+        top_k=60,
     )
     
-    # --- İSTEDİĞİN GİBİ 2.0 MODELİNE DÖNDÜK ---
-    model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
+    # En güncel modeli seçiyoruz
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash-latest", generation_config=generation_config)
+    except:
+        # Yedek olarak normal 1.5 flash
+        model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
 
     while True:
         try:
-            print("🧠 Gemini (2.0 Flash) yeni bir sanat eseri düşünüyor...", flush=True)
+            print("🧠 Gemini (1.5 Flash Latest) benzersiz bir eser düşünüyor...", flush=True)
             
-            # Zaman damgası ekleyerek her seferinde farklı hissetmesini sağlıyoruz
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Her saniye değişen bir veri veriyoruz ki asla kendini tekrarlamasın
+            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             
             prompt = f"""
-            Current Time: {current_time}
-            Act as an avant-garde AI Art Curator. 
-            You must create a concept that is COMPLETELY DIFFERENT from generic AI art.
-            
+            Timestamp: {current_timestamp}
+            Act as an avant-garde AI Art Curator with limitless imagination. 
+            Your task is to invent a unique vertical phone wallpaper concept that feels like real art, not generic AI generation.
+
             INSTRUCTIONS:
-            1. Pick a very specific, random Art Style (e.g. Bauhaus, Ukiyo-e, Glitch Art, Renaissance, Synthwave, Minimalism).
-            2. Pick a very specific, random Subject.
-            3. Combine them. Be unpredictable.
+            1. Combine a specific Art Style (e.g., Bauhaus, Ukiyo-e, Glitch Art, Brutalism, Ethereal, Macro Photography, Sketch) with a unique Subject.
+            2. Be unpredictable. Do not repeat recent concepts.
 
             CRITICAL RULES:
             - NO HORROR, NO GORE, NO NSFW.
-            - DO NOT use "photorealistic" unless it is photography style.
-            - Format must be vertical phone wallpaper.
+            - DO NOT use "photorealistic" unless the chosen style is specifically photography.
+            - COMPOSITION: Must be a vertical, tall phone wallpaper fit.
 
             Return exactly two lines:
-            PROMPT: <Full english image prompt>
-            CAPTION: <Tweet caption with 4-5 relevant hashtags>
+            PROMPT: <The full detailed english prompt for the image generator>
+            CAPTION: <An engaging short tweet caption related to the image + 4-5 relevant hashtags>
             """
             
             text = model.generate_content(prompt).text
             parts = text.split("CAPTION:")
             
             if len(parts) < 2:
-                print("⚠️ Format hatası, tekrar deneniyor...", flush=True)
-                time.sleep(2)
+                print("⚠️ Format hatası, anlık bir sorun, tekrar soruluyor...", flush=True)
+                time.sleep(3)
                 continue 
 
             img_prompt = parts[0].replace("PROMPT:", "").strip()
             caption = parts[1].strip()
             
+            # Horde için güvenli boyut ve kalite komutlarını ekliyoruz
+            # Not: Gemini'nin ürettiği stili bozmamak için buraya "realistic" eklemiyoruz.
             final_prompt = (
                 f"{img_prompt}, "
-                "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
-                "8k resolution, high quality"
+                "vertical wallpaper, 9:21 aspect ratio, tall composition, "
+                "8k resolution, high quality, highly detailed"
             )
             return final_prompt, caption
 
         except Exception as e:
-            print(f"🛑 Gemini Hatası: {e}", flush=True)
-            print("⏳ Kota dolmuş olabilir. 10 Dakika bekleyip tekrar deneyeceğim...", flush=True)
-            time.sleep(600)
+            print(f"🛑 Gemini Hatası (Muhtemelen Kota): {e}", flush=True)
+            print("⏳ 10 Dakika mecburi dinlenme molası veriliyor...", flush=True)
+            time.sleep(600) # 10 dakika bekle, sonra tekrar dene
 
 
 # -----------------------------
@@ -102,13 +110,13 @@ def get_idea_from_gemini():
 def try_generate_image(prompt_text):
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     
-    # Her resim için benzersiz tohum
-    unique_seed = random.randint(1, 1000000000)
+    # Her çizim için benzersiz bir matematiksel tohum (seed)
+    unique_seed = random.randint(1, 9999999999)
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v8.0-Gemini2"
+        "Client-Agent": "MyTwitterBot:v10.0-GeminiPrime"
     }
     
     payload = {
@@ -116,14 +124,15 @@ def try_generate_image(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 640,                 
-            "height": 1408,  # Güvenli İnce-Uzun Boyut             
+            "width": 640,    # Güvenli, ince-uzun boyut (Yoğunluk hatası vermez)
+            "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed,
-            "post_processing": ["RealESRGAN_x4plus"] 
+            "seed": unique_seed, # Ekstra benzersizlik katmanı
+            "post_processing": ["RealESRGAN_x4plus"] # HD Kalite
         },
         "nsfw": False,
         "censor_nsfw": True,
+        # Kaliteli modeller listesi
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -138,7 +147,7 @@ def try_generate_image(prompt_text):
         print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
         return None
 
-    # Bekleme
+    # Bekleme (45 Dk limit)
     wait_time = 0
     max_wait = 2700 
     
@@ -179,17 +188,18 @@ def post_to_twitter(img_bytes, caption):
         f.write(img_bytes)
 
     try:
-        auth = tweepy.OAuthHandler(API_KEY, API_SECRET)
+        auth = OAuthHandler(API_KEY, API_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-        api = tweepy.API(auth)
+        api = API(auth)
         media = api.media_upload(filename)
-        client = tweepy.Client(
+        client = Client(
             consumer_key=API_KEY,
             consumer_secret=API_SECRET,
             access_token=ACCESS_TOKEN,
             access_token_secret=ACCESS_SECRET
         )
         
+        # Gemini'nin ürettiği akıllı etiketli metin
         client.create_tweet(
             text=caption, 
             media_ids=[media.media_id]
@@ -204,27 +214,29 @@ def post_to_twitter(img_bytes, caption):
             os.remove(filename)
 
 # -----------------------------
-# MAIN
+# MAIN (KOTA DOSTU DÖNGÜ)
 # -----------------------------
+from tweepy import OAuthHandler, API, Client # Importları buraya aldım hata olmasın
+
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Gemini 2.0 Flash Modu)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Öncelik: Gemini 1.5 Flash Latest)", flush=True)
     
-    # 1. ADIM: Sadece bir kere fikir al
+    # 1. ADIM: Fikri SADECE BİR KERE al
     prompt, caption = get_idea_from_gemini()
     print("------------------------------------------------", flush=True)
-    print("🎯 Hedeflenen Konu:", prompt[:100] + "...", flush=True)
-    print("📝 Tweet:", caption, flush=True)
+    print("🎯 Gemini'nin Sanat Fikri:", prompt[:100] + "...", flush=True)
+    print("📝 Tweet Metni:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
     basari = False
     deneme_sayisi = 1
     
-    # 2. ADIM: O fikri çizdirene kadar dene
+    # 2. ADIM: O fikri çizdirene kadar dene (Gemini'yi tekrar rahatsız etme)
     while not basari:
-        print(f"\n🔄 RESİM DENEMESİ: {deneme_sayisi}", flush=True)
+        print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
         
         try:
-            # Gemini'ye tekrar sormuyoruz, aynı promptu kullanıyoruz
+            # Aynı promptu kullanıyoruz
             img = try_generate_image(prompt)
             
             if img:
@@ -232,14 +244,15 @@ if __name__ == "__main__":
                     basari = True 
                     print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
                 else:
-                    print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
+                    print("⚠️ Resim var ama Tweet atılamadı (Twitter sorunu).", flush=True)
             else:
-                print("⚠️ Resim çizilemedi.", flush=True)
+                print("⚠️ Resim çizilemedi (Sunucu yoğunluğu veya hata).", flush=True)
                 
         except Exception as e:
             print(f"⚠️ Genel Hata: {e}", flush=True)
         
         if not basari:
-            print("💤 Sunucular yoğun, 2 dakika dinlenip AYNI prompt ile tekrar deniyorum...", flush=True)
-            time.sleep(120) 
+            print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
+            time.sleep(180) # 3 dakika bekle
             deneme_sayisi += 1
+            
