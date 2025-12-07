@@ -3,6 +3,7 @@ import time
 import requests
 import tweepy
 import random
+import urllib.parse
 import google.generativeai as genai
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
@@ -16,6 +17,7 @@ ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
+GROQ_KEY      = os.getenv("GROQ_API_KEY") # YENİ OYUNCU
 
 if not HORDE_KEY or HORDE_KEY.strip() == "":
     print("UYARI: Key yok, Anonim mod.", flush=True)
@@ -23,106 +25,146 @@ if not HORDE_KEY or HORDE_KEY.strip() == "":
 else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
-if not GEMINI_KEY:
-    print("ERROR: GEMINI_KEY eksik! GitHub Secrets'ı kontrol et.", flush=True)
-    exit(1)
-
 # -----------------------------
-# 1. GEMINI (1.5 FLASH STANDART) - SANAT YÖNETMENİ
+# 1. FİKİR ÜRETİCİ (MUHTEŞEM ÜÇLÜ: GEMINI -> GROQ -> POLLINATIONS)
 # -----------------------------
-def get_idea_from_gemini():
+def get_idea_ultimate():
     """
-    Gemini 1.5 Flash standart modelini kullanır.
-    En kararlı çalışan versiyondur.
+    Sırasıyla Gemini, Groq ve Pollinations'ı dener.
+    Asla fikir bulmadan dönmez.
     """
-    genai.configure(api_key=GEMINI_KEY)
     
-    # Yaratıcılık ayarları
-    generation_config = genai.types.GenerationConfig(
-        temperature=1.1,
-        top_p=0.95,
-        top_k=40,
-    )
-    
-    # --- DÜZELTME BURADA: İsim "gemini-1.5-flash" olarak sabitlendi ---
-    model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
-
-    while True:
+    # --- PLAN A: GEMINI (1.5 Flash) ---
+    if GEMINI_KEY:
         try:
-            print("🧠 Gemini (1.5 Flash) benzersiz bir eser düşünüyor...", flush=True)
+            print("🧠 Plan A: Gemini (1.5 Flash) deneniyor...", flush=True)
+            genai.configure(api_key=GEMINI_KEY)
             
-            # Her saniye değişen zaman damgası
-            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            # Yaratıcılık ayarları
+            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.95, top_k=40)
+            model = genai.GenerativeModel("gemini-1.5-flash", generation_config=config)
             
+            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             prompt = f"""
             Timestamp: {current_timestamp}
-            Act as an avant-garde AI Art Curator with limitless imagination. 
-            Your task is to invent a unique vertical phone wallpaper concept that feels like real art, not generic AI generation.
-
-            INSTRUCTIONS:
-            1. Combine a specific Art Style (e.g., Bauhaus, Ukiyo-e, Glitch Art, Brutalism, Ethereal, Macro Photography, Sketch) with a unique Subject.
-            2. Be unpredictable. Do not repeat recent concepts.
-
-            CRITICAL RULES:
-            - NO HORROR, NO GORE, NO NSFW.
-            - DO NOT use "photorealistic" unless the chosen style is specifically photography.
-            - COMPOSITION: Must be a vertical, tall phone wallpaper fit.
-
+            Act as an avant-garde AI Art Curator. Invent a unique vertical phone wallpaper concept.
+            Rules: NO Horror, NO Gore, NO NSFW.
             Return exactly two lines:
-            PROMPT: <The full detailed english prompt for the image generator>
-            CAPTION: <An engaging short tweet caption related to the image + 4-5 relevant hashtags>
+            PROMPT: <Full english image prompt>
+            CAPTION: <Tweet caption with 4-5 hashtags>
             """
             
-            text = model.generate_content(prompt).text
-            parts = text.split("CAPTION:")
+            response = model.generate_content(prompt)
+            parts = response.text.split("CAPTION:")
             
-            if len(parts) < 2:
-                print("⚠️ Format hatası, anlık bir sorun, tekrar soruluyor...", flush=True)
-                time.sleep(3)
-                continue 
-
-            img_prompt = parts[0].replace("PROMPT:", "").strip()
-            caption = parts[1].strip()
-            
-            # Horde için güvenli boyut ve kalite komutları
-            final_prompt = (
-                f"{img_prompt}, "
-                "vertical wallpaper, 9:21 aspect ratio, tall composition, "
-                "8k resolution, high quality, highly detailed"
-            )
-            return final_prompt, caption
-
+            if len(parts) >= 2:
+                print("✅ Gemini Başarılı!", flush=True)
+                return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+                
         except Exception as e:
-            print(f"🛑 Gemini Hatası: {e}", flush=True)
-            print("⏳ Hata alındı. 5 Dakika dinlenip tekrar deneyeceğim...", flush=True)
-            time.sleep(300) # 5 dakika bekle
+            print(f"⚠️ Gemini Hatası: {e}", flush=True)
+            print("🔄 Gemini yanıt vermedi, Plan B (Groq)'a geçiliyor...", flush=True)
 
+    # --- PLAN B: GROQ (LLAMA 3) ---
+    if GROQ_KEY:
+        try:
+            print("🧠 Plan B: Groq (Llama 3) deneniyor...", flush=True)
+            
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+            
+            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            prompt_text = f"""
+            Timestamp: {current_timestamp}
+            Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
+            Rules: NO Horror, NO Gore, NO NSFW.
+            Return exactly two lines:
+            PROMPT: <Full english image prompt>
+            CAPTION: <Tweet caption with hashtags>
+            """
+            
+            data = {
+                "model": "llama3-70b-8192", 
+                "messages": [{"role": "user", "content": prompt_text}],
+                "temperature": 1.0
+            }
+            
+            response = requests.post(url, headers=headers, json=data, timeout=20)
+            
+            if response.status_code == 200:
+                content = response.json()['choices'][0]['message']['content']
+                parts = content.split("CAPTION:")
+                if len(parts) >= 2:
+                    print("✅ Groq Başarılı!", flush=True)
+                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+            else:
+                print(f"⚠️ Groq Hatası: {response.text}", flush=True)
+                
+        except Exception as e:
+            print(f"⚠️ Groq Bağlantı Hatası: {e}", flush=True)
+            print("🔄 Groq yanıt vermedi, Plan C (Pollinations)'a geçiliyor...", flush=True)
+    else:
+        print("ℹ️ Groq Key tanımlı değil, atlanıyor.", flush=True)
+
+    # --- PLAN C: POLLINATIONS (YEDEK) ---
+    try:
+        print("🧠 Plan C: Pollinations AI (Bedava) düşünülüyor...", flush=True)
+        seed = random.randint(1, 999999)
+        instruction = (
+            f"Act as an AI Art Curator. Seed: {seed}. "
+            "Invent a unique vertical phone wallpaper concept. "
+            "Rules: NO Horror, NO Gore, NO NSFW. "
+            "Return exactly two lines: PROMPT: ... and CAPTION: ..."
+        )
+        encoded = urllib.parse.quote(instruction)
+        url = f"https://text.pollinations.ai/{instruction}?seed={seed}"
+        
+        response = requests.get(url, timeout=30)
+        parts = response.text.split("CAPTION:")
+        
+        if len(parts) >= 2:
+            print("✅ Pollinations Başarılı!", flush=True)
+            return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+            
+    except Exception as e:
+        print(f"🛑 Pollinations Hatası: {e}", flush=True)
+
+    # Hiçbiri çalışmazsa (İmkansız ama)
+    print("❌ Tüm sistemler çöktü. Varsayılan dönülüyor.", flush=True)
+    return "Abstract minimalist wallpaper, 8k", "#AIArt"
+
+
+def prepare_final_prompt(raw_prompt):
+    return (
+        f"{raw_prompt}, "
+        "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
+        "8k resolution, high quality, highly detailed"
+    )
 
 # -----------------------------
 # 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
+    final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     
-    # Her çizim için benzersiz bir matematiksel tohum (seed)
     unique_seed = random.randint(1, 9999999999)
-    
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v10.1-GeminiStable"
+        "Client-Agent": "MyTwitterBot:v12.0-Ultimate"
     }
     
     payload = {
-        "prompt": prompt_text,
+        "prompt": final_prompt,
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 640,    # Güvenli, ince-uzun boyut
+            "width": 640,    # Güvenli İnce-Uzun Boyut
             "height": 1408,               
             "steps": 30,                 
             "seed": unique_seed, 
-            "post_processing": ["RealESRGAN_x4plus"] # HD Kalite
+            "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
@@ -140,7 +182,6 @@ def try_generate_image(prompt_text):
         print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
         return None
 
-    # Bekleme (45 Dk limit)
     wait_time = 0
     max_wait = 2700 
     
@@ -171,7 +212,6 @@ def try_generate_image(prompt_text):
     print("⚠️ Zaman aşımı.", flush=True)
     return None
 
-
 # -----------------------------
 # 3. TWITTER POST
 # -----------------------------
@@ -192,11 +232,7 @@ def post_to_twitter(img_bytes, caption):
             access_token_secret=ACCESS_SECRET
         )
         
-        # Gemini'nin ürettiği akıllı etiketli metin
-        client.create_tweet(
-            text=caption, 
-            media_ids=[media.media_id]
-        )
+        client.create_tweet(text=caption, media_ids=[media.media_id])
         print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
         return True 
     except Exception as e:
@@ -210,24 +246,23 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Gemini 1.5 Flash - Sabit Sürüm)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Gemini -> Groq -> Pollinations)", flush=True)
     
-    # 1. ADIM: Fikri SADECE BİR KERE al
-    prompt, caption = get_idea_from_gemini()
+    # 1. ADIM: Fikir Al (3 Kademeli Sistem)
+    prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Gemini'nin Sanat Fikri:", prompt[:100] + "...", flush=True)
-    print("📝 Tweet Metni:", caption, flush=True)
+    print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
+    print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
     basari = False
     deneme_sayisi = 1
     
-    # 2. ADIM: O fikri çizdirene kadar dene
+    # 2. ADIM: Çizdir
     while not basari:
         print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
         
         try:
-            # Aynı promptu kullanıyoruz
             img = try_generate_image(prompt)
             
             if img:
@@ -235,15 +270,14 @@ if __name__ == "__main__":
                     basari = True 
                     print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
                 else:
-                    print("⚠️ Resim var ama Tweet atılamadı (Twitter sorunu).", flush=True)
+                    print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
             else:
-                print("⚠️ Resim çizilemedi (Sunucu yoğunluğu veya hata).", flush=True)
+                print("⚠️ Resim çizilemedi.", flush=True)
                 
         except Exception as e:
             print(f"⚠️ Genel Hata: {e}", flush=True)
         
         if not basari:
             print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
-            time.sleep(180) # 3 dakika bekle
+            time.sleep(180) 
             deneme_sayisi += 1
-            
