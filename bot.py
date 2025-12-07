@@ -5,6 +5,7 @@ import tweepy
 import random
 import google.generativeai as genai
 from datetime import datetime
+from tweepy import OAuthHandler, API, Client
 
 # -----------------------------
 # ENV KEYS
@@ -27,36 +28,30 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI (1.5 FLASH LATEST) - SANAT YÖNETMENİ
+# 1. GEMINI (1.5 FLASH STANDART) - SANAT YÖNETMENİ
 # -----------------------------
 def get_idea_from_gemini():
     """
-    Gemini'nin en güncel versiyonunu (1.5 Flash Latest) kullanır.
-    Yüksek yaratıcılık ayarı ve zaman damgası ile benzersiz fikirler üretir.
-    Sadece 1 kez çalışır, kotayı korur.
+    Gemini 1.5 Flash standart modelini kullanır.
+    En kararlı çalışan versiyondur.
     """
     genai.configure(api_key=GEMINI_KEY)
     
-    # --- YARATICILIK AYARLARI ---
-    # temperature 1.3 = Çok yüksek yaratıcılık ve rastgelelik.
+    # Yaratıcılık ayarları
     generation_config = genai.types.GenerationConfig(
-        temperature=1.3,
+        temperature=1.1,
         top_p=0.95,
-        top_k=60,
+        top_k=40,
     )
     
-    # En güncel modeli seçiyoruz
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash-latest", generation_config=generation_config)
-    except:
-        # Yedek olarak normal 1.5 flash
-        model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
+    # --- DÜZELTME BURADA: İsim "gemini-1.5-flash" olarak sabitlendi ---
+    model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
 
     while True:
         try:
-            print("🧠 Gemini (1.5 Flash Latest) benzersiz bir eser düşünüyor...", flush=True)
+            print("🧠 Gemini (1.5 Flash) benzersiz bir eser düşünüyor...", flush=True)
             
-            # Her saniye değişen bir veri veriyoruz ki asla kendini tekrarlamasın
+            # Her saniye değişen zaman damgası
             current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             
             prompt = f"""
@@ -89,8 +84,7 @@ def get_idea_from_gemini():
             img_prompt = parts[0].replace("PROMPT:", "").strip()
             caption = parts[1].strip()
             
-            # Horde için güvenli boyut ve kalite komutlarını ekliyoruz
-            # Not: Gemini'nin ürettiği stili bozmamak için buraya "realistic" eklemiyoruz.
+            # Horde için güvenli boyut ve kalite komutları
             final_prompt = (
                 f"{img_prompt}, "
                 "vertical wallpaper, 9:21 aspect ratio, tall composition, "
@@ -99,9 +93,9 @@ def get_idea_from_gemini():
             return final_prompt, caption
 
         except Exception as e:
-            print(f"🛑 Gemini Hatası (Muhtemelen Kota): {e}", flush=True)
-            print("⏳ 10 Dakika mecburi dinlenme molası veriliyor...", flush=True)
-            time.sleep(600) # 10 dakika bekle, sonra tekrar dene
+            print(f"🛑 Gemini Hatası: {e}", flush=True)
+            print("⏳ Hata alındı. 5 Dakika dinlenip tekrar deneyeceğim...", flush=True)
+            time.sleep(300) # 5 dakika bekle
 
 
 # -----------------------------
@@ -116,7 +110,7 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v10.0-GeminiPrime"
+        "Client-Agent": "MyTwitterBot:v10.1-GeminiStable"
     }
     
     payload = {
@@ -124,15 +118,14 @@ def try_generate_image(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 640,    # Güvenli, ince-uzun boyut (Yoğunluk hatası vermez)
+            "width": 640,    # Güvenli, ince-uzun boyut
             "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed, # Ekstra benzersizlik katmanı
+            "seed": unique_seed, 
             "post_processing": ["RealESRGAN_x4plus"] # HD Kalite
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # Kaliteli modeller listesi
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -214,12 +207,10 @@ def post_to_twitter(img_bytes, caption):
             os.remove(filename)
 
 # -----------------------------
-# MAIN (KOTA DOSTU DÖNGÜ)
+# MAIN
 # -----------------------------
-from tweepy import OAuthHandler, API, Client # Importları buraya aldım hata olmasın
-
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Öncelik: Gemini 1.5 Flash Latest)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Gemini 1.5 Flash - Sabit Sürüm)", flush=True)
     
     # 1. ADIM: Fikri SADECE BİR KERE al
     prompt, caption = get_idea_from_gemini()
@@ -231,7 +222,7 @@ if __name__ == "__main__":
     basari = False
     deneme_sayisi = 1
     
-    # 2. ADIM: O fikri çizdirene kadar dene (Gemini'yi tekrar rahatsız etme)
+    # 2. ADIM: O fikri çizdirene kadar dene
     while not basari:
         print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
         
