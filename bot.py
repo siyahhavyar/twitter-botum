@@ -22,24 +22,25 @@ else:
 
 
 # -----------------------------
-# 1. POLLINATIONS TEXT GENERATOR (Fikir Babası)
+# 1. POLLINATIONS (FİKİR VE ETİKET BABASI)
 # -----------------------------
 def get_idea_from_ai():
     while True:
         try:
-            print("🧠 Yapay Zeka (Pollinations) fikir düşünüyor...", flush=True)
+            print("🧠 Yapay Zeka (Pollinations) fikir ve etiket düşünüyor...", flush=True)
             
-            # Bağlantı kopmaması için kısa ve net talimat
+            # YENİ TALİMAT: "Caption" kısmına etiketleri de eklemesini söyledik.
             instruction = (
                 "Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept. "
                 "Randomly select an Art Style and a Subject. Combine them into a detailed image prompt. "
-                "Rules: NO Horror, NO Gore, NO NSFW. The composition must be vertical and wide enough. "
-                "Return exactly two lines: PROMPT: (the prompt) and CAPTION: (short tweet caption)."
+                "Rules: NO Horror, NO Gore, NO NSFW. "
+                "Return exactly two lines: "
+                "PROMPT: (the full english prompt) "
+                "CAPTION: (a short tweet caption INCLUDING 4-5 relevant hashtags based on the style and subject, e.g. #Cyberpunk #City)"
             )
             
             encoded_instruction = urllib.parse.quote(instruction)
             
-            # Timeout=30sn
             response = requests.get(f"https://text.pollinations.ai/{encoded_instruction}", timeout=30)
             
             if response.status_code != 200:
@@ -56,7 +57,7 @@ def get_idea_from_ai():
                 continue 
 
             img_prompt = parts[0].replace("PROMPT:", "").strip()
-            caption = parts[1].strip()
+            caption = parts[1].strip() # Artık etiketler bu caption'ın içinde!
             
             final_prompt = (
                 f"{img_prompt}, "
@@ -72,7 +73,7 @@ def get_idea_from_ai():
 
 
 # -----------------------------
-# 2. AI HORDE (RESİM ÇİZİCİ - GÜVENLİ MOD)
+# 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
     print("🎨 AI Horde → Resim çiziliyor (Kalite: Juggernaut XL)...", flush=True)
@@ -80,7 +81,7 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v6.2-SafeSize"
+        "Client-Agent": "MyTwitterBot:v6.3-SmartTags"
     }
     
     payload = {
@@ -88,11 +89,8 @@ def try_generate_image(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            # --- KRİTİK BOYUT GÜNCELLEMESİ ---
-            # Yoğunluk hatasını (KudosUpfront) aşmak için güvenli sınıra çektik.
-            # Merak etme, ESRGAN Upscale bunu 4 kat büyütecek, yine HD olacak.
             "width": 640,                 
-            "height": 1408,  # Yine ince uzun, ama "Heavy Demand" limitine takılmaz.             
+            "height": 1408,  # Güvenli ince-uzun boyut             
             "steps": 30,                 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
@@ -112,7 +110,7 @@ def try_generate_image(prompt_text):
         print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
         return None
 
-    # Bekleme (45 Dk limit)
+    # Bekleme
     wait_time = 0
     max_wait = 2700 
     
@@ -163,11 +161,15 @@ def post_to_twitter(img_bytes, caption):
             access_token=ACCESS_TOKEN,
             access_token_secret=ACCESS_SECRET
         )
+        
+        # --- DEĞİŞİKLİK BURADA ---
+        # Artık sabit "#AIArt #Wallpaper" etiketlerini kaldırdık.
+        # "caption" değişkeni zaten yapay zekanın ürettiği etiketleri içeriyor.
         client.create_tweet(
-            text=caption + " #AIArt #Wallpaper",
+            text=caption, 
             media_ids=[media.media_id]
         )
-        print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
+        print("🐦 TWEET BAŞARIYLA ATILDI! (Etiketler dahil)", flush=True)
         return True 
     except Exception as e:
         print(f"❌ Twitter Hatası: {e}", flush=True)
@@ -180,12 +182,13 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Güvenli Boyut Modu)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Akıllı Etiket Modu)", flush=True)
     
-    # 1. ADIM: Bedava beyinden fikir al
+    # 1. ADIM: Bedava beyinden fikir VE etiket al
     prompt, caption = get_idea_from_ai()
     print("------------------------------------------------", flush=True)
     print("🎯 Hedeflenen Konu:", prompt[:100] + "...", flush=True)
+    print("📝 Hazırlanan Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
     basari = False
@@ -196,7 +199,6 @@ if __name__ == "__main__":
         print(f"\n🔄 RESİM DENEMESİ: {deneme_sayisi}", flush=True)
         
         try:
-            # Aynı promptu kullanıyoruz
             img = try_generate_image(prompt)
             
             if img:
@@ -215,4 +217,3 @@ if __name__ == "__main__":
             print("💤 Sunucular yoğun, 2 dakika dinlenip AYNI prompt ile tekrar deniyorum...", flush=True)
             time.sleep(120) 
             deneme_sayisi += 1
-            
