@@ -36,11 +36,19 @@ def get_idea_from_gemini():
     generation_config = genai.types.GenerationConfig(
         temperature=1.0, top_p=0.99, top_k=40,
     )
-    model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
+    
+    # --- MODEL DEĞİŞİKLİĞİ BURADA ---
+    # gemini-2.0-flash kotası dolduğu için gemini-1.5-flash'a geçtik.
+    # Bu modelin kotası daha yüksektir ve henüz dolmamıştır.
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
+    except:
+        # 1.5 hata verirse 1.5-pro dene
+        model = genai.GenerativeModel("gemini-1.5-pro", generation_config=generation_config)
 
     while True:
         try:
-            print("🧠 Gemini fikir düşünüyor...")
+            print("🧠 Gemini (1.5 Flash) fikir düşünüyor...")
             prompt = """
             Act as an unpredictable AI Art Curator. Invent a unique phone wallpaper concept.
             INSTRUCTIONS:
@@ -91,7 +99,7 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v5.0-QuotaSaver"
+        "Client-Agent": "MyTwitterBot:v5.1-ModelSwitch"
     }
     
     payload = {
@@ -188,7 +196,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN (TASARRUFLU DÖNGÜ)
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... Kota Dostu Mod.")
+    print("🚀 Bot Başlatılıyor... Model: Gemini 1.5 Flash.")
     
     # 1. ADIM: Sadece bir kere fikir al
     prompt, caption = get_idea_from_gemini()
@@ -220,8 +228,6 @@ if __name__ == "__main__":
             print(f"⚠️ Genel Hata: {e}")
         
         if not basari:
-            # Resim çizilemediyse biraz bekle, tekrar aynı promptu dene
             print("💤 Sunucular yoğun, 2 dakika dinlenip AYNI prompt ile tekrar deniyorum...")
             time.sleep(120) 
             deneme_sayisi += 1
-            
