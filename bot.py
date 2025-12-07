@@ -27,30 +27,29 @@ if not GEMINI_KEY:
     exit(1)
 
 # -----------------------------
-# 1. GEMINI (1.5 FLASH) - FİKİR BABASI
+# 1. GEMINI (2.0 FLASH) - FİKİR BABASI
 # -----------------------------
 def get_idea_from_gemini():
     """
-    Gemini 1.5 Flash modelini kullanır (Kotası daha geniştir).
-    Anlık zamana ve rastgeleliğe göre benzersiz bir fikir üretir.
+    Gemini 2.0 Flash modelini kullanır.
+    Sadece 1 kez çalışır, bu yüzden kota doldurmaz.
     """
     genai.configure(api_key=GEMINI_KEY)
     
-    # Yaratıcılığı (Temperature) en sona çekiyoruz
     generation_config = genai.types.GenerationConfig(
-        temperature=1.2, # Maksimum yaratıcılık
+        temperature=1.1, # Yüksek yaratıcılık
         top_p=0.95,
         top_k=40,
     )
     
-    # Model 1.5 Flash (Daha stabil)
-    model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
+    # --- İSTEDİĞİN GİBİ 2.0 MODELİNE DÖNDÜK ---
+    model = genai.GenerativeModel("gemini-2.0-flash", generation_config=generation_config)
 
     while True:
         try:
-            print("🧠 Gemini (1.5 Flash) yeni bir sanat eseri düşünüyor...", flush=True)
+            print("🧠 Gemini (2.0 Flash) yeni bir sanat eseri düşünüyor...", flush=True)
             
-            # Zamanı alıyoruz ki her seferinde farklı bir "tohum" olsun
+            # Zaman damgası ekleyerek her seferinde farklı hissetmesini sağlıyoruz
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             prompt = f"""
@@ -61,7 +60,7 @@ def get_idea_from_gemini():
             INSTRUCTIONS:
             1. Pick a very specific, random Art Style (e.g. Bauhaus, Ukiyo-e, Glitch Art, Renaissance, Synthwave, Minimalism).
             2. Pick a very specific, random Subject.
-            3. Combine them. IF you chose a similar style recently, CHANGE IT NOW. Be unpredictable.
+            3. Combine them. Be unpredictable.
 
             CRITICAL RULES:
             - NO HORROR, NO GORE, NO NSFW.
@@ -84,7 +83,6 @@ def get_idea_from_gemini():
             img_prompt = parts[0].replace("PROMPT:", "").strip()
             caption = parts[1].strip()
             
-            # Senin istediğin güvenli Full Ekran boyut komutları
             final_prompt = (
                 f"{img_prompt}, "
                 "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
@@ -99,7 +97,7 @@ def get_idea_from_gemini():
 
 
 # -----------------------------
-# 2. AI HORDE (RESİM ÇİZİCİ - JUGGERNAUT XL)
+# 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
@@ -110,7 +108,7 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v7.0-GeminiComeback"
+        "Client-Agent": "MyTwitterBot:v8.0-Gemini2"
     }
     
     payload = {
@@ -140,7 +138,7 @@ def try_generate_image(prompt_text):
         print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
         return None
 
-    # Bekleme (45 Dk limit)
+    # Bekleme
     wait_time = 0
     max_wait = 2700 
     
@@ -191,7 +189,7 @@ def post_to_twitter(img_bytes, caption):
             access_token=ACCESS_TOKEN,
             access_token_secret=ACCESS_SECRET
         )
-        # Gemini'nin ürettiği Caption ve Etiketler
+        
         client.create_tweet(
             text=caption, 
             media_ids=[media.media_id]
@@ -209,9 +207,9 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Gemini 1.5 Flash Modu)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Gemini 2.0 Flash Modu)", flush=True)
     
-    # 1. ADIM: Sadece bir kere fikir al (KOTA DOSTU)
+    # 1. ADIM: Sadece bir kere fikir al
     prompt, caption = get_idea_from_gemini()
     print("------------------------------------------------", flush=True)
     print("🎯 Hedeflenen Konu:", prompt[:100] + "...", flush=True)
@@ -226,7 +224,7 @@ if __name__ == "__main__":
         print(f"\n🔄 RESİM DENEMESİ: {deneme_sayisi}", flush=True)
         
         try:
-            # Aynı promptu kullanıyoruz, Gemini'ye tekrar sormuyoruz!
+            # Gemini'ye tekrar sormuyoruz, aynı promptu kullanıyoruz
             img = try_generate_image(prompt)
             
             if img:
