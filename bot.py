@@ -2,7 +2,7 @@ import os
 import time
 import requests
 import tweepy
-import google.generativeai as genai
+import random
 
 # -----------------------------
 # ENV KEYS
@@ -11,8 +11,9 @@ API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
 ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
+
+# Gemini Key kontrolünü kaldırdım, artık gerek yok.
 
 if not HORDE_KEY or HORDE_KEY.strip() == "":
     print("UYARI: Key yok, Anonim mod.")
@@ -20,37 +21,23 @@ if not HORDE_KEY or HORDE_KEY.strip() == "":
 else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)")
 
-if not GEMINI_KEY:
-    print("ERROR: GEMINI_KEY eksik!")
-    exit(1)
 
 # -----------------------------
-# 1. GEMINI PROMPT GENERATOR (TEK SEFERLİK)
+# 1. POLLINATIONS TEXT GENERATOR (BEDAVA BEYİN)
 # -----------------------------
-def get_idea_from_gemini():
+def get_idea_from_ai():
     """
-    Bu fonksiyon Gemini'yi sadece 1 kere arar.
-    Hata alırsa kendi içinde bekler, kotayı zorlamaz.
+    Gemini yerine Pollinations AI Text servisini kullanır.
+    API Key istemez, tamamen ücretsizdir.
     """
-    genai.configure(api_key=GEMINI_KEY)
-    generation_config = genai.types.GenerationConfig(
-        temperature=1.0, top_p=0.99, top_k=40,
-    )
-    
-    # --- MODEL DEĞİŞİKLİĞİ BURADA ---
-    # gemini-2.0-flash kotası dolduğu için gemini-1.5-flash'a geçtik.
-    # Bu modelin kotası daha yüksektir ve henüz dolmamıştır.
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash", generation_config=generation_config)
-    except:
-        # 1.5 hata verirse 1.5-pro dene
-        model = genai.GenerativeModel("gemini-1.5-pro", generation_config=generation_config)
-
     while True:
         try:
-            print("🧠 Gemini (1.5 Flash) fikir düşünüyor...")
-            prompt = """
+            print("🧠 Yapay Zeka (Pollinations) fikir düşünüyor...")
+            
+            # Yapay Zekaya gönderilecek talimat
+            instruction = """
             Act as an unpredictable AI Art Curator. Invent a unique phone wallpaper concept.
+            
             INSTRUCTIONS:
             1. Select a RANDOM Art Style (e.g. Minimalism, Ukiyo-e, Cyberpunk, Oil Painting, Sketch, Abstract, Pop Art, etc.).
             2. Select a RANDOM Subject.
@@ -66,40 +53,51 @@ def get_idea_from_gemini():
             CAPTION: <A short, engaging tweet caption>
             """
             
-            text = model.generate_content(prompt).text
+            # Pollinations'a istek at (GET isteği, model otomatik seçilir)
+            # URL encoded prompt gönderiyoruz
+            response = requests.get(f"https://text.pollinations.ai/{instruction}")
+            
+            if response.status_code != 200:
+                print("⚠️ AI Bağlantı hatası, tekrar deneniyor...")
+                time.sleep(2)
+                continue
+                
+            text = response.text
             parts = text.split("CAPTION:")
             
             if len(parts) < 2:
-                print("⚠️ Format hatası, tekrar deneniyor...")
+                # Bazen AI formatı tutturamazsa basitçe tekrar soralım
+                print("⚠️ Format hatası, tekrar soruluyor...")
                 time.sleep(2)
                 continue 
 
             img_prompt = parts[0].replace("PROMPT:", "").strip()
             caption = parts[1].strip()
             
+            # Senin istediğin Ultra Uzun format komutları
             final_prompt = (
                 f"{img_prompt}, "
-                "vertical wallpaper, 9:19 aspect ratio, full screen coverage, "
+                "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
                 "8k resolution, high quality"
             )
             return final_prompt, caption
 
         except Exception as e:
-            print(f"🛑 Gemini Kotası Doldu veya Hata: {e}")
-            print("⏳ 10 Dakika mecburi dinlenme molası...")
-            time.sleep(600) # 10 dakika bekle, sonra tekrar dene
+            print(f"🛑 AI Hatası: {e}")
+            print("⏳ 1 Dakika bekleyip tekrar deneyeceğim...")
+            time.sleep(60)
 
 
 # -----------------------------
-# 2. AI HORDE (RESİM ÇİZİCİ)
+# 2. AI HORDE (KALİTELİ RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
-    print("🎨 AI Horde → Resim çiziliyor...")
+    print("🎨 AI Horde → Resim çiziliyor (Kalite: Juggernaut XL)...")
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v5.1-ModelSwitch"
+        "Client-Agent": "MyTwitterBot:v6.0-NoGemini"
     }
     
     payload = {
@@ -107,13 +105,14 @@ def try_generate_image(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 704,    # İdeal Genişlik             
-            "height": 1536,  # İdeal Yükseklik             
+            "width": 704,    # Senin beğendiğin genişletilmiş ayar             
+            "height": 1536,  # Ultra uzun boy             
             "steps": 30,                 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
+        # Kalite için en iyi modeller
         "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
     }
 
@@ -193,13 +192,13 @@ def post_to_twitter(img_bytes, caption):
             os.remove(filename)
 
 # -----------------------------
-# MAIN (TASARRUFLU DÖNGÜ)
+# MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... Model: Gemini 1.5 Flash.")
+    print("🚀 Bot Başlatılıyor... (Gemini YOK, Pollinations VAR)")
     
-    # 1. ADIM: Sadece bir kere fikir al
-    prompt, caption = get_idea_from_gemini()
+    # 1. ADIM: Bedava beyinden fikir al
+    prompt, caption = get_idea_from_ai()
     print("------------------------------------------------")
     print("🎯 Hedeflenen Konu:", prompt[:100] + "...")
     print("------------------------------------------------")
@@ -207,12 +206,12 @@ if __name__ == "__main__":
     basari = False
     deneme_sayisi = 1
     
-    # 2. ADIM: O fikri çizdirene kadar dene (Gemini'yi tekrar arama)
+    # 2. ADIM: O fikri çizdirene kadar dene
     while not basari:
         print(f"\n🔄 RESİM DENEMESİ: {deneme_sayisi}")
         
         try:
-            # Aynı promptu kullanıyoruz, Gemini'ye gitmiyoruz!
+            # Aynı promptu kullanıyoruz
             img = try_generate_image(prompt)
             
             if img:
