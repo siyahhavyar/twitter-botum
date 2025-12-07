@@ -33,7 +33,11 @@ jobs:
           # Gemini Key
           GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           
-          # Horde Key (Bunu eklemezsek SDXL çalışmaz)
+          # Horde Key
           HORDE_API_KEY: ${{ secrets.HORDE_API_KEY }} 
           
+          # --- YENİ EKLENEN: GROQ KEY ---
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          
         run: python bot.py
+        
