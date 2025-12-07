@@ -26,7 +26,7 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ)
+# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ + GÜVENLİK)
 # -----------------------------
 def get_idea_ultimate():
     
@@ -44,13 +44,9 @@ def get_idea_ultimate():
         "Gothic": "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
     }
     
-    # --- AĞIRLIKLI SEÇİM (Önemli Kısım) ---
-    # Minimalizm'e torpil geçiyoruz, diğerlerine eşit şans veriyoruz.
+    # --- AĞIRLIKLI SEÇİM ---
     keys = list(styles_map.keys())
-    
-    # Minimalizm'in puanı: 50
-    # Diğer 9 tarzın puanı: her biri için ~5.5 (Toplam 50)
-    # Sonuç: %50 Minimalist, %50 Diğerleri
+    # %50 Minimalist, %50 Diğerleri
     weights = [50 if k == "Minimalism" else 5.5 for k in keys]
     
     chosen_key = random.choices(keys, weights=weights, k=1)[0]
@@ -58,7 +54,7 @@ def get_idea_ultimate():
     
     print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
 
-    # Ortak Talimat
+    # Ortak Talimat (GÜVENLİK KURALLARI EKLENDİ)
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
@@ -67,11 +63,16 @@ def get_idea_ultimate():
     YOUR MISSION: Create a vertical phone wallpaper concept based STRICTLY on this art style:
     👉 STYLE TO USE: {forced_style}
     
-    CRITICAL RULES:
-    1. IF style is Minimalism: DO NOT use complex landscapes or rivers. Use negative space.
+    CRITICAL SAFETY RULES (ZERO TOLERANCE):
+    1. NO CHILDREN, NO KIDS, NO BABIES, NO SCHOOLS. (Avoids safety filters).
+    2. NO BLOOD, NO GORE, NO VIOLENCE.
+    3. NO NUDITY, NO SEXUAL CONTENT.
+    4. Focus on OBJECTS, CONCEPTS, NATURE, ARCHITECTURE, or ABSTRACT SHAPES.
+
+    STYLE RULES:
+    1. IF style is Minimalism: DO NOT use complex landscapes. Use negative space.
     2. IF style is Abstract/PopArt: Use bold colors.
-    3. NO HORROR, NO GORE, NO NSFW.
-    4. VARY THE SUBJECT. Try objects, concepts, shapes, animals, tech.
+    3. VARY THE SUBJECT.
     
     Return exactly two lines:
     PROMPT: <The English image prompt descriptive enough for the style>
@@ -83,7 +84,7 @@ def get_idea_ultimate():
         try:
             print("🧠 Plan A: Gemini deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.2, top_p=0.99, top_k=60)
+            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.99, top_k=60)
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
             response = model.generate_content(instruction_prompt)
@@ -118,7 +119,8 @@ def get_idea_ultimate():
     # --- PLAN C: POLLINATIONS ---
     try:
         print("🧠 Plan C: Pollinations deneniyor...", flush=True)
-        simple_instruction = f"Create a unique wallpaper prompt based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
+        # Pollinations için güvenli prompt
+        simple_instruction = f"Create a SAFE wallpaper prompt (no kids/gore) based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
         encoded = urllib.parse.quote(simple_instruction)
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
@@ -131,29 +133,28 @@ def get_idea_ultimate():
 
 
 def prepare_final_prompt(raw_prompt):
-    # Minimalist ise "highly detailed" ekleme ki bozulmasın
-    # Ama diğerlerinde kaliteyi artır.
+    # NEGATİF PROMPT EKLENDİ (Filtreleri aşmak için)
     return (
         f"{raw_prompt}, "
         "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
-        "high quality image"
+        "high quality image, "
+        "no children, no kids, no blood, no gore, no violence" # <-- EKSTRA KORUMA
     )
 
 # -----------------------------
-# 2. AI HORDE (RESİM ÇİZİCİ)
+# 2. AI HORDE (RESİM ÇİZİCİ - FİLTRE KORUMALI)
 # -----------------------------
 def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     print(f"ℹ️ Gönderilen Prompt: {final_prompt[:60]}...", flush=True)
     
-    # SEED HATASI DÜZELTİLDİ: String'e çevrildi
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v16.0-WeightedMix"
+        "Client-Agent": "MyTwitterBot:v18.0-SafeMode"
     }
     
     payload = {
@@ -164,20 +165,29 @@ def try_generate_image(prompt_text):
             "width": 640,    
             "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed, # String formatında
+            "seed": unique_seed, 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
-        "censor_nsfw": True,
-        # SDXL Base sanatsal işler için iyidir
+        "censor_nsfw": True, # Sansür açık
         "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
     }
 
     try:
         req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
+        
+        # --- ACİL DURUM FRENİ ---
+        # Eğer CSAN veya Filtre hatası (400) gelirse:
+        if req.status_code == 400 or "CSAN" in req.text:
+             print("🚨 FİLTRE UYARISI! Prompt güvenli hale getiriliyor...", flush=True)
+             # Güvenli mod devreye girer
+             payload["prompt"] = "Abstract colorful geometric shapes, minimalist wallpaper, 8k, safe content"
+             req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
+        
         if req.status_code != 202:
             print(f"⚠️ Sunucu Hatası: {req.text}", flush=True)
             return None 
+        
         task_id = req.json()['id']
         print(f"✅ Görev alındı ID: {task_id}. Bekleniyor...", flush=True)
     except Exception as e:
@@ -202,7 +212,7 @@ def try_generate_image(prompt_text):
                     img_url = generations[0]['img']
                     return requests.get(img_url, timeout=60).content
                 else:
-                    print("⚠️ Horde boş yanıt döndü.", flush=True)
+                    print("⚠️ Horde boş yanıt döndü (Filtrelenmiş olabilir).", flush=True)
                     return None
             
             wait_t = status_data.get('wait_time', '?')
@@ -248,7 +258,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Hedef: Minimalist + Sürpriz Karışık)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Minimalist + Güvenli Mod)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
