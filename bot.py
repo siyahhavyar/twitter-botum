@@ -26,127 +26,112 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (GEMINI 2.0 -> GROQ -> POLLINATIONS)
+# 1. FİKİR ÜRETİCİ (ZORUNLU SANAT RULETİ)
 # -----------------------------
 def get_idea_ultimate():
     
-    # --- PLAN A: GEMINI (2.0 Flash - İstediğin Model) ---
+    # --- SANAT RULETİ ---
+    # Yapay zekanın "tembellik yapıp" hep aynı şeyi seçmesini engellemek için
+    # tarzı biz zorla seçtiriyoruz.
+    styles = [
+        "Minimalism (Simple shapes, vast negative space, single object, flat colors)",
+        "Abstract Expressionism (Paint splashes, emotional, chaotic, no real objects)",
+        "Cyberpunk / Sci-Fi (Neon lights, high tech, futuristic, glitch art)",
+        "Ukiyo-e / Japanese Ink (Traditional style, paper texture, washed colors)",
+        "Pop Art (Comic style, vibrant dots, bold outlines, Andy Warhol style)",
+        "Surrealism (Dreamlike, melting objects, impossible physics, Dali style)",
+        "Bauhaus (Geometric shapes, architecture, primary colors, clean lines)",
+        "Vaporwave / Retro 80s (Purple/Pink gradients, wireframes, statues, nostalgic)",
+        "Macro Photography (Extreme close up of texture, eye, insect, water drop)",
+        "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
+    ]
+    
+    # Rastgele birini seç
+    forced_style = random.choice(styles)
+    print(f"🎨 BU SEFER SEÇİLEN ZORUNLU TARZ: {forced_style}", flush=True)
+
+    # Ortak Talimat (Prompt)
+    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    instruction_prompt = f"""
+    Timestamp: {current_timestamp}
+    Act as an avant-garde AI Art Curator.
+    
+    YOUR MISSION: Create a vertical phone wallpaper concept based STRICTLY on this art style:
+    👉 STYLE TO USE: {forced_style}
+    
+    CRITICAL RULES:
+    1. IF the style is Minimalism or Abstract: DO NOT include mountains, rivers, or generic landscapes. Keep it simple and flat.
+    2. IF the style is Cyberpunk or Pop Art: Use bold colors, do not make it look like a nature photo.
+    3. NO HORROR, NO GORE, NO NSFW.
+    4. VARY THE SUBJECT. Do not always choose "a person" or "a landscape". Try objects, shapes, concepts.
+    
+    Return exactly two lines:
+    PROMPT: <The English image prompt descriptive enough for the style>
+    CAPTION: <Tweet caption with hashtags matching the style>
+    """
+
+    # --- PLAN A: GEMINI (2.0 Flash) ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini (2.0 Flash) deneniyor...", flush=True)
+            print("🧠 Plan A: Gemini deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            
-            # Yaratıcılık ayarları
-            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.95, top_k=40)
-            
-            # İstediğin model: gemini-2.0-flash
+            config = genai.types.GenerationConfig(temperature=1.2, top_p=0.99, top_k=60) # Yaratıcılık Max
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
-            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            prompt = f"""
-            Timestamp: {current_timestamp}
-            Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
-            
-            INSTRUCTIONS:
-            1. Invent a random Art Style and Subject.
-            2. Combine them into a detailed image prompt.
-            
-            CRITICAL RULES:
-            - NO HORROR, NO GORE, NO NSFW.
-            - Write a tweet caption based SPECIFICALLY on the image concept.
-            - Add 3-5 relevant hashtags (e.g. #Cyberpunk, #Minimalism, #Nature).
-
-            Return exactly two lines:
-            PROMPT: <Full english image prompt>
-            CAPTION: <Tweet caption with hashtags>
-            """
-            
-            response = model.generate_content(prompt)
+            response = model.generate_content(instruction_prompt)
             parts = response.text.split("CAPTION:")
             
             if len(parts) >= 2:
                 print("✅ Gemini Başarılı!", flush=True)
                 return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-                
         except Exception as e:
             print(f"⚠️ Gemini Hatası: {e}", flush=True)
-            print("🔄 Gemini yanıt vermedi, Plan B (Groq)'a geçiliyor...", flush=True)
 
-    # --- PLAN B: GROQ (LLAMA 3.3 - GÜNCELLENDİ) ---
+    # --- PLAN B: GROQ (LLAMA 3.3) ---
     if GROQ_KEY:
         try:
-            print("🧠 Plan B: Groq (Llama 3.3) deneniyor...", flush=True)
-            
+            print("🧠 Plan B: Groq deneniyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-            
-            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            prompt_text = f"""
-            Timestamp: {current_timestamp}
-            Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
-            Rules: NO Horror, NO Gore, NO NSFW.
-            Return exactly two lines:
-            PROMPT: <Full english image prompt>
-            CAPTION: <Tweet caption with relevant hashtags based on the prompt>
-            """
-            
             data = {
-                # ESKİ MODEL (DECOMMISSIONED): llama3-70b-8192
-                # YENİ ÇALIŞAN MODEL: llama-3.3-70b-versatile
                 "model": "llama-3.3-70b-versatile", 
-                "messages": [{"role": "user", "content": prompt_text}],
+                "messages": [{"role": "user", "content": instruction_prompt}],
                 "temperature": 1.0
             }
-            
             response = requests.post(url, headers=headers, json=data, timeout=20)
-            
             if response.status_code == 200:
-                content = response.json()['choices'][0]['message']['content']
-                parts = content.split("CAPTION:")
+                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
                 if len(parts) >= 2:
                     print("✅ Groq Başarılı!", flush=True)
                     return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-            else:
-                print(f"⚠️ Groq Hatası: {response.text}", flush=True)
-                
-        except Exception as e:
-            print(f"⚠️ Groq Bağlantı Hatası: {e}", flush=True)
-            print("🔄 Groq yanıt vermedi, Plan C (Pollinations)'a geçiliyor...", flush=True)
+        except Exception:
+            pass
 
-    # --- PLAN C: POLLINATIONS (YEDEK) ---
+    # --- PLAN C: POLLINATIONS ---
     try:
-        print("🧠 Plan C: Pollinations AI (Bedava) düşünülüyor...", flush=True)
-        seed = random.randint(1, 999999)
-        # Promptu URL için temizliyoruz
-        instruction = (
-            f"Act as an AI Art Curator. Seed: {seed}. "
-            "Invent a unique vertical phone wallpaper concept. "
-            "Return exactly two lines: PROMPT: (english prompt) and CAPTION: (tweet caption with hashtags)."
-        )
-        encoded = urllib.parse.quote(instruction)
-        url = f"https://text.pollinations.ai/{encoded}?seed={seed}"
-        
-        response = requests.get(url, timeout=30)
+        print("🧠 Plan C: Pollinations deneniyor...", flush=True)
+        # Pollinations için daha basit bir prompt
+        simple_instruction = f"Create a unique wallpaper prompt based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
+        encoded = urllib.parse.quote(simple_instruction)
+        response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
-        
         if len(parts) >= 2:
-            print("✅ Pollinations Başarılı!", flush=True)
             return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-            
-    except Exception as e:
-        print(f"🛑 Pollinations Hatası: {e}", flush=True)
+    except Exception:
+        pass
 
-    # Hiçbiri çalışmazsa (Son Çare)
-    print("❌ Tüm sistemler çöktü. Varsayılan dönülüyor.", flush=True)
-    return "Abstract minimalist wallpaper, 8k", "Artistic Wallpaper #AIArt #Minimalism"
+    return f"Artistic wallpaper in style {forced_style}", "#AIArt"
 
 
 def prepare_final_prompt(raw_prompt):
-    # Horde için teknik kalite komutları
+    # --- DÜZELTME BURADA ---
+    # Eskiden buraya "highly detailed, 8k" ekliyorduk, bu da her şeyi 
+    # gerçekçi manzaraya çeviriyordu. Artık sadece boyut bilgisi veriyoruz.
+    # Tarzı (Minimalist vb.) yukarıdaki Prompt belirleyecek.
     return (
         f"{raw_prompt}, "
         "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
-        "8k resolution, high quality, highly detailed"
+        "high quality image"
     )
 
 # -----------------------------
@@ -155,14 +140,14 @@ def prepare_final_prompt(raw_prompt):
 def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
+    print(f"ℹ️ Gönderilen Prompt: {final_prompt[:60]}...", flush=True)
     
-    # Seed string olarak gönderiliyor (DÜZELTİLDİ)
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v14.0-Gemini2GroqFix"
+        "Client-Agent": "MyTwitterBot:v15.0-StyleFix"
     }
     
     payload = {
@@ -178,7 +163,8 @@ def try_generate_image(prompt_text):
         },
         "nsfw": False,
         "censor_nsfw": True,
-        "models": ["Juggernaut XL", "AlbedoBase XL (SDXL)", "SDXL_beta"] 
+        # SDXL Base modeli tarzlara daha iyi uyum sağlar
+        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
     }
 
     try:
@@ -242,7 +228,6 @@ def post_to_twitter(img_bytes, caption):
             access_token_secret=ACCESS_SECRET
         )
         
-        # Akıllı caption ve hashtag'ler buraya gidiyor
         client.create_tweet(text=caption, media_ids=[media.media_id])
         print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
         return True 
@@ -257,11 +242,11 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Gemini 2.0 -> Groq Fixed -> Pollinations)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Sanat Ruleti Aktif: Minimalist/Soyut/Cyberpunk...)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Yapay Zeka Fikri:", prompt[:100] + "...", flush=True)
+    print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
     print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
@@ -290,4 +275,3 @@ if __name__ == "__main__":
             print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
             time.sleep(180) 
             deneme_sayisi += 1
-            
