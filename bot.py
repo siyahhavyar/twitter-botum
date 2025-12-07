@@ -26,53 +26,56 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (GEMINI -> GROQ -> POLLINATIONS)
+# 1. FİKİR ÜRETİCİ (GEMINI 2.0 -> GROQ -> POLLINATIONS)
 # -----------------------------
 def get_idea_ultimate():
     
-    # --- PLAN A: GEMINI ---
+    # --- PLAN A: GEMINI (2.0 Flash - İstediğin Model) ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini deneniyor...", flush=True)
+            print("🧠 Plan A: Gemini (2.0 Flash) deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
             
-            # Model isimlerini sırayla dener
-            # 1.5 hata verirse klasik PRO modeline geçer
-            models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+            # Yaratıcılık ayarları
+            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.95, top_k=40)
             
-            model = None
-            for m_name in models_to_try:
-                try:
-                    model = genai.GenerativeModel(m_name)
-                    print(f"   ↳ Model seçildi: {m_name}", flush=True)
-                    break
-                except:
-                    continue
+            # İstediğin model: gemini-2.0-flash
+            model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
-            if model:
-                current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                prompt = f"""
-                Timestamp: {current_timestamp}
-                Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
-                Rules: NO Horror, NO Gore, NO NSFW.
-                Return exactly two lines:
-                PROMPT: <Full english image prompt>
-                CAPTION: <Tweet caption with hashtags>
-                """
+            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            prompt = f"""
+            Timestamp: {current_timestamp}
+            Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
+            
+            INSTRUCTIONS:
+            1. Invent a random Art Style and Subject.
+            2. Combine them into a detailed image prompt.
+            
+            CRITICAL RULES:
+            - NO HORROR, NO GORE, NO NSFW.
+            - Write a tweet caption based SPECIFICALLY on the image concept.
+            - Add 3-5 relevant hashtags (e.g. #Cyberpunk, #Minimalism, #Nature).
+
+            Return exactly two lines:
+            PROMPT: <Full english image prompt>
+            CAPTION: <Tweet caption with hashtags>
+            """
+            
+            response = model.generate_content(prompt)
+            parts = response.text.split("CAPTION:")
+            
+            if len(parts) >= 2:
+                print("✅ Gemini Başarılı!", flush=True)
+                return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
                 
-                response = model.generate_content(prompt)
-                parts = response.text.split("CAPTION:")
-                
-                if len(parts) >= 2:
-                    print("✅ Gemini Başarılı!", flush=True)
-                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
         except Exception as e:
             print(f"⚠️ Gemini Hatası: {e}", flush=True)
+            print("🔄 Gemini yanıt vermedi, Plan B (Groq)'a geçiliyor...", flush=True)
 
-    # --- PLAN B: GROQ (LLAMA 3) ---
+    # --- PLAN B: GROQ (LLAMA 3.3 - GÜNCELLENDİ) ---
     if GROQ_KEY:
         try:
-            print("🧠 Plan B: Groq (Llama 3) deneniyor...", flush=True)
+            print("🧠 Plan B: Groq (Llama 3.3) deneniyor...", flush=True)
             
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
@@ -84,11 +87,13 @@ def get_idea_ultimate():
             Rules: NO Horror, NO Gore, NO NSFW.
             Return exactly two lines:
             PROMPT: <Full english image prompt>
-            CAPTION: <Tweet caption with hashtags>
+            CAPTION: <Tweet caption with relevant hashtags based on the prompt>
             """
             
             data = {
-                "model": "llama3-70b-8192", 
+                # ESKİ MODEL (DECOMMISSIONED): llama3-70b-8192
+                # YENİ ÇALIŞAN MODEL: llama-3.3-70b-versatile
+                "model": "llama-3.3-70b-versatile", 
                 "messages": [{"role": "user", "content": prompt_text}],
                 "temperature": 1.0
             }
@@ -106,21 +111,20 @@ def get_idea_ultimate():
                 
         except Exception as e:
             print(f"⚠️ Groq Bağlantı Hatası: {e}", flush=True)
-    else:
-        print("ℹ️ Groq Key tanımlı değil, atlanıyor.", flush=True)
+            print("🔄 Groq yanıt vermedi, Plan C (Pollinations)'a geçiliyor...", flush=True)
 
-    # --- PLAN C: POLLINATIONS ---
+    # --- PLAN C: POLLINATIONS (YEDEK) ---
     try:
         print("🧠 Plan C: Pollinations AI (Bedava) düşünülüyor...", flush=True)
         seed = random.randint(1, 999999)
+        # Promptu URL için temizliyoruz
         instruction = (
             f"Act as an AI Art Curator. Seed: {seed}. "
             "Invent a unique vertical phone wallpaper concept. "
-            "Rules: NO Horror, NO Gore, NO NSFW. "
-            "Return exactly two lines: PROMPT: ... and CAPTION: ..."
+            "Return exactly two lines: PROMPT: (english prompt) and CAPTION: (tweet caption with hashtags)."
         )
         encoded = urllib.parse.quote(instruction)
-        url = f"https://text.pollinations.ai/{instruction}?seed={seed}"
+        url = f"https://text.pollinations.ai/{encoded}?seed={seed}"
         
         response = requests.get(url, timeout=30)
         parts = response.text.split("CAPTION:")
@@ -132,10 +136,13 @@ def get_idea_ultimate():
     except Exception as e:
         print(f"🛑 Pollinations Hatası: {e}", flush=True)
 
-    return "Abstract minimalist wallpaper, 8k", "#AIArt"
+    # Hiçbiri çalışmazsa (Son Çare)
+    print("❌ Tüm sistemler çöktü. Varsayılan dönülüyor.", flush=True)
+    return "Abstract minimalist wallpaper, 8k", "Artistic Wallpaper #AIArt #Minimalism"
 
 
 def prepare_final_prompt(raw_prompt):
+    # Horde için teknik kalite komutları
     return (
         f"{raw_prompt}, "
         "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
@@ -149,13 +156,13 @@ def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     
-    # --- DÜZELTME: Seed artık String (Yazı) olarak gönderiliyor ---
+    # Seed string olarak gönderiliyor (DÜZELTİLDİ)
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v13.0-SeedFix"
+        "Client-Agent": "MyTwitterBot:v14.0-Gemini2GroqFix"
     }
     
     payload = {
@@ -166,7 +173,7 @@ def try_generate_image(prompt_text):
             "width": 640,    
             "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed,  # String formatında!
+            "seed": unique_seed, 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
@@ -235,6 +242,7 @@ def post_to_twitter(img_bytes, caption):
             access_token_secret=ACCESS_SECRET
         )
         
+        # Akıllı caption ve hashtag'ler buraya gidiyor
         client.create_tweet(text=caption, media_ids=[media.media_id])
         print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
         return True 
@@ -249,11 +257,11 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Seed Fix + Groq Enable)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Gemini 2.0 -> Groq Fixed -> Pollinations)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
+    print("🎯 Yapay Zeka Fikri:", prompt[:100] + "...", flush=True)
     print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
