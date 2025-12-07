@@ -26,31 +26,39 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (ZORUNLU SANAT RULETİ)
+# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ)
 # -----------------------------
 def get_idea_ultimate():
     
-    # --- SANAT RULETİ ---
-    # Yapay zekanın "tembellik yapıp" hep aynı şeyi seçmesini engellemek için
-    # tarzı biz zorla seçtiriyoruz.
-    styles = [
-        "Minimalism (Simple shapes, vast negative space, single object, flat colors)",
-        "Abstract Expressionism (Paint splashes, emotional, chaotic, no real objects)",
-        "Cyberpunk / Sci-Fi (Neon lights, high tech, futuristic, glitch art)",
-        "Ukiyo-e / Japanese Ink (Traditional style, paper texture, washed colors)",
-        "Pop Art (Comic style, vibrant dots, bold outlines, Andy Warhol style)",
-        "Surrealism (Dreamlike, melting objects, impossible physics, Dali style)",
-        "Bauhaus (Geometric shapes, architecture, primary colors, clean lines)",
-        "Vaporwave / Retro 80s (Purple/Pink gradients, wireframes, statues, nostalgic)",
-        "Macro Photography (Extreme close up of texture, eye, insect, water drop)",
-        "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
-    ]
+    # --- TARZ LİSTESİ ---
+    styles_map = {
+        "Minimalism": "Minimalism (Simple shapes, vast negative space, single object, flat colors, clean)",
+        "Abstract": "Abstract Expressionism (Paint splashes, emotional, chaotic, no real objects)",
+        "Cyberpunk": "Cyberpunk / Sci-Fi (Neon lights, high tech, futuristic, glitch art)",
+        "Ukiyo-e": "Ukiyo-e / Japanese Ink (Traditional style, paper texture, washed colors)",
+        "Pop Art": "Pop Art (Comic style, vibrant dots, bold outlines, Andy Warhol style)",
+        "Surrealism": "Surrealism (Dreamlike, melting objects, impossible physics, Dali style)",
+        "Bauhaus": "Bauhaus (Geometric shapes, architecture, primary colors, clean lines)",
+        "Vaporwave": "Vaporwave / Retro 80s (Purple/Pink gradients, wireframes, statues, nostalgic)",
+        "Macro": "Macro Photography (Extreme close up of texture, eye, insect, water drop)",
+        "Gothic": "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
+    }
     
-    # Rastgele birini seç
-    forced_style = random.choice(styles)
-    print(f"🎨 BU SEFER SEÇİLEN ZORUNLU TARZ: {forced_style}", flush=True)
+    # --- AĞIRLIKLI SEÇİM (Önemli Kısım) ---
+    # Minimalizm'e torpil geçiyoruz, diğerlerine eşit şans veriyoruz.
+    keys = list(styles_map.keys())
+    
+    # Minimalizm'in puanı: 50
+    # Diğer 9 tarzın puanı: her biri için ~5.5 (Toplam 50)
+    # Sonuç: %50 Minimalist, %50 Diğerleri
+    weights = [50 if k == "Minimalism" else 5.5 for k in keys]
+    
+    chosen_key = random.choices(keys, weights=weights, k=1)[0]
+    forced_style = styles_map[chosen_key]
+    
+    print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
 
-    # Ortak Talimat (Prompt)
+    # Ortak Talimat
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
@@ -60,10 +68,10 @@ def get_idea_ultimate():
     👉 STYLE TO USE: {forced_style}
     
     CRITICAL RULES:
-    1. IF the style is Minimalism or Abstract: DO NOT include mountains, rivers, or generic landscapes. Keep it simple and flat.
-    2. IF the style is Cyberpunk or Pop Art: Use bold colors, do not make it look like a nature photo.
+    1. IF style is Minimalism: DO NOT use complex landscapes or rivers. Use negative space.
+    2. IF style is Abstract/PopArt: Use bold colors.
     3. NO HORROR, NO GORE, NO NSFW.
-    4. VARY THE SUBJECT. Do not always choose "a person" or "a landscape". Try objects, shapes, concepts.
+    4. VARY THE SUBJECT. Try objects, concepts, shapes, animals, tech.
     
     Return exactly two lines:
     PROMPT: <The English image prompt descriptive enough for the style>
@@ -75,7 +83,7 @@ def get_idea_ultimate():
         try:
             print("🧠 Plan A: Gemini deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.2, top_p=0.99, top_k=60) # Yaratıcılık Max
+            config = genai.types.GenerationConfig(temperature=1.2, top_p=0.99, top_k=60)
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
             response = model.generate_content(instruction_prompt)
@@ -110,7 +118,6 @@ def get_idea_ultimate():
     # --- PLAN C: POLLINATIONS ---
     try:
         print("🧠 Plan C: Pollinations deneniyor...", flush=True)
-        # Pollinations için daha basit bir prompt
         simple_instruction = f"Create a unique wallpaper prompt based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
         encoded = urllib.parse.quote(simple_instruction)
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
@@ -124,10 +131,8 @@ def get_idea_ultimate():
 
 
 def prepare_final_prompt(raw_prompt):
-    # --- DÜZELTME BURADA ---
-    # Eskiden buraya "highly detailed, 8k" ekliyorduk, bu da her şeyi 
-    # gerçekçi manzaraya çeviriyordu. Artık sadece boyut bilgisi veriyoruz.
-    # Tarzı (Minimalist vb.) yukarıdaki Prompt belirleyecek.
+    # Minimalist ise "highly detailed" ekleme ki bozulmasın
+    # Ama diğerlerinde kaliteyi artır.
     return (
         f"{raw_prompt}, "
         "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
@@ -142,12 +147,13 @@ def try_generate_image(prompt_text):
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     print(f"ℹ️ Gönderilen Prompt: {final_prompt[:60]}...", flush=True)
     
+    # SEED HATASI DÜZELTİLDİ: String'e çevrildi
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v15.0-StyleFix"
+        "Client-Agent": "MyTwitterBot:v16.0-WeightedMix"
     }
     
     payload = {
@@ -158,12 +164,12 @@ def try_generate_image(prompt_text):
             "width": 640,    
             "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed, 
+            "seed": unique_seed, # String formatında
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # SDXL Base modeli tarzlara daha iyi uyum sağlar
+        # SDXL Base sanatsal işler için iyidir
         "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
     }
 
@@ -242,7 +248,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Sanat Ruleti Aktif: Minimalist/Soyut/Cyberpunk...)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Hedef: Minimalist + Sürpriz Karışık)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
