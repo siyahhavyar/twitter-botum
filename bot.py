@@ -17,7 +17,7 @@ ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
 ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
-GROQ_KEY      = os.getenv("GROQ_API_KEY") # YENİ OYUNCU
+GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
 if not HORDE_KEY or HORDE_KEY.strip() == "":
     print("UYARI: Key yok, Anonim mod.", flush=True)
@@ -26,44 +26,48 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (MUHTEŞEM ÜÇLÜ: GEMINI -> GROQ -> POLLINATIONS)
+# 1. FİKİR ÜRETİCİ (GEMINI -> GROQ -> POLLINATIONS)
 # -----------------------------
 def get_idea_ultimate():
-    """
-    Sırasıyla Gemini, Groq ve Pollinations'ı dener.
-    Asla fikir bulmadan dönmez.
-    """
     
-    # --- PLAN A: GEMINI (1.5 Flash) ---
+    # --- PLAN A: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini (1.5 Flash) deneniyor...", flush=True)
+            print("🧠 Plan A: Gemini deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
             
-            # Yaratıcılık ayarları
-            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.95, top_k=40)
-            model = genai.GenerativeModel("gemini-1.5-flash", generation_config=config)
+            # Model isimlerini sırayla dener
+            # 1.5 hata verirse klasik PRO modeline geçer
+            models_to_try = ["gemini-1.5-flash", "gemini-pro"]
             
-            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            prompt = f"""
-            Timestamp: {current_timestamp}
-            Act as an avant-garde AI Art Curator. Invent a unique vertical phone wallpaper concept.
-            Rules: NO Horror, NO Gore, NO NSFW.
-            Return exactly two lines:
-            PROMPT: <Full english image prompt>
-            CAPTION: <Tweet caption with 4-5 hashtags>
-            """
+            model = None
+            for m_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(m_name)
+                    print(f"   ↳ Model seçildi: {m_name}", flush=True)
+                    break
+                except:
+                    continue
             
-            response = model.generate_content(prompt)
-            parts = response.text.split("CAPTION:")
-            
-            if len(parts) >= 2:
-                print("✅ Gemini Başarılı!", flush=True)
-                return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+            if model:
+                current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                prompt = f"""
+                Timestamp: {current_timestamp}
+                Act as an AI Art Curator. Invent a unique vertical phone wallpaper concept.
+                Rules: NO Horror, NO Gore, NO NSFW.
+                Return exactly two lines:
+                PROMPT: <Full english image prompt>
+                CAPTION: <Tweet caption with hashtags>
+                """
                 
+                response = model.generate_content(prompt)
+                parts = response.text.split("CAPTION:")
+                
+                if len(parts) >= 2:
+                    print("✅ Gemini Başarılı!", flush=True)
+                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
         except Exception as e:
             print(f"⚠️ Gemini Hatası: {e}", flush=True)
-            print("🔄 Gemini yanıt vermedi, Plan B (Groq)'a geçiliyor...", flush=True)
 
     # --- PLAN B: GROQ (LLAMA 3) ---
     if GROQ_KEY:
@@ -102,11 +106,10 @@ def get_idea_ultimate():
                 
         except Exception as e:
             print(f"⚠️ Groq Bağlantı Hatası: {e}", flush=True)
-            print("🔄 Groq yanıt vermedi, Plan C (Pollinations)'a geçiliyor...", flush=True)
     else:
         print("ℹ️ Groq Key tanımlı değil, atlanıyor.", flush=True)
 
-    # --- PLAN C: POLLINATIONS (YEDEK) ---
+    # --- PLAN C: POLLINATIONS ---
     try:
         print("🧠 Plan C: Pollinations AI (Bedava) düşünülüyor...", flush=True)
         seed = random.randint(1, 999999)
@@ -129,8 +132,6 @@ def get_idea_ultimate():
     except Exception as e:
         print(f"🛑 Pollinations Hatası: {e}", flush=True)
 
-    # Hiçbiri çalışmazsa (İmkansız ama)
-    print("❌ Tüm sistemler çöktü. Varsayılan dönülüyor.", flush=True)
     return "Abstract minimalist wallpaper, 8k", "#AIArt"
 
 
@@ -148,11 +149,13 @@ def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     
-    unique_seed = random.randint(1, 9999999999)
+    # --- DÜZELTME: Seed artık String (Yazı) olarak gönderiliyor ---
+    unique_seed = str(random.randint(1, 9999999999))
+    
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v12.0-Ultimate"
+        "Client-Agent": "MyTwitterBot:v13.0-SeedFix"
     }
     
     payload = {
@@ -160,10 +163,10 @@ def try_generate_image(prompt_text):
         "params": {
             "sampler_name": "k_dpmpp_2m", 
             "cfg_scale": 6,               
-            "width": 640,    # Güvenli İnce-Uzun Boyut
+            "width": 640,    
             "height": 1408,               
             "steps": 30,                 
-            "seed": unique_seed, 
+            "seed": unique_seed,  # String formatında!
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
@@ -246,9 +249,8 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Gemini -> Groq -> Pollinations)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Seed Fix + Groq Enable)", flush=True)
     
-    # 1. ADIM: Fikir Al (3 Kademeli Sistem)
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
     print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
@@ -258,7 +260,6 @@ if __name__ == "__main__":
     basari = False
     deneme_sayisi = 1
     
-    # 2. ADIM: Çizdir
     while not basari:
         print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
         
@@ -281,3 +282,4 @@ if __name__ == "__main__":
             print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
             time.sleep(180) 
             deneme_sayisi += 1
+            
