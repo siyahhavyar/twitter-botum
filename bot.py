@@ -26,66 +26,51 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ + KATILAŞTIRILMIŞ GÜVENLİK)
+# 1. FİKİR ÜRETİCİ (GÜVENLİ LİSTE YÖNTEMİ)
 # -----------------------------
 def get_idea_ultimate():
     
-    # --- TARZ LİSTESİ ---
+    # --- GÜVENLİ TARZ LİSTESİ ---
     styles_map = {
-        "Minimalism": "Minimalism (Simple shapes, vast negative space, single object, flat colors, clean)",
-        "Abstract": "Abstract Expressionism (Paint splashes, emotional, chaotic, no real objects)",
-        "Cyberpunk": "Cyberpunk / Sci-Fi (Neon lights, high tech, futuristic, glitch art)",
-        "Ukiyo-e": "Ukiyo-e / Japanese Ink (Traditional style, paper texture, washed colors)",
-        "Pop Art": "Pop Art (Comic style, vibrant dots, bold outlines, Andy Warhol style)",
-        "Surrealism": "Surrealism (Dreamlike, melting objects, impossible physics, Dali style)",
-        "Bauhaus": "Bauhaus (Geometric shapes, architecture, primary colors, clean lines)",
-        "Vaporwave": "Vaporwave / Retro 80s (Purple/Pink gradients, wireframes, statues, nostalgic)",
-        "Macro": "Macro Photography (Extreme close up of texture, eye, insect, water drop)",
-        "Gothic": "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
+        "Minimalism": "Minimalist digital art, simple geometry, vast negative space, soothing colors",
+        "Abstract": "Abstract fluid art, swirling paint, colorful patterns, no specific objects",
+        "Cyberpunk": "Futuristic neon city lights, blurry bokeh effect, synthwave colors, abstract tech",
+        "Pop Art": "Vibrant pop art pattern, halftone dots, comic book style background, colorful",
+        "Low Poly": "Low poly landscape, geometric mountains, pastel colors, 3d render style",
+        "Neon": "Glowing neon lines, dark background, abstract light trails, long exposure",
+        "Gradient": "Smooth color gradients, aura aesthetic, grainy texture, noise effect",
+        "Liquid": "Liquid metal texture, chrome reflection, iridescent colors, 3d render",
+        "Glass": "Frosted glass texture, blurred shapes behind glass, soft lighting, minimalism"
     }
     
-    # --- AĞIRLIKLI SEÇİM ---
+    # %60 Minimalizm, %40 Diğerleri
     keys = list(styles_map.keys())
-    # %50 Minimalist, %50 Diğerleri
-    weights = [50 if k == "Minimalism" else 5.5 for k in keys]
+    weights = [60 if k == "Minimalism" else 5 for k in keys]
     
     chosen_key = random.choices(keys, weights=weights, k=1)[0]
-    forced_style = styles_map[chosen_key]
+    safe_prompt_base = styles_map[chosen_key]
     
-    print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
+    print(f"🎨 SEÇİLEN GÜVENLİ TARZ: {chosen_key.upper()}", flush=True)
 
-    # Ortak Talimat (EKSTRA GÜVENLİK KURALLARI İLE)
-    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Gemini'ye sadece "Renk ve Detay" eklemesini söylüyoruz. Konu seçtirtmiyoruz.
     instruction_prompt = f"""
-    Timestamp: {current_timestamp}
-    Act as an avant-garde AI Art Curator.
+    Act as an AI Art Curator.
+    BASE STYLE: {safe_prompt_base}
     
-    YOUR MISSION: Create a vertical phone wallpaper concept based STRICTLY on this art style:
-    👉 STYLE TO USE: {forced_style}
-    
-    CRITICAL SAFETY RULES (ZERO TOLERANCE - STRICT):
-    1. ABSOLUTELY NO HUMANS, PEOPLE, FIGURES, OR CHARACTERS if possible. Focus on OBJECTS, SCENERY, SHAPES.
-    2. IF a figure is necessary, use SILHOUETTES or ABSTRACT FORMS only.
-    3. NO CHILDREN, NO KIDS, NO BABIES, NO TEENAGERS, NO SCHOOLS, NO TOYS.
-    4. NO BLOOD, NO GORE, NO VIOLENCE, NO WEAPONS.
-    5. NO NUDITY, NO SEXUAL CONTENT, NO SUGGESTIVE POSES.
-    
-    STYLE RULES:
-    1. IF style is Minimalism: DO NOT use complex landscapes. Use negative space.
-    2. IF style is Abstract/PopArt: Use bold colors.
-    3. VARY THE SUBJECT.
+    TASK: Add 2-3 safe adjectives to describe colors or mood (e.g. "blue and gold", "peaceful", "energetic").
+    DO NOT change the subject. DO NOT mention people, animals, or specific places.
+    KEEP IT ABSTRACT AND SIMPLE.
     
     Return exactly two lines:
-    PROMPT: <The English image prompt descriptive enough for the style>
-    CAPTION: <Tweet caption with hashtags matching the style>
+    PROMPT: <The full combined prompt>
+    CAPTION: <Tweet caption with hashtags>
     """
 
-    # --- PLAN A: GEMINI (2.0 Flash) ---
+    # --- PLAN A: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini deneniyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.1, top_p=0.99, top_k=60)
+            config = genai.types.GenerationConfig(temperature=0.9) # Düşük yaratıcılık = Daha güvenli
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
             response = model.generate_content(instruction_prompt)
@@ -94,19 +79,18 @@ def get_idea_ultimate():
             if len(parts) >= 2:
                 print("✅ Gemini Başarılı!", flush=True)
                 return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception as e:
-            print(f"⚠️ Gemini Hatası: {e}", flush=True)
+        except Exception:
+            pass
 
-    # --- PLAN B: GROQ (LLAMA 3.3) ---
+    # --- PLAN B: GROQ ---
     if GROQ_KEY:
         try:
-            print("🧠 Plan B: Groq deneniyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             data = {
                 "model": "llama-3.3-70b-versatile", 
                 "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.0
+                "temperature": 0.8
             }
             response = requests.post(url, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
@@ -117,72 +101,61 @@ def get_idea_ultimate():
         except Exception:
             pass
 
-    # --- PLAN C: POLLINATIONS ---
-    try:
-        print("🧠 Plan C: Pollinations deneniyor...", flush=True)
-        # Pollinations için daha da sadeleştirilmiş güvenli prompt
-        simple_instruction = f"Create a SAFE wallpaper prompt (abstract/landscape only) based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
-        encoded = urllib.parse.quote(simple_instruction)
-        response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
-        parts = response.text.split("CAPTION:")
-        if len(parts) >= 2:
-            return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-    except Exception:
-        pass
-
-    return f"Artistic wallpaper in style {forced_style}", "#AIArt"
+    # YEDEK (Hiçbiri çalışmazsa en güvenli prompt)
+    return f"{safe_prompt_base}, 8k resolution", f"Art of the day ({chosen_key}) #AIArt #Wallpaper"
 
 
 def prepare_final_prompt(raw_prompt):
-    # NEGATİF PROMPT GÜÇLENDİRİLDİ
+    # BURASI ÇOK ÖNEMLİ: "No children" gibi kelimeleri SİLDİK.
+    # Çünkü bazen filtreler "children" kelimesini görünce ne dediğine bakmadan engelliyor.
+    # Sadece pozitif ve güvenli kelimeler kullanıyoruz.
     return (
         f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
-        "high quality image, "
-        "no humans, no people, no faces, no children, no kids, no blood, no gore, no violence, no nudity" # <-- EKSTRA GÜÇLÜ KORUMA
+        "vertical wallpaper, 9:21 aspect ratio, full screen, "
+        "high quality, aesthetic, clean look"
     )
 
 # -----------------------------
-# 2. AI HORDE (RESİM ÇİZİCİ - FİLTRE KORUMALI)
+# 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
-    print(f"ℹ️ Gönderilen Prompt: {final_prompt[:60]}...", flush=True)
+    print(f"ℹ️ Güvenli Prompt: {final_prompt[:60]}...", flush=True)
     
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v19.0-StrictSafeMode"
+        "Client-Agent": "MyTwitterBot:v20.0-WhitelistMode"
     }
     
     payload = {
         "prompt": final_prompt,
         "params": {
             "sampler_name": "k_dpmpp_2m", 
-            "cfg_scale": 6,               
+            "cfg_scale": 7,               
             "width": 640,    
             "height": 1408,               
-            "steps": 30,                 
-            "seed": unique_seed, 
+            "steps": 28,                 
+            "seed": unique_seed,
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
-        "censor_nsfw": True, # Sansür açık
-        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
+        "censor_nsfw": True,
+        # Bu model daha soyut ve sanatsal işlerde iyidir, filtreye daha az takılır
+        "models": ["AlbedoBase XL (SDXL)"] 
     }
 
     try:
         req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
         
-        # --- ACİL DURUM FRENİ VE PROMPT DEĞİŞTİRME ---
-        # Eğer yine de filtreye takılırsa (400 hatası veya CSAN uyarısı)
+        # Filtreye takılırsa (400 Hatası)
         if req.status_code == 400 or "CSAN" in req.text or "filter" in req.text.lower():
-             print("🚨 FİLTRE UYARISI! Prompt tamamen değiştiriliyor (Soyut)...", flush=True)
-             # Promptu tamamen güvenli ve soyut bir şeye çeviriyoruz
-             payload["prompt"] = "Abstract geometric shapes, colorful patterns, minimalist wallpaper, 8k, safe content, no people"
+             print("🚨 FİLTRE UYARISI! Prompt tamamen değiştiriliyor...", flush=True)
+             # En güvenli, risksiz prompt
+             payload["prompt"] = "Abstract colorful gradient background, soft texture, 8k wallpaper"
              req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
         
         if req.status_code != 202:
@@ -213,12 +186,11 @@ def try_generate_image(prompt_text):
                     img_url = generations[0]['img']
                     return requests.get(img_url, timeout=60).content
                 else:
-                    print("⚠️ Horde boş yanıt döndü (Filtrelenmiş olabilir).", flush=True)
+                    print("⚠️ Horde boş yanıt döndü.", flush=True)
                     return None
             
             wait_t = status_data.get('wait_time', '?')
-            queue = status_data.get('queue_position', '?')
-            print(f"⏳ Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn", flush=True)
+            print(f"⏳ Geçen: {wait_time}sn | Tahmini: {wait_t}sn", flush=True)
         except Exception as e:
             time.sleep(5) 
 
@@ -259,37 +231,32 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Minimalist + Ekstra Güvenli Mod)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Whitelist Mode - %100 Güvenli)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
     print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
-    print("📝 Tweet:", caption, flush=True)
-    print("------------------------------------------------", flush=True)
-
+    
     basari = False
     deneme_sayisi = 1
     
     while not basari:
         print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
+        img = try_generate_image(prompt)
         
-        try:
-            img = try_generate_image(prompt)
-            
-            if img:
-                if post_to_twitter(img, caption):
-                    basari = True 
-                    print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
-                else:
-                    print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
+        if img:
+            if post_to_twitter(img, caption):
+                basari = True 
+                print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
             else:
-                print("⚠️ Resim çizilemedi.", flush=True)
-                
-        except Exception as e:
-            print(f"⚠️ Genel Hata: {e}", flush=True)
-        
-        if not basari:
-            print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
-            time.sleep(180) 
-            deneme_sayisi += 1
+                print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
+                break 
+        else:
+            print("⚠️ Resim çizilemedi.", flush=True)
+            if deneme_sayisi >= 3:
+                print("❌ Deneme hakkı bitti.")
+                break
             
+            time.sleep(60) 
+            deneme_sayisi += 1
+        
