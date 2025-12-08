@@ -291,3 +291,4 @@ if __name__ == "__main__":
             print("💤 Sunucular yoğun, 3 dakika dinlenip AYNI fikirle tekrar deniyorum...", flush=True)
             time.sleep(180) 
             deneme_sayisi += 1
+            
