@@ -26,7 +26,7 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ + GÜVENLİK)
+# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ + KATILAŞTIRILMIŞ GÜVENLİK)
 # -----------------------------
 def get_idea_ultimate():
     
@@ -54,7 +54,7 @@ def get_idea_ultimate():
     
     print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
 
-    # Ortak Talimat (GÜVENLİK KURALLARI EKLENDİ)
+    # Ortak Talimat (EKSTRA GÜVENLİK KURALLARI İLE)
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
@@ -63,12 +63,13 @@ def get_idea_ultimate():
     YOUR MISSION: Create a vertical phone wallpaper concept based STRICTLY on this art style:
     👉 STYLE TO USE: {forced_style}
     
-    CRITICAL SAFETY RULES (ZERO TOLERANCE):
-    1. NO CHILDREN, NO KIDS, NO BABIES, NO SCHOOLS. (Avoids safety filters).
-    2. NO BLOOD, NO GORE, NO VIOLENCE.
-    3. NO NUDITY, NO SEXUAL CONTENT.
-    4. Focus on OBJECTS, CONCEPTS, NATURE, ARCHITECTURE, or ABSTRACT SHAPES.
-
+    CRITICAL SAFETY RULES (ZERO TOLERANCE - STRICT):
+    1. ABSOLUTELY NO HUMANS, PEOPLE, FIGURES, OR CHARACTERS if possible. Focus on OBJECTS, SCENERY, SHAPES.
+    2. IF a figure is necessary, use SILHOUETTES or ABSTRACT FORMS only.
+    3. NO CHILDREN, NO KIDS, NO BABIES, NO TEENAGERS, NO SCHOOLS, NO TOYS.
+    4. NO BLOOD, NO GORE, NO VIOLENCE, NO WEAPONS.
+    5. NO NUDITY, NO SEXUAL CONTENT, NO SUGGESTIVE POSES.
+    
     STYLE RULES:
     1. IF style is Minimalism: DO NOT use complex landscapes. Use negative space.
     2. IF style is Abstract/PopArt: Use bold colors.
@@ -119,8 +120,8 @@ def get_idea_ultimate():
     # --- PLAN C: POLLINATIONS ---
     try:
         print("🧠 Plan C: Pollinations deneniyor...", flush=True)
-        # Pollinations için güvenli prompt
-        simple_instruction = f"Create a SAFE wallpaper prompt (no kids/gore) based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
+        # Pollinations için daha da sadeleştirilmiş güvenli prompt
+        simple_instruction = f"Create a SAFE wallpaper prompt (abstract/landscape only) based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
         encoded = urllib.parse.quote(simple_instruction)
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
@@ -133,12 +134,12 @@ def get_idea_ultimate():
 
 
 def prepare_final_prompt(raw_prompt):
-    # NEGATİF PROMPT EKLENDİ (Filtreleri aşmak için)
+    # NEGATİF PROMPT GÜÇLENDİRİLDİ
     return (
         f"{raw_prompt}, "
         "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
         "high quality image, "
-        "no children, no kids, no blood, no gore, no violence" # <-- EKSTRA KORUMA
+        "no humans, no people, no faces, no children, no kids, no blood, no gore, no violence, no nudity" # <-- EKSTRA GÜÇLÜ KORUMA
     )
 
 # -----------------------------
@@ -154,7 +155,7 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v18.0-SafeMode"
+        "Client-Agent": "MyTwitterBot:v19.0-StrictSafeMode"
     }
     
     payload = {
@@ -176,12 +177,12 @@ def try_generate_image(prompt_text):
     try:
         req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
         
-        # --- ACİL DURUM FRENİ ---
-        # Eğer CSAN veya Filtre hatası (400) gelirse:
-        if req.status_code == 400 or "CSAN" in req.text:
-             print("🚨 FİLTRE UYARISI! Prompt güvenli hale getiriliyor...", flush=True)
-             # Güvenli mod devreye girer
-             payload["prompt"] = "Abstract colorful geometric shapes, minimalist wallpaper, 8k, safe content"
+        # --- ACİL DURUM FRENİ VE PROMPT DEĞİŞTİRME ---
+        # Eğer yine de filtreye takılırsa (400 hatası veya CSAN uyarısı)
+        if req.status_code == 400 or "CSAN" in req.text or "filter" in req.text.lower():
+             print("🚨 FİLTRE UYARISI! Prompt tamamen değiştiriliyor (Soyut)...", flush=True)
+             # Promptu tamamen güvenli ve soyut bir şeye çeviriyoruz
+             payload["prompt"] = "Abstract geometric shapes, colorful patterns, minimalist wallpaper, 8k, safe content, no people"
              req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
         
         if req.status_code != 202:
@@ -258,7 +259,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Minimalist + Güvenli Mod)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Minimalist + Ekstra Güvenli Mod)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
