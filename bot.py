@@ -26,64 +26,58 @@ else:
     print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (AĞIRLIKLI SANAT RULETİ)
+# 1. FİKİR ÜRETİCİ (MODERN VE EĞLENCELİ KARIŞIM)
 # -----------------------------
 def get_idea_ultimate():
     
-    # --- TARZ LİSTESİ ---
+    # --- YENİ VE CANLI TARZ LİSTESİ ---
     styles_map = {
-        "Minimalism": "Minimalism (Simple shapes, vast negative space, single object, flat colors, clean)",
-        "Abstract": "Abstract Expressionism (Paint splashes, emotional, chaotic, no real objects)",
-        "Cyberpunk": "Cyberpunk / Sci-Fi (Neon lights, high tech, futuristic, glitch art)",
-        "Ukiyo-e": "Ukiyo-e / Japanese Ink (Traditional style, paper texture, washed colors)",
-        "Pop Art": "Pop Art (Comic style, vibrant dots, bold outlines, Andy Warhol style)",
-        "Surrealism": "Surrealism (Dreamlike, melting objects, impossible physics, Dali style)",
-        "Bauhaus": "Bauhaus (Geometric shapes, architecture, primary colors, clean lines)",
-        "Vaporwave": "Vaporwave / Retro 80s (Purple/Pink gradients, wireframes, statues, nostalgic)",
-        "Macro": "Macro Photography (Extreme close up of texture, eye, insect, water drop)",
-        "Gothic": "Dark Fantasy / Gothic (Mysterious, foggy, shadows, ancient structures)"
+        "Cinematic": "Cinematic Movie Shot (Netflix style, 8k, dramatic lighting, highly detailed, photorealistic)",
+        "Superhero": "Comic Book / Superhero Art (Marvel/DC style, dynamic pose, action scene, vibrant colors)",
+        "Cyberpunk": "Cyberpunk City (Neon lights, rain, high tech, futuristic cars, night time)",
+        "StreetStyle": "Modern Street Photography (Fashion, urban life, coffee shops, rainy window, candid shot)",
+        "Fantasy": "Epic Fantasy (Lord of the Rings style, magic, warriors, mythical creatures, grand landscapes)",
+        "RetroWave": "Retro 80s Synthwave (Purple sunsets, sports cars, palm trees, nostalgic vibe)",
+        "Horror": "Dark Mystery / Thriller (Stranger Things vibe, misty forest, abandoned places, suspense)",
+        "PopArt": "Modern Pop Art (Colorful, collage, energetic, trendy, street art)",
+        "SciFi": "Futuristic Sci-Fi (Spaceships, astronauts, alien planets, high-tech labs)",
+        "Luxury": "Luxury & High Tech (Expensive cars, modern architecture, gold & black, sleek design)"
     }
     
-    # --- AĞIRLIKLI SEÇİM (Önemli Kısım) ---
-    # Minimalizm'e torpil geçiyoruz, diğerlerine eşit şans veriyoruz.
+    # --- SEÇİM SİSTEMİ (ARTIK EŞİT ŞANS) ---
+    # Artık Minimalizm baskısı YOK. Her tarza eşit şans veriyoruz.
     keys = list(styles_map.keys())
-    
-    # Minimalizm'in puanı: 50
-    # Diğer 9 tarzın puanı: her biri için ~5.5 (Toplam 50)
-    # Sonuç: %50 Minimalist, %50 Diğerleri
-    weights = [50 if k == "Minimalism" else 5.5 for k in keys]
-    
-    chosen_key = random.choices(keys, weights=weights, k=1)[0]
+    chosen_key = random.choice(keys)
     forced_style = styles_map[chosen_key]
     
     print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
 
-    # Ortak Talimat
+    # Ortak Talimat (DAİRE YASAĞI GETİRİLDİ)
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
-    Act as an avant-garde AI Art Curator.
+    Act as a creative Art Director for a modern Instagram/Twitter page.
     
-    YOUR MISSION: Create a vertical phone wallpaper concept based STRICTLY on this art style:
+    YOUR MISSION: Create a visually stunning, ATTENTION-GRABBING wallpaper concept.
     👉 STYLE TO USE: {forced_style}
     
     CRITICAL RULES:
-    1. IF style is Minimalism: DO NOT use complex landscapes or rivers. Use negative space.
-    2. IF style is Abstract/PopArt: Use bold colors.
-    3. NO HORROR, NO GORE, NO NSFW.
-    4. VARY THE SUBJECT. Try objects, concepts, shapes, animals, tech.
+    1. ❌ DO NOT GENERATE SIMPLE GEOMETRIC SHAPES OR PLAIN CIRCLES. ❌
+    2. Make it COMPLEX, DETAILED, and MODERN.
+    3. Focus on: Characters, Action, Scenery, Emotion, or Technology.
+    4. NO NSFW.
     
     Return exactly two lines:
-    PROMPT: <The English image prompt descriptive enough for the style>
-    CAPTION: <Tweet caption with hashtags matching the style>
+    PROMPT: <Highly detailed English image prompt>
+    CAPTION: <Cool, engaging caption with hashtags>
     """
 
-    # --- PLAN A: GEMINI (2.0 Flash) ---
+    # --- PLAN A: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini deneniyor...", flush=True)
+            print("🧠 Plan A: Gemini düşünüyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.2, top_p=0.99, top_k=60)
+            config = genai.types.GenerationConfig(temperature=1.3, top_p=0.99) # Yaratıcılık artırıldı
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             
             response = model.generate_content(instruction_prompt)
@@ -95,10 +89,10 @@ def get_idea_ultimate():
         except Exception as e:
             print(f"⚠️ Gemini Hatası: {e}", flush=True)
 
-    # --- PLAN B: GROQ (LLAMA 3.3) ---
+    # --- PLAN B: GROQ ---
     if GROQ_KEY:
         try:
-            print("🧠 Plan B: Groq deneniyor...", flush=True)
+            print("🧠 Plan B: Groq düşünüyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             data = {
@@ -115,10 +109,10 @@ def get_idea_ultimate():
         except Exception:
             pass
 
-    # --- PLAN C: POLLINATIONS ---
+    # --- PLAN C: POLLINATIONS (Yedek) ---
     try:
         print("🧠 Plan C: Pollinations deneniyor...", flush=True)
-        simple_instruction = f"Create a unique wallpaper prompt based on style: {forced_style}. Return PROMPT: ... CAPTION: ..."
+        simple_instruction = f"Create a detailed wallpaper prompt about: {forced_style}. Return PROMPT: ... CAPTION: ..."
         encoded = urllib.parse.quote(simple_instruction)
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
@@ -127,16 +121,15 @@ def get_idea_ultimate():
     except Exception:
         pass
 
-    return f"Artistic wallpaper in style {forced_style}", "#AIArt"
+    return f"Epic wallpaper in style {forced_style}", "#AIArt #Wallpaper"
 
 
 def prepare_final_prompt(raw_prompt):
-    # Minimalist ise "highly detailed" ekleme ki bozulmasın
-    # Ama diğerlerinde kaliteyi artır.
+    # Sıkıcı daireleri engellemek için promptu zenginleştiriyoruz
     return (
         f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, full screen coverage, "
-        "high quality image"
+        "vertical wallpaper, 9:21 aspect ratio, highly detailed, 8k resolution, "
+        "intricate details, trending on artstation, unreal engine 5 render, cinematic lighting"
     )
 
 # -----------------------------
@@ -145,32 +138,31 @@ def prepare_final_prompt(raw_prompt):
 def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
-    print(f"ℹ️ Gönderilen Prompt: {final_prompt[:60]}...", flush=True)
+    print(f"ℹ️ Prompt: {final_prompt[:60]}...", flush=True)
     
-    # SEED HATASI DÜZELTİLDİ: String'e çevrildi
     unique_seed = str(random.randint(1, 9999999999))
     
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     headers = {
         "apikey": HORDE_KEY,
-        "Client-Agent": "MyTwitterBot:v16.0-WeightedMix"
+        "Client-Agent": "MyTwitterBot:v2.0-ActionPack"
     }
     
     payload = {
         "prompt": final_prompt,
         "params": {
             "sampler_name": "k_dpmpp_2m", 
-            "cfg_scale": 6,               
+            "cfg_scale": 7,               # Detayları artırmak için 7 yaptık
             "width": 640,    
             "height": 1408,               
-            "steps": 30,                 
-            "seed": unique_seed, # String formatında
+            "steps": 35,                  # Daha kaliteli olsun diye 35 adım
+            "seed": unique_seed, 
             "post_processing": ["RealESRGAN_x4plus"] 
         },
         "nsfw": False,
         "censor_nsfw": True,
-        # SDXL Base sanatsal işler için iyidir
-        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
+        # SDXL modelleri daha modern ve sinematik çizer
+        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL", "DreamShaper XL"] 
     }
 
     try:
@@ -248,7 +240,7 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Hedef: Minimalist + Sürpriz Karışık)", flush=True)
+    print("🚀 Bot Başlatılıyor... (Hedef: Full Görsellik ve Aksiyon)", flush=True)
     
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
