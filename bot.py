@@ -19,55 +19,78 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
+# Anonim Mod Kontrolü
 if not HORDE_KEY or HORDE_KEY.strip() == "":
-    print("UYARI: Key yok, Anonim mod.", flush=True)
+    print("UYARI: Horde Key yok, Anonim mod (Yavaş olabilir).", flush=True)
     HORDE_KEY = "0000000000"
 else:
-    print(f"BAŞARILI: Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
+    print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (MODERN VE EĞLENCELİ KARIŞIM)
+# 1. FİKİR ÜRETİCİ (SAF SANATÇI MODU)
 # -----------------------------
 def get_idea_ultimate():
+    print("🧠 Yapay Zeka sanatçı koltuğuna oturuyor ve düşünüyor...", flush=True)
     
-    styles_map = {
-        "Cinematic": "Cinematic Movie Shot (Netflix style, 8k, dramatic lighting, highly detailed, photorealistic)",
-        "Superhero": "Comic Book / Superhero Art (Marvel/DC style, dynamic pose, action scene, vibrant colors)",
-        "Cyberpunk": "Cyberpunk City (Neon lights, rain, high tech, futuristic cars, night time)",
-        "StreetStyle": "Modern Street Photography (Fashion, urban life, coffee shops, rainy window, candid shot)",
-        "Fantasy": "Epic Fantasy (Lord of the Rings style, magic, warriors, mythical creatures, grand landscapes)",
-        "RetroWave": "Retro 80s Synthwave (Purple sunsets, sports cars, palm trees, nostalgic vibe)",
-        "SciFi": "Futuristic Sci-Fi (Spaceships, astronauts, alien planets, high-tech labs)",
-    }
-    
-    keys = list(styles_map.keys())
-    chosen_key = random.choice(keys)
-    forced_style = styles_map[chosen_key]
-    
-    print(f"🎨 ZAR ATILDI, GELEN TARZ: {chosen_key.upper()}", flush=True)
-
+    # Zamana göre benzersizlik katıyoruz
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # --- İŞTE BURASI DEĞİŞTİ: HİÇBİR KONU/ÖRNEK YOK ---
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
-    Act as a creative Art Director.
-    STYLE TO USE: {forced_style}
     
-    CRITICAL RULES:
-    1. ❌ DO NOT GENERATE SIMPLE GEOMETRIC SHAPES OR PLAIN CIRCLES. ❌
-    2. Make it COMPLEX, DETAILED, and MODERN.
-    3. Focus on: Characters, Action, Scenery, Emotion, or Technology.
+    Act as a Visionary Digital Artist and Trendsetter.
+    
+    I am giving you a BLANK CANVAS.
+    I am NOT giving you a topic.
+    I am NOT giving you a style.
+    
+    YOUR TASK:
+    Close your virtual eyes and imagine a Masterpiece Phone Wallpaper.
+    Think: "What visual concept would make people stop scrolling and say WOW?"
+    
+    It can be ANYTHING:
+    - Something abstract and emotional?
+    - A scene from a movie that doesn't exist?
+    - A futuristic invention?
+    - A wild mixture of nature and technology?
+    - A bizarre dream?
+    
+    RULES:
+    1. Be 100% Original. Do not use clichés.
+    2. Make it VISUALLY STUNNING.
+    3. Decide the subject, the lighting, the colors, and the mood YOURSELF.
     
     Return exactly two lines:
-    PROMPT: <Highly detailed English image prompt>
-    CAPTION: <Cool, engaging caption with hashtags>
+    PROMPT: <The detailed English description of your vision>
+    CAPTION: <A short, artistic tweet caption for this wallpaper>
     """
 
-    # --- PLAN A: GEMINI ---
+    # --- PLAN A: GROQ (En Yaratıcısı) ---
+    if GROQ_KEY:
+        try:
+            print("🧠 Groq hayal kuruyor...", flush=True)
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+            data = {
+                "model": "llama-3.3-70b-versatile", 
+                "messages": [{"role": "user", "content": instruction_prompt}],
+                "temperature": 1.0 # Yüksek yaratıcılık
+            }
+            response = requests.post(url, headers=headers, json=data, timeout=20)
+            if response.status_code == 200:
+                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
+                if len(parts) >= 2:
+                    print("✅ Groq bir fikir buldu!", flush=True)
+                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+        except Exception: pass
+
+    # --- PLAN B: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Plan A: Gemini düşünüyor...", flush=True)
+            print("🧠 Gemini hayal kuruyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.3, top_p=0.99)
+            config = genai.types.GenerationConfig(temperature=1.0)
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             response = model.generate_content(instruction_prompt)
             parts = response.text.split("CAPTION:")
@@ -75,45 +98,28 @@ def get_idea_ultimate():
                 return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
         except Exception: pass
 
-    # --- PLAN B: GROQ ---
-    if GROQ_KEY:
-        try:
-            print("🧠 Plan B: Groq düşünüyor...", flush=True)
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-            data = {
-                "model": "llama-3.3-70b-versatile", 
-                "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.0
-            }
-            response = requests.post(url, headers=headers, json=data, timeout=20)
-            if response.status_code == 200:
-                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
-                if len(parts) >= 2:
-                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception: pass
-
-    # --- PLAN C: POLLINATIONS ---
+    # --- PLAN C: POLLINATIONS (Yedek) ---
     try:
-        encoded = urllib.parse.quote(f"Create a wallpaper prompt about: {forced_style}. Return PROMPT: ... CAPTION: ...")
+        encoded = urllib.parse.quote("Imagine a unique, artistic wallpaper. Return PROMPT: ... CAPTION: ...")
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
         if len(parts) >= 2:
             return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
     except Exception: pass
 
-    return f"Epic wallpaper in style {forced_style}", "#AIArt #Wallpaper"
+    return "A masterpiece artistic wallpaper, 8k", "#Art"
 
 
 def prepare_final_prompt(raw_prompt):
+    # Sadece teknik kalite komutları ekliyoruz, STİL eklemiyoruz.
     return (
         f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, highly detailed, 8k resolution, "
-        "intricate details, trending on artstation, unreal engine 5 render, cinematic lighting"
+        "vertical wallpaper, 9:21 aspect ratio, 8k resolution, "
+        "masterpiece, highly detailed, sharp focus"
     )
 
 # -----------------------------
-# 2. AI HORDE (AKILLI VİTES KÜÇÜLTME MODU)
+# 2. AI HORDE (KESİNTİSİZ - PUAN HATASI ÖNLEYİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
     final_prompt = prepare_final_prompt(prompt_text)
@@ -122,14 +128,11 @@ def try_generate_image(prompt_text):
     unique_seed = str(random.randint(1, 9999999999))
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
-    # --- 1. DENEME: YÜKSEK KALİTE (LÜKS MOD) ---
-    print("💎 Mod 1: Yüksek Kalite deneniyor...", flush=True)
-    
-    # Eğer key yoksa Anonim (0000000000) kullan
     current_key = HORDE_KEY if HORDE_KEY else "0000000000"
+    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v5.0"}
     
-    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v3.0"}
-    
+    # --- 1. DENEME: KALİTELİ MOD ---
+    print("💎 Mod 1: Yüksek Kalite deneniyor...", flush=True)
     payload_high = {
         "prompt": final_prompt,
         "params": {
@@ -139,35 +142,29 @@ def try_generate_image(prompt_text):
             "height": 1408,               
             "steps": 30,
             "seed": unique_seed, 
-            "post_processing": ["RealESRGAN_x4plus"] # Bu özellik bazen "Kudos" hatası verdirir
+            "post_processing": ["RealESRGAN_x4plus"]
         },
-        "nsfw": False,
-        "censor_nsfw": True,
+        "nsfw": False, "censor_nsfw": True,
         "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
     }
 
-    # İsteği gönder
     try:
         req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
         
-        # --- HATA YAKALAMA (Kudos Hatası mı?) ---
+        # Hata yakalama
         if req.status_code != 202:
             error_msg = req.text
-            print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg}", flush=True)
+            print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg[:100]}...", flush=True)
             
-            # Eğer hata "KudosUpfront" veya "Too much demand" ise PLANA B'ye geç
+            # Sunucu "Puan yetersiz" veya "Yoğunum" derse:
             if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
-                print("🔄 Sunucular yoğun! Standart Kaliteye (Ekonomi Modu) geçiliyor...", flush=True)
+                print("🔄 Sunucular dolu! Standart Kaliteye (Ekonomi Modu) geçiliyor...", flush=True)
+                payload_high["params"]["post_processing"] = [] # Upscale kapat
+                payload_high["params"]["steps"] = 20 # Adımı düşür
                 
-                # --- 2. DENEME: STANDART KALİTE (EKONOMİ MODU) ---
-                # Ayarları düşürüyoruz ki sunucu kabul etsin
-                payload_high["params"]["post_processing"] = [] # Upscale'i kapat (En çok bu yorar)
-                payload_high["params"]["steps"] = 25 # Adımı biraz azalt
-                
-                # Tekrar dene
                 req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
                 if req.status_code != 202:
-                    print(f"❌ Ekonomi Modu da reddedildi: {req.text}", flush=True)
+                    print(f"❌ Ekonomi Modu da reddedildi.", flush=True)
                     return None
             else:
                 return None
@@ -179,10 +176,9 @@ def try_generate_image(prompt_text):
         print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
         return None
 
-    # Bekleme Döngüsü
+    # Bekleme
     wait_time = 0
-    max_wait = 1800 # 30 dakika bekleme limiti
-    
+    max_wait = 1800 
     while wait_time < max_wait:
         time.sleep(20) 
         wait_time += 20
@@ -198,7 +194,6 @@ def try_generate_image(prompt_text):
                     img_url = generations[0]['img']
                     return requests.get(img_url, timeout=60).content
                 else:
-                    print("⚠️ Resim çizildi ama boş geldi.", flush=True)
                     return None
             
             wait_t = status_data.get('wait_time', '?')
@@ -244,11 +239,12 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (Akıllı Vites Modu)", flush=True)
+    print("🚀 Bot Başlatılıyor... (SAF SANATÇI MODU)", flush=True)
     
+    # Fikir al
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Seçilen Konu:", prompt[:100] + "...", flush=True)
+    print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + "...", flush=True)
     print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
@@ -256,11 +252,10 @@ if __name__ == "__main__":
     deneme_sayisi = 1
     
     while not basari:
-        print(f"\n🔄 RESİM ÇİZİM DENEMESİ: {deneme_sayisi}", flush=True)
+        print(f"\n🔄 DENEME: {deneme_sayisi}", flush=True)
         
         try:
             img = try_generate_image(prompt)
-            
             if img:
                 if post_to_twitter(img, caption):
                     basari = True 
@@ -268,13 +263,13 @@ if __name__ == "__main__":
                 else:
                     print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
             else:
-                print("⚠️ Resim çizilemedi. (Tüm modlar denendi)", flush=True)
+                print("⚠️ Resim çizilemedi (Sunucu hatası).", flush=True)
                 
         except Exception as e:
             print(f"⚠️ Genel Hata: {e}", flush=True)
         
         if not basari:
-            print("💤 Çok yoğunluk var, 5 dakika dinlenip tekrar deniyorum...", flush=True)
-            time.sleep(300) 
+            print("💤 Sunucular dolu, 3 dakika bekleyip tekrar deniyorum...", flush=True)
+            time.sleep(180) 
             deneme_sayisi += 1
             
