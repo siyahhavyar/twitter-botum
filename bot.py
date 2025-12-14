@@ -19,10 +19,8 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
-# Hafıza Dosyası Adı
 MEMORY_FILE = "bot_memory.txt"
 
-# Anonim Mod Kontrolü
 if not HORDE_KEY or HORDE_KEY.strip() == "":
     print("UYARI: Horde Key yok, Anonim mod (Yavaş olabilir).", flush=True)
     HORDE_KEY = "0000000000"
@@ -30,79 +28,76 @@ else:
     print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# YARDIMCI FONKSİYONLAR: HAFIZA SİSTEMİ
+# HAFIZA SİSTEMİ
 # -----------------------------
 def load_memory():
-    """Geçmişte çizilen son 20 konuyu yükler."""
     if not os.path.exists(MEMORY_FILE):
         return []
     with open(MEMORY_FILE, "r", encoding="utf-8") as f:
         lines = f.read().splitlines()
-    return lines[-20:] # Sadece son 20 tanesini hatırlasa yeter, fazlası kafasını karıştırır
+    return lines[-20:]
 
 def save_to_memory(topic):
-    """Yeni çizilen konuyu hafızaya kaydeder."""
     with open(MEMORY_FILE, "a", encoding="utf-8") as f:
         f.write(topic + "\n")
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (KAOS VE HAFIZA MODU)
+# 1. FİKİR ÜRETİCİ (TAMAMEN ÖZGÜR MOD)
 # -----------------------------
 def get_idea_ultimate():
-    print("🧠 Yapay Zeka hafızasını kontrol ediyor ve Kaos Motorunu çalıştırıyor...", flush=True)
+    print("🧠 Yapay Zeka sanatçı şapkasını taktı, tarzını kendi seçiyor...", flush=True)
     
-    # 1. HAFIZAYI YÜKLE
     past_topics = load_memory()
-    past_topics_str = ", ".join(past_topics) if past_topics else "None (First run)"
+    past_topics_str = ", ".join(past_topics) if past_topics else "None"
     
-    # 2. KAOS MOTORU (Rastgelelik Tohumları)
-    # Bu listeler yapay zekayı zorla farklı yönlere iter.
-    materials = ["Glass", "Liquid Gold", "Smoke", "Neon Lasers", "Origami Paper", "Marble", "Rusty Metal", "Clouds", "Candy", "Ice"]
-    subjects = ["Samurai", "Astronaut", "Giant Cat", "Floating Island", "Ancient Temple", "Cybernetic Plant", "Melting Clock", "Ghost Ship", "Robot Dragon", "Chess Piece"]
-    styles = ["Ukiyo-e", "Cyberpunk", "Renaissance", "Vaporwave", "Bauhaus", "Gothic", "Abstract Expressionism", "Low Poly", "Surrealism", "Pop Art"]
-    emotions = ["Melancholic", "Energetic", "Mysterious", "Terrifying", "Peaceful", "Chaotic", "Lonely", "Majestic"]
-    
-    # Rastgele bir kombinasyon seç
-    random_combo = f"{random.choice(emotions)} {random.choice(materials)} {random.choice(subjects)} in {random.choice(styles)} style"
+    # Rastgelelik tohumu (Sadece beyni tetiklemek için, yönlendirmek için değil)
+    chaos_seed = random.randint(1, 999999999)
     
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # --- GELİŞTİRİLMİŞ PROMPT ---
+    # --- BURASI DEĞİŞTİ: ZORLAMA YOK ---
     instruction_prompt = f"""
     Timestamp: {current_timestamp}
+    Random Seed: {chaos_seed}
     
-    ROLE: You are an avant-garde AI Art Curator with infinite imagination.
-    
-    MEMORY CHECK (DO NOT DRAW THESE):
-    The following topics were already drawn recently. DO NOT REPEAT THEM:
-    [{past_topics_str}]
-    
-    INSPIRATION SEED (Use this as a starting point, but evolve it):
-    "{random_combo}"
+    ROLE: You are a VERSATILE Digital Artist with no fixed style.
     
     YOUR TASK:
-    Create a highly detailed, unique, and mind-blowing phone wallpaper prompt based on the seed above, but make it unique.
+    Create a phone wallpaper concept.
     
-    RULES:
-    1. AVOID common AI clichés (like just a generic sunset or standard cyberpunk city).
-    2. Focus on unique lighting, texture, and composition.
-    3. The output must be visually striking for a smartphone wallpaper.
+    THE MOST IMPORTANT RULE:
+    YOU decide the art style. Do NOT always make it "cinematic" or "realistic".
+    
+    Vary your style wildly every time. For example:
+    - Sometimes choose: Anime / Manga style
+    - Sometimes choose: Simple Flat Vector Art (Minimalist)
+    - Sometimes choose: Retro Pixel Art
+    - Sometimes choose: Classic Oil Painting
+    - Sometimes choose: 3D Render
+    - Sometimes choose: Comic Book / Pop Art
+    - Sometimes choose: Black and White Sketch
+    - Sometimes choose: Abstract shapes
+    
+    MEMORY CHECK (Do not draw these again):
+    [{past_topics_str}]
+    
+    Think like a human artist. "What do I feel like drawing today?"
     
     Return exactly two lines:
-    PROMPT: <The detailed English image prompt>
-    CAPTION: <A short, artistic tweet caption including hashtags>
+    PROMPT: <The detailed image prompt. MUST INCLUDE THE ART STYLE explicitly>
+    CAPTION: <A short tweet caption>
     """
 
     # --- PLAN A: GROQ ---
     if GROQ_KEY:
         try:
-            print(f"🧠 Groq düşünüyor... (İlham: {random_combo})", flush=True)
+            print(f"🧠 Groq düşünüyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             data = {
                 "model": "llama-3.3-70b-versatile", 
                 "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.0 
+                "temperature": 1.1 # Yaratıcılığı ve rastgeleliği artırdık
             }
             response = requests.post(url, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
@@ -110,53 +105,52 @@ def get_idea_ultimate():
                 if len(parts) >= 2:
                     prompt_text = parts[0].replace("PROMPT:", "").strip()
                     caption_text = parts[1].strip()
-                    
-                    # Konuyu hafızaya kaydet (Özet olarak)
-                    save_to_memory(random_combo) 
-                    
-                    print("✅ Groq benzersiz bir fikir buldu!", flush=True)
+                    save_to_memory(prompt_text[:50]) 
+                    print("✅ Fikir bulundu!", flush=True)
                     return prompt_text, caption_text
         except Exception as e: print(f"Groq Hata: {e}")
 
     # --- PLAN B: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Gemini düşünüyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.0)
+            config = genai.types.GenerationConfig(temperature=1.1)
             model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
             response = model.generate_content(instruction_prompt)
             parts = response.text.split("CAPTION:")
             if len(parts) >= 2:
                 prompt_text = parts[0].replace("PROMPT:", "").strip()
                 caption_text = parts[1].strip()
-                save_to_memory(random_combo)
+                save_to_memory(prompt_text[:50])
                 return prompt_text, caption_text
         except Exception: pass
 
     # --- PLAN C: POLLINATIONS ---
     try:
-        encoded = urllib.parse.quote(f"Imagine a unique wallpaper: {random_combo}. Return PROMPT: ... CAPTION: ...")
+        encoded = urllib.parse.quote(f"Imagine a random art style wallpaper. Return PROMPT: ... CAPTION: ...")
         response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
         parts = response.text.split("CAPTION:")
         if len(parts) >= 2:
             return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
     except Exception: pass
 
-    return f"Masterpiece wallpaper of {random_combo}, 8k", "#Art"
+    return "A surprise artistic wallpaper", "#Art"
 
 
 def prepare_final_prompt(raw_prompt):
+    # --- BURASI DEĞİŞTİ: STİL DAYATMASI YOK ---
+    # Eski kodda burada "cinematic, 8k, masterpiece" gibi zorlamalar vardı.
+    # Şimdi sadece teknik formatı (boyutunu) ayarlıyoruz. Stili yapay zeka belirledi.
     return (
         f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, 8k resolution, "
-        "masterpiece, highly detailed, sharp focus, vibrant colors"
+        "vertical wallpaper, 9:21 aspect ratio, high quality"
     )
 
 # -----------------------------
 # 2. AI HORDE (RESİM ÇİZİCİ)
 # -----------------------------
 def try_generate_image(prompt_text):
+    # Promptu son kez hazırla
     final_prompt = prepare_final_prompt(prompt_text)
     print("🎨 AI Horde → Resim çiziliyor...", flush=True)
     
@@ -164,14 +158,10 @@ def try_generate_image(prompt_text):
     generate_url = "https://stablehorde.net/api/v2/generate/async"
     
     current_key = HORDE_KEY if HORDE_KEY else "0000000000"
-    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v6.0-ChaosMode"}
+    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v7.0-FreeSpirit"}
     
-    #  
-    # Bu diyagram, istemcinin sunucuya nasıl istek gönderdiğini ve worker'ların (işçilerin) 
-    # görseli nasıl işleyip geri döndürdüğünü gösterir.
-    
-    print("💎 Mod: Yüksek Kalite deneniyor...", flush=True)
-    payload_high = {
+    print("💎 Mod: Standart istek gönderiliyor...", flush=True)
+    payload = {
         "prompt": final_prompt,
         "params": {
             "sampler_name": "k_dpmpp_2m", 
@@ -187,20 +177,19 @@ def try_generate_image(prompt_text):
     }
 
     try:
-        req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
+        req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
         
         if req.status_code != 202:
             error_msg = req.text
-            print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg[:100]}...", flush=True)
+            print(f"⚠️ Hata: {error_msg[:100]}...", flush=True)
             
+            # Eğer sunucu doluysa ayarları düşürüp tekrar dene
             if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
-                print("🔄 Sunucular dolu! Ekonomi Moduna geçiliyor...", flush=True)
-                payload_high["params"]["post_processing"] = [] 
-                payload_high["params"]["steps"] = 20 
-                
-                req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
+                print("🔄 Ekonomi Moduna geçiliyor...", flush=True)
+                payload["params"]["post_processing"] = [] 
+                payload["params"]["steps"] = 20 
+                req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
                 if req.status_code != 202:
-                    print(f"❌ Ekonomi Modu da reddedildi.", flush=True)
                     return None
             else:
                 return None
@@ -275,12 +264,12 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (KAOS + HAFIZA MODU)", flush=True)
+    print("🚀 Bot Başlatılıyor... (ÖZGÜR RUH MODU - SİNEMATİK ZORLAMASI YOK)", flush=True)
     
     # Fikir al
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + "...", flush=True)
+    print("🎯 Yapay Zekanın Hayal Ettiği:", prompt[:100] + "...", flush=True)
     print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
@@ -308,4 +297,3 @@ if __name__ == "__main__":
             print("💤 Sunucular dolu, 3 dakika bekleyip tekrar deniyorum...", flush=True)
             time.sleep(180) 
             deneme_sayisi += 1
-    
