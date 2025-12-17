@@ -1,172 +1,505 @@
-import os
 import time
+
 import requests
+
+import tweepy
+
 import random
-import json
-from PIL import Image, ImageEnhance, ImageFilter
+
+import urllib.parse
+
+import google.generativeai as genai
+
+from datetime import datetime
+
 from tweepy import OAuthHandler, API, Client
 
-# -----------------------------
-# ENV KEYS (Senin çalışan botundaki gibi getenv ile)
-# -----------------------------
-API_KEY       = os.getenv("API_KEY")
-API_SECRET    = os.getenv("API_SECRET")
-ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
-ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-GROQ_KEY      = os.getenv("GROQ_KEY")
+
 
 # -----------------------------
-# YARDIMCI: GROQ AI (METİN YAZARI)
+
+# ENV KEYS
+
 # -----------------------------
-def ask_groq(prompt):
-    if not GROQ_KEY:
-        print("UYARI: Groq Key yok.", flush=True)
-        return None
+
+API_KEY       = os.getenv("API_KEY")
+
+API_SECRET    = os.getenv("API_SECRET")
+
+ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
+
+ACCESS_SECRET = os.getenv("ACCESS_SECRET")
+
+GEMINI_KEY    = os.getenv("GEMINI_KEY")
+
+HORDE_KEY     = os.getenv("HORDE_API_KEY")
+
+GROQ_KEY      = os.getenv("GROQ_API_KEY")
+
+
+
+MEMORY_FILE = "bot_memory.txt"
+
+
+
+if not HORDE_KEY or HORDE_KEY.strip() == "":
+
+    print("UYARI: Horde Key yok, Anonim mod (Yavaş olabilir).", flush=True)
+
+    HORDE_KEY = "0000000000"
+
+else:
+
+    print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
+
+
+
+# -----------------------------
+
+# HAFIZA SİSTEMİ
+
+# -----------------------------
+
+def load_memory():
+
+    if not os.path.exists(MEMORY_FILE):
+
+        return []
+
+    with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+
+        lines = f.read().splitlines()
+
+    return lines[-20:]
+
+
+
+def save_to_memory(topic):
+
+    with open(MEMORY_FILE, "a", encoding="utf-8") as f:
+
+        f.write(topic + "\n")
+
+
+
+# -----------------------------
+
+# 1. FİKİR ÜRETİCİ (TAMAMEN ÖZGÜR MOD)
+
+# -----------------------------
+
+def get_idea_ultimate():
+
+    print("🧠 Yapay Zeka sanatçı şapkasını taktı, tarzını kendi seçiyor...", flush=True)
+
+    
+
+    past_topics = load_memory()
+
+    past_topics_str = ", ".join(past_topics) if past_topics else "None"
+
+    
+
+    # Rastgelelik tohumu (Sadece beyni tetiklemek için, yönlendirmek için değil)
+
+    chaos_seed = random.randint(1, 999999999)
+
+    
+
+    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    
+
+    # --- BURASI DEĞİŞTİ: ZORLAMA YOK ---
+
+    instruction_prompt = f"""
+
+    Timestamp: {current_timestamp}
+
+    Random Seed: {chaos_seed}
+
+    
+
+    ROLE: You are a VERSATILE Digital Artist with no fixed style.
+
+    
+
+    YOUR TASK:
+
+    Create a phone wallpaper concept.
+
+    
+
+    THE MOST IMPORTANT RULE:
+
+    YOU decide the art style. Do NOT always make it "cinematic" or "realistic".
+
+    
+
+    Vary your style wildly every time. For example:
+
+    - Sometimes choose: Anime / Manga style
+
+    - Sometimes choose: Simple Flat Vector Art (Minimalist)
+
+    - Sometimes choose: Retro Pixel Art
+
+    - Sometimes choose: Classic Oil Painting
+
+    - Sometimes choose: 3D Render
+
+    - Sometimes choose: Comic Book / Pop Art
+
+    - Sometimes choose: Black and White Sketch
+
+    - Sometimes choose: Abstract shapes
+
+    
+
+    MEMORY CHECK (Do not draw these again):
+
+    [{past_topics_str}]
+
+    
+
+    Think like a human artist. "What do I feel like drawing today?"
+
+    
+
+    Return exactly two lines:
+
+    PROMPT: <The detailed image prompt. MUST INCLUDE THE ART STYLE explicitly>
+
+    CAPTION: <A short tweet caption>
+
+    """
+
+
+
+    # --- PLAN A: GROQ ---
+
+    if GROQ_KEY:
+
+        try:
+
+            print(f"🧠 Groq düşünüyor...", flush=True)
+
+            url = "https://api.groq.com/openai/v1/chat/completions"
+
+            headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+
+            data = {
+
+                "model": "llama-3.3-70b-versatile", 
+
+                "messages": [{"role": "user", "content": instruction_prompt}],
+
+                "temperature": 1.1 # Yaratıcılığı ve rastgeleliği artırdık
+
+            }
+
+            response = requests.post(url, headers=headers, json=data, timeout=20)
+
+            if response.status_code == 200:
+
+                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
+
+                if len(parts) >= 2:
+
+                    prompt_text = parts[0].replace("PROMPT:", "").strip()
+
+                    caption_text = parts[1].strip()
+
+                    save_to_memory(prompt_text[:50]) 
+
+                    print("✅ Fikir bulundu!", flush=True)
+
+                    return prompt_text, caption_text
+
+        except Exception as e: print(f"Groq Hata: {e}")
+
+
+
+    # --- PLAN B: GEMINI ---
+
+    if GEMINI_KEY:
+
+        try:
+
+            genai.configure(api_key=GEMINI_KEY)
+
+            config = genai.types.GenerationConfig(temperature=1.1)
+
+            model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
+
+            response = model.generate_content(instruction_prompt)
+
+            parts = response.text.split("CAPTION:")
+
+            if len(parts) >= 2:
+
+                prompt_text = parts[0].replace("PROMPT:", "").strip()
+
+                caption_text = parts[1].strip()
+
+                save_to_memory(prompt_text[:50])
+
+                return prompt_text, caption_text
+
+        except Exception: pass
+
+
+
+    # --- PLAN C: POLLINATIONS ---
+
     try:
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-        data = {
-            "model": "llama-3.3-70b-versatile",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.8
-        }
-        res = requests.post(url, headers=headers, json=data, timeout=20)
-        if res.status_code == 200:
-            return res.json()['choices'][0]['message']['content']
+
+        encoded = urllib.parse.quote(f"Imagine a random art style wallpaper. Return PROMPT: ... CAPTION: ...")
+
+        response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
+
+        parts = response.text.split("CAPTION:")
+
+        if len(parts) >= 2:
+
+            return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
+
+    except Exception: pass
+
+
+
+    return "A surprise artistic wallpaper", "#Art"
+
+
+
+
+
+def prepare_final_prompt(raw_prompt):
+
+    # --- BURASI DEĞİŞTİ: STİL DAYATMASI YOK ---
+
+    # Eski kodda burada "cinematic, 8k, masterpiece" gibi zorlamalar vardı.
+
+    # Şimdi sadece teknik formatı (boyutunu) ayarlıyoruz. Stili yapay zeka belirledi.
+
+    return (
+
+        f"{raw_prompt}, "
+
+        "vertical wallpaper, 9:21 aspect ratio, high quality"
+
+    )
+
+
+
+# -----------------------------
+
+# 2. AI HORDE (RESİM ÇİZİCİ)
+
+# -----------------------------
+
+def try_generate_image(prompt_text):
+
+    # Promptu son kez hazırla
+
+    final_prompt = prepare_final_prompt(prompt_text)
+
+    print("🎨 AI Horde → Resim çiziliyor...", flush=True)
+
+    
+
+    unique_seed = str(random.randint(1, 9999999999))
+
+    generate_url = "https://stablehorde.net/api/v2/generate/async"
+
+    
+
+    current_key = HORDE_KEY if HORDE_KEY else "0000000000"
+
+    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v7.0-FreeSpirit"}
+
+    
+
+    print("💎 Mod: Standart istek gönderiliyor...", flush=True)
+
+    payload = {
+
+        "prompt": final_prompt,
+
+        "params": {
+
+            "sampler_name": "k_dpmpp_2m", 
+
+            "cfg_scale": 7,               
+
+            "width": 640,    
+
+            "height": 1408,               
+
+            "steps": 30,
+
+            "seed": unique_seed, 
+
+            "post_processing": ["RealESRGAN_x4plus"]
+
+        },
+
+        "nsfw": False, "censor_nsfw": True,
+
+        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
+
+    }
+
+
+
+    try:
+
+        req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
+
+        
+
+        if req.status_code != 202:
+
+            error_msg = req.text
+
+            print(f"⚠️ Hata: {error_msg[:100]}...", flush=True)
+
+            
+
+            # Eğer sunucu doluysa ayarları düşürüp tekrar dene
+
+            if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
+
+                print("🔄 Ekonomi Moduna geçiliyor...", flush=True)
+
+                payload["params"]["post_processing"] = [] 
+
+                payload["params"]["steps"] = 20 
+
+                req = requests.post(generate_url, json=payload, headers=headers, timeout=30)
+
+                if req.status_code != 202:
+
+                    return None
+
+            else:
+
+                return None
+
+
+
+        task_id = req.json()['id']
+
+        print(f"✅ Görev alındı ID: {task_id}. Bekleniyor...", flush=True)
+
+        
+
     except Exception as e:
-        print(f"Groq Hata: {e}")
+
+        print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
+
+        return None
+
+
+
+    # Bekleme Döngüsü
+
+    wait_time = 0
+
+    max_wait = 1800 
+
+    while wait_time < max_wait:
+
+        time.sleep(20) 
+
+        wait_time += 20
+
+        try:
+
+            status_url = f"https://stablehorde.net/api/v2/generate/status/{task_id}"
+
+            check = requests.get(status_url, timeout=30)
+
+            status_data = check.json()
+
+            
+
+            if status_data['done']:
+
+                generations = status_data['generations']
+
+                if len(generations) > 0:
+
+                    print("⬇️ Resim indiriliyor...", flush=True)
+
+                    img_url = generations[0]['img']
+
+                    return requests.get(img_url, timeout=60).content
+
+                else:
+
+                    return None
+
+            
+
+            wait_t = status_data.get('wait_time', '?')
+
+            queue = status_data.get('queue_position', '?')
+
+            print(f"⏳ Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn", flush=True)
+
+        except Exception:
+
+            time.sleep(5) 
+
+
+
+    print("⚠️ Zaman aşımı.", flush=True)
+
     return None
 
-# -----------------------------
-# YARDIMCI: GÖRSEL HD YAPMA
-# -----------------------------
-def enhance_image(img_path):
-    try:
-        img = Image.open(img_path)
-        img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
-        converter = ImageEnhance.Color(img)
-        img = converter.enhance(1.2)
-        img.save("final_image.jpg", quality=95)
-        return "final_image.jpg"
-    except:
-        return img_path
+
 
 # -----------------------------
-# 1. İÇERİK ÜRETİCİ (ANIME MODU)
-# -----------------------------
-def get_anime_content():
-    print("🧠 Anime içeriği aranıyor...", flush=True)
-    
-    # Jikan'dan Veri Çek (Rate Limit yememek için denemeli)
-    max_retries = 3
-    for i in range(max_retries):
-        try:
-            # Rastgele bir sayfa seç
-            page = random.randint(1, 10)
-            url = f"https://api.jikan.moe/v4/top/anime?page={page}"
-            resp = requests.get(url, timeout=15)
-            
-            if resp.status_code == 200:
-                data = resp.json()['data']
-                item = random.choice(data)
-                
-                name = item['title_english'] if item.get('title_english') else item['title']
-                img_url = item['images']['jpg']['large_image_url']
-                synopsis = item.get('synopsis', 'No info')[:600]
-                
-                # Groq'a Tweet Yazdır
-                prompt = f"""
-                Act as 'Orbis Anime'. Write a short, engaging tweet about: {name}.
-                Context: {synopsis}
-                Rules:
-                1. Start with Title in BOLD + Emoji.
-                2. One hype sentence.
-                3. Use hashtags: #{name.replace(' ','')} #Anime.
-                """
-                caption = ask_groq(prompt)
-                
-                if caption:
-                    return name, img_url, caption
-            
-            time.sleep(2) # Hata varsa az bekle
-        except Exception as e:
-            print(f"Veri çekme hatası ({i+1}): {e}")
-            time.sleep(2)
-            
-    return None, None, None
+
+# 3. TWITTER POST
 
 # -----------------------------
-# 2. TWITTER POST (SENİN ÇALIŞAN KODUNUN AYNISI)
-# -----------------------------
-def post_to_twitter(img_url, caption):
-    # Resmi İndir
-    print("⬇️ Resim indiriliyor...", flush=True)
-    try:
-        img_data = requests.get(img_url).content
-        with open("temp.jpg", "wb") as f:
-            f.write(img_data)
-        
-        # HD Yap
-        filename = enhance_image("temp.jpg")
-    except Exception as e:
-        print(f"Resim indirme hatası: {e}")
-        return False
 
-    # Twitter'a Yükle
-    print("🐦 Twitter'a bağlanılıyor...", flush=True)
+def post_to_twitter(img_bytes, caption):
+
+    filename = "wallpaper_mobile.png"
+
+    with open(filename, "wb") as f:
+
+        f.write(img_bytes)
+
+
+
     try:
-        # 1. Adım: Medya Yükleme (V1.1 - Burası her zaman API objesi ister)
+
         auth = OAuthHandler(API_KEY, API_SECRET)
+
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+
         api = API(auth)
-        
+
         media = api.media_upload(filename)
-        print("✅ Resim yüklendi, ID alındı.")
 
-        # 2. Adım: Tweet Atma (Senin diğer kodundaki Client yapısı)
-        # BURAYA DİKKAT: V2 (Client) hata verirse otomatik V1 (API) deneyecek sistem ekledim.
-        # Böylece o 403 hatasını bypass edebiliriz.
+        client = Client(
+
+            consumer_key=API_KEY,
+
+            consumer_secret=API_SECRET,
+
+            access_token=ACCESS_TOKEN,
+
+            access_token_secret=ACCESS_SECRET
+
+        )
+
         
-        try:
-            # Önce senin çalışan kodundaki gibi Client (V2) deniyoruz
-            client = Client(
-                consumer_key=API_KEY,
-                consumer_secret=API_SECRET,
-                access_token=ACCESS_TOKEN,
-                access_token_secret=ACCESS_SECRET
-            )
-            client.create_tweet(text=caption, media_ids=[media.media_id])
-            print("🎉 TWEET ATILDI (V2 Client ile)!")
-            return True
-            
-        except Exception as v2_error:
-            print(f"⚠️ V2 (Client) Hatası: {v2_error}")
-            print("🔄 V1.1 (API) ile tekrar deneniyor... (Yedek Sistem)")
-            
-            # Eğer Client çalışmazsa, eski usül API ile atar (Bu kesin çalışır)
-            api.update_status(status=caption, media_ids=[media.media_id])
-            print("🎉 TWEET ATILDI (V1.1 Yedek Sistem ile)!")
-            return True
 
-    except Exception as e:
-        print(f"❌ Kritik Twitter Hatası: {e}", flush=True)
-        return False
+        client.create_tweet(text=caption, media_ids=[media.media_id])
 
-# -----------------------------
-# MAIN
-# -----------------------------
-if __name__ == "__main__":
-    print("🚀 ORBIS ANIME BAŞLATILIYOR (ÇALIŞAN BOT ÖRNEĞİ)...", flush=True)
-    
-    # İçerik Al
-    name, img_url, caption = get_anime_content()
-    
-    if name and img_url and caption:
-        print("------------------------------------------------", flush=True)
-        print(f"🎯 Seçilen Anime: {name}", flush=True)
-        print(f"📝 Tweet: {caption[:50]}...", flush=True)
-        print("------------------------------------------------", flush=True)
-        
-        post_to_twitter(img_url, caption)
-    else:
-        print("⚠️ İçerik oluşturulamadı.", flush=True)
+        print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
