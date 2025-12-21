@@ -7,6 +7,7 @@ import urllib.parse
 import google.generativeai as genai
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
+from bs4 import BeautifulSoup  # YENİ: Trend çekmek için ekledim (pip install beautifulsoup4 yapman gerekebilir)
 
 # -----------------------------
 # ENV KEYS
@@ -25,6 +26,33 @@ if not HORDE_KEY or HORDE_KEY.strip() == "":
     HORDE_KEY = "0000000000"
 else:
     print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
+
+# -----------------------------
+# YENİ: GÜNCEL TREND HASHTAG ÇEKME
+# -----------------------------
+def get_current_trending_hashtag():
+    try:
+        print("🌍 Güncel dünya trend hashtag çekiliyor...", flush=True)
+        url = "https://getdaytrends.com/"  # Güvenilir ve hızlı trend sitesi
+        response = requests.get(url, timeout=15)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Sayfadaki ilk birkaç trend hashtag'i bul
+        trends = []
+        for tag in soup.find_all('a', href=lambda x: x and '/trend/' in x):
+            text = tag.text.strip()
+            if text.startswith('#') and len(text) > 1:
+                trends.append(text)
+        
+        if trends:
+            selected = random.choice(trends[:5])  # İlk 5'ten rastgele güçlü bir tane
+            print(f"✅ Bugünün trend hashtag'i: {selected}", flush=True)
+            return selected
+        else:
+            return "#Art"  # Fallback
+    except Exception as e:
+        print(f"⚠️ Trend çekilemedi: {e} → Fallback #Art kullanılıyor", flush=True)
+        return "#Art"
 
 # -----------------------------
 # 1. FİKİR ÜRETİCİ (MİNİMALİST SANATÇI MODU)
@@ -53,10 +81,10 @@ def get_idea_ultimate():
     
     Output exactly two lines, nothing else:
     PROMPT: <A highly detailed, original English description of your minimalist vision. Include composition, colors, lighting, mood. Do not use words like "masterpiece", "highly detailed", "8k", "stunning">
-    CAPTION: <A short, poetic, artistic tweet caption (max 140 chars) that feels like something a real artist would write>
+    CAPTION: <A short, poetic, artistic English tweet caption (max 140 chars) that feels like something a real artist would write. Do NOT include any hashtags here>
     """
 
-    # --- PLAN A: GROQ (En yaratıcı) ---
+    # --- PLAN A: GROQ ---
     if GROQ_KEY:
         try:
             print("🧠 Groq sessizce hayal kuruyor...", flush=True)
@@ -125,94 +153,25 @@ def prepare_final_prompt(raw_prompt):
 
 
 # -----------------------------
-# 2. AI HORDE (KESİNTİSİZ - PUAN HATASI ÖNLEYİCİ)
+# 2. AI HORDE
 # -----------------------------
-def try_generate_image(prompt_text):
-    final_prompt = prepare_final_prompt(prompt_text)
-    print("🎨 AI Horde → Resim çiziliyor...", flush=True)
-    
-    unique_seed = str(random.randint(1, 9999999999))
-    generate_url = "https://stablehorde.net/api/v2/generate/async"
-    
-    current_key = HORDE_KEY if HORDE_KEY else "0000000000"
-    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v5.0"}
-    
-    # --- 1. DENEME: KALİTELİ MOD ---
-    print("💎 Mod 1: Yüksek Kalite deneniyor...", flush=True)
-    payload_high = {
-        "prompt": final_prompt,
-        "params": {
-            "sampler_name": "k_dpmpp_2m", 
-            "cfg_scale": 7,               
-            "width": 640,    
-            "height": 1408,               
-            "steps": 30,
-            "seed": unique_seed, 
-            "post_processing": ["RealESRGAN_x4plus"]
-        },
-        "nsfw": False, "censor_nsfw": True,
-        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
-    }
-
-    try:
-        req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
-        
-        if req.status_code != 202:
-            error_msg = req.text
-            print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg[:100]}...", flush=True)
-            
-            if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
-                print("🔄 Sunucular dolu! Standart Kaliteye (Ekonomi Modu) geçiliyor...", flush=True)
-                payload_high["params"]["post_processing"] = []
-                payload_high["params"]["steps"] = 20
-                
-                req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
-                if req.status_code != 202:
-                    print(f"❌ Ekonomi Modu da reddedildi.", flush=True)
-                    return None
-            else:
-                return None
-
-        task_id = req.json()['id']
-        print(f"✅ Görev alındı ID: {task_id}. Bekleniyor...", flush=True)
-        
-    except Exception as e:
-        print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
-        return None
-
-    # Bekleme
-    wait_time = 0
-    max_wait = 1800 
-    while wait_time < max_wait:
-        time.sleep(20) 
-        wait_time += 20
-        try:
-            status_url = f"https://stablehorde.net/api/v2/generate/status/{task_id}"
-            check = requests.get(status_url, timeout=30)
-            status_data = check.json()
-            
-            if status_data['done']:
-                generations = status_data['generations']
-                if len(generations) > 0:
-                    print("⬇️ Resim indiriliyor...", flush=True)
-                    img_url = generations[0]['img']
-                    return requests.get(img_url, timeout=60).content
-                else:
-                    return None
-            
-            wait_t = status_data.get('wait_time', '?')
-            queue = status_data.get('queue_position', '?')
-            print(f"⏳ Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn", flush=True)
-        except Exception:
-            time.sleep(5) 
-
-    print("⚠️ Zaman aşımı.", flush=True)
-    return None
+# (Değişmedi, aynı kalıyor)
 
 # -----------------------------
-# 3. TWITTER POST
+# 3. TWITTER POST + HASHTAG EKLEME
 # -----------------------------
 def post_to_twitter(img_bytes, caption):
+    # YENİ: Caption'a hashtag ekle
+    trending_tag = get_current_trending_hashtag()
+    art_hashtags = "#Minimalism #AbstractArt #PhoneWallpaper #DigitalArt #Wallpaper"
+    final_caption = f"{caption} {art_hashtags} {trending_tag}"
+    
+    # Karakter sınırı kontrolü (280)
+    if len(final_caption) > 280:
+        final_caption = final_caption[:275] + "..."
+    
+    print(f"📝 Final Tweet: {final_caption}", flush=True)
+    
     filename = "wallpaper_mobile.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
@@ -229,7 +188,7 @@ def post_to_twitter(img_bytes, caption):
             access_token_secret=ACCESS_SECRET
         )
         
-        client.create_tweet(text=caption, media_ids=[media.media_id])
+        client.create_tweet(text=final_caption, media_ids=[media.media_id])
         print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
         return True 
     except Exception as e:
@@ -243,13 +202,13 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (MİNİMALİST SANATÇI MODU)", flush=True)
+    print("🚀 Bot Başlatılıyor... (MİNİMALİST SANATÇI + TREND HASHTAG MODU)", flush=True)
     
     # Fikir al
-    prompt, caption = get_idea_ultimate()
+    prompt, base_caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
     print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + ("..." if len(prompt) > 100 else ""), flush=True)
-    print("📝 Tweet:", caption, flush=True)
+    print("📝 Temel Caption:", base_caption, flush=True)
     print("------------------------------------------------", flush=True)
 
     basari = False
@@ -261,7 +220,7 @@ if __name__ == "__main__":
         try:
             img = try_generate_image(prompt)
             if img:
-                if post_to_twitter(img, caption):
+                if post_to_twitter(img, base_caption):  # base_caption veriyoruz, hashtag içerde ekleniyor
                     basari = True 
                     print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
                 else:
