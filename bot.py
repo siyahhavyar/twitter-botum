@@ -27,96 +27,102 @@ else:
     print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (SAF SANATÇI MODU)
+# 1. FİKİR ÜRETİCİ (MİNİMALİST SANATÇI MODU)
 # -----------------------------
 def get_idea_ultimate():
-    print("🧠 Yapay Zeka sanatçı koltuğuna oturuyor ve düşünüyor...", flush=True)
+    print("🧠 Yapay Zeka sanatçı koltuğuna oturuyor ve derin derin düşünüyor...", flush=True)
     
-    # Zamana göre benzersizlik katıyoruz
     current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # --- İŞTE BURASI DEĞİŞTİ: HİÇBİR KONU/ÖRNEK YOK ---
     instruction_prompt = f"""
-    Timestamp: {current_timestamp}
+    You are an independent visionary mobile wallpaper artist with a strong personal aesthetic.
+    Today's date and time: {current_timestamp}
     
-    Act as a Visionary Digital Artist and Trendsetter.
+    You have complete creative freedom. No one is giving you a theme, style, or direction.
     
-    I am giving you a BLANK CANVAS.
-    I am NOT giving you a topic.
-    I am NOT giving you a style.
+    Your signature style tends toward minimalism: clean compositions, negative space, subtle gradients, simple forms, emotional resonance through restraint.
+    You love quiet beauty, elegance, and concepts that feel timeless yet contemporary.
     
-    YOUR TASK:
-    Close your virtual eyes and imagine a Masterpiece Phone Wallpaper.
-    Think: "What visual concept would make people stop scrolling and say WOW?"
+    Every single artwork you create is unique — you never repeat yourself.
     
-    It can be ANYTHING:
-    - Something abstract and emotional?
-    - A scene from a movie that doesn't exist?
-    - A futuristic invention?
-    - A wild mixture of nature and technology?
-    - A bizarre dream?
+    Right now, sit in silence for a moment and create something new from scratch.
+    Ask yourself:
+    - What subtle emotion do I want to evoke today?
+    - What simple visual element could carry deep meaning?
+    - How can empty space become the main character?
     
-    RULES:
-    1. Be 100% Original. Do not use clichés.
-    2. Make it VISUALLY STUNNING.
-    3. Decide the subject, the lighting, the colors, and the mood YOURSELF.
-    
-    Return exactly two lines:
-    PROMPT: <The detailed English description of your vision>
-    CAPTION: <A short, artistic tweet caption for this wallpaper>
+    Output exactly two lines, nothing else:
+    PROMPT: <A highly detailed, original English description of your minimalist vision. Include composition, colors, lighting, mood. Do not use words like "masterpiece", "highly detailed", "8k", "stunning">
+    CAPTION: <A short, poetic, artistic tweet caption (max 140 chars) that feels like something a real artist would write>
     """
 
-    # --- PLAN A: GROQ (En Yaratıcısı) ---
+    # --- PLAN A: GROQ (En yaratıcı) ---
     if GROQ_KEY:
         try:
-            print("🧠 Groq hayal kuruyor...", flush=True)
+            print("🧠 Groq sessizce hayal kuruyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             data = {
-                "model": "llama-3.3-70b-versatile", 
+                "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.0 # Yüksek yaratıcılık
+                "temperature": 1.4,
+                "top_p": 0.95,
+                "max_tokens": 500
             }
-            response = requests.post(url, headers=headers, json=data, timeout=20)
+            response = requests.post(url, headers=headers, json=data, timeout=30)
             if response.status_code == 200:
-                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
-                if len(parts) >= 2:
-                    print("✅ Groq bir fikir buldu!", flush=True)
-                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception: pass
+                content = response.json()['choices'][0]['message']['content']
+                lines = [l.strip() for l in content.split('\n') if l.strip()]
+                prompt_line = next((l for l in lines if l.startswith("PROMPT:")), None)
+                caption_line = next((l for l in lines if l.startswith("CAPTION:")), None)
+                if prompt_line and caption_line:
+                    print("✅ Groq harika bir minimalist vizyon yarattı!", flush=True)
+                    return prompt_line[7:].strip(), caption_line[8:].strip()
+        except Exception as e:
+            print(f"Groq hatası: {e}", flush=True)
 
     # --- PLAN B: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Gemini hayal kuruyor...", flush=True)
+            print("🧠 Gemini minimalist bir dünya tasarlıyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.0)
-            model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
+            config = genai.types.GenerationConfig(temperature=1.3, top_p=0.95, max_output_tokens=500)
+            model = genai.GenerativeModel("gemini-1.5-flash", generation_config=config)
             response = model.generate_content(instruction_prompt)
-            parts = response.text.split("CAPTION:")
-            if len(parts) >= 2:
-                return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception: pass
+            text = response.text
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            prompt_line = next((l for l in lines if l.startswith("PROMPT:")), None)
+            caption_line = next((l for l in lines if l.startswith("CAPTION:")), None)
+            if prompt_line and caption_line:
+                print("✅ Gemini derin bir minimalist eser üretti!", flush=True)
+                return prompt_line[7:].strip(), caption_line[8:].strip()
+        except Exception as e:
+            print(f"Gemini hatası: {e}", flush=True)
 
-    # --- PLAN C: POLLINATIONS (Yedek) ---
-    try:
-        encoded = urllib.parse.quote("Imagine a unique, artistic wallpaper. Return PROMPT: ... CAPTION: ...")
-        response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
-        parts = response.text.split("CAPTION:")
-        if len(parts) >= 2:
-            return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-    except Exception: pass
-
-    return "A masterpiece artistic wallpaper, 8k", "#Art"
+    # --- SON ÇARE: KENDİ MİNİMALİST FALLBACK ---
+    print("🧠 Kendi iç dünyama dönüyorum...", flush=True)
+    minimalist_concepts = [
+        "A vast empty space in soft off-white with a single delicate curved line in pale rose descending from the top",
+        "Deep charcoal background with a faint circular gradient in muted teal emerging from the center",
+        "Subtle horizontal bands of warm sand and cool mist, separated by generous negative space",
+        "Pure midnight blue canvas interrupted only by a tiny glowing amber dot near the bottom edge",
+        "Endless pale gray expanse with one barely visible thin golden arc in the upper third"
+    ]
+    prompt = random.choice(minimalist_concepts)
+    captions = [
+        "less is more.",
+        "silence speaks",
+        "breathing room",
+        "quiet presence",
+        "the beauty of restraint"
+    ]
+    caption = random.choice(captions)
+    return prompt, caption
 
 
 def prepare_final_prompt(raw_prompt):
-    # Sadece teknik kalite komutları ekliyoruz, STİL eklemiyoruz.
-    return (
-        f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, 8k resolution, "
-        "masterpiece, highly detailed, sharp focus"
-    )
+    return f"{raw_prompt}, minimalist composition, vertical phone wallpaper, 9:21 aspect ratio, soft lighting, subtle colors, clean design, negative space"
+
 
 # -----------------------------
 # 2. AI HORDE (KESİNTİSİZ - PUAN HATASI ÖNLEYİCİ)
@@ -151,16 +157,14 @@ def try_generate_image(prompt_text):
     try:
         req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
         
-        # Hata yakalama
         if req.status_code != 202:
             error_msg = req.text
             print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg[:100]}...", flush=True)
             
-            # Sunucu "Puan yetersiz" veya "Yoğunum" derse:
             if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
                 print("🔄 Sunucular dolu! Standart Kaliteye (Ekonomi Modu) geçiliyor...", flush=True)
-                payload_high["params"]["post_processing"] = [] # Upscale kapat
-                payload_high["params"]["steps"] = 20 # Adımı düşür
+                payload_high["params"]["post_processing"] = []
+                payload_high["params"]["steps"] = 20
                 
                 req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
                 if req.status_code != 202:
@@ -239,12 +243,12 @@ def post_to_twitter(img_bytes, caption):
 # MAIN
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (SAF SANATÇI MODU)", flush=True)
+    print("🚀 Bot Başlatılıyor... (MİNİMALİST SANATÇI MODU)", flush=True)
     
     # Fikir al
     prompt, caption = get_idea_ultimate()
     print("------------------------------------------------", flush=True)
-    print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + "...", flush=True)
+    print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + ("..." if len(prompt) > 100 else ""), flush=True)
     print("📝 Tweet:", caption, flush=True)
     print("------------------------------------------------", flush=True)
 
@@ -272,4 +276,3 @@ if __name__ == "__main__":
             print("💤 Sunucular dolu, 3 dakika bekleyip tekrar deniyorum...", flush=True)
             time.sleep(180) 
             deneme_sayisi += 1
-    
