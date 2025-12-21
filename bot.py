@@ -8,6 +8,7 @@ HORDE_KEYS = [
     "8PbI2lLTICOUMLE4gKzb0w",
     "SwxAZZWFvruz8ugHkFJV5w",
     "AEFG4kHNWHKPCWvZlEjVUg",
+    "0000000000",
     "Q-zqB1m-7kjc5pywX52uKg",
     "pZCw23N2DBaP7M0vXmGdfQ"
 ]
