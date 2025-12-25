@@ -1,20 +1,20 @@
 import os
 import time
-import requests
-import tweepy
+import json
 import random
+import requests
+from datetime import datetime
+
+from tweepy import OAuthHandler, API, Client
 
 try:
     import google.genai as genai
 except ImportError:
     genai = None
 
-from datetime import datetime
-from tweepy import OAuthHandler, API, Client
-
-# -----------------------------
-# ENV KEYS
-# -----------------------------
+# =============================
+# ENV
+# =============================
 
 API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
@@ -23,138 +23,108 @@ ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
-# -----------------------------
-# HORDE KEYS
-# -----------------------------
+MEMORY_FILE = "memory.json"
 
-HORDE_KEYS = [
-    "cQ9Kty7vhFWfD8nddDOq7Q",
-    "ceIr0GFCjybUk_3ItTju0w",
-    "_UZ8x88JEw4_zkIVI1GkpQ",
-    "8PbI2lLTICOUMLE4gKzb0w",
-    "SwxAZZWFvruz8ugHkFJV5w",
-    "AEFG4kHNWHKPCWvZlEjVUg",
-    "Q-zqB1m-7kjc5pywX52uKg"
-]
+# =============================
+# MEMORY SYSTEM
+# =============================
 
-HORDE_KEY = "0000000000"
-print("🔑 Horde key'leri test ediliyor...", flush=True)
+def load_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return []
+    with open(MEMORY_FILE, "r") as f:
+        return json.load(f)
 
-for key in HORDE_KEYS:
-    try:
-        r = requests.get(
-            "https://stablehorde.net/api/v2/find_user",
-            headers={"apikey": key, "Client-Agent": "MyTwitterBot:v6.0"},
-            timeout=10
-        )
-        if r.status_code == 200 and r.json().get("id"):
-            HORDE_KEY = key
-            print(f"✅ Aktif Horde Key: {key[:8]}...", flush=True)
-            break
-    except:
-        continue
+def save_to_memory(prompt, caption):
+    memory = load_memory()
+    memory.append({
+        "time": datetime.utcnow().isoformat(),
+        "prompt": prompt,
+        "caption": caption
+    })
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memory[-50:], f, indent=2)  # son 50 işi tut
 
-# -----------------------------
-# TREND HASHTAG
-# -----------------------------
+def summarize_memory(memory):
+    if not memory:
+        return "No previous works yet."
+    return "\n".join(
+        f"- {m['prompt'][:120]}" for m in memory[-10:]
+    )
 
-def get_current_trending_hashtag():
-    try:
-        auth = OAuthHandler(API_KEY, API_SECRET)
-        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-        api = API(auth)
-        trends = api.get_place_trends(1)
-        tags = [t["name"] for t in trends[0]["trends"] if t["name"].startswith("#")]
-        return random.choice(tags[:5]) if tags else "#Art"
-    except:
-        return "#Art"
+# =============================
+# AUTONOMOUS IDEA GENERATOR
+# =============================
 
-# -----------------------------
-# IDEA GENERATOR (AI KENDİ DÜŞÜNÜR)
-# -----------------------------
-
-def get_idea_ultimate():
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def get_autonomous_idea():
+    memory = load_memory()
+    memory_summary = summarize_memory(memory)
 
     instruction_prompt = f"""
-You are a creative AI artist specializing in minimal, atmospheric mobile wallpapers.
+You are an autonomous digital artist.
 
-STYLE:
-- Minimal composition
-- Anime-inspired aesthetics
-- Fantasy, supernatural, mysterious themes
-- Witches, sorcerers, masked figures, superheroes (original only)
-- Dark fantasy, ethereal, cinematic lighting
-- Calm but powerful mood
-- Clean background, strong negative space
+You design mobile phone wallpapers.
+No one tells you what to create.
+You decide entirely on your own.
 
-AVOID COMPLETELY:
-- Geometry
-- Abstract shapes
-- Tech UI
-- Flat vector style
-- Crowded scenes
+You remember what you created before.
+You actively avoid repeating ideas, moods, compositions, or concepts.
 
-RULES:
-- NO NSFW
-- NO nudity
-- NO sexual content
-- NO violence or gore
-- No real people
-- No copyrighted characters by name
+Previous works (summarized):
+{memory_summary}
 
-You decide what to create today.
-Design for vertical phone wallpaper (9:21).
+Think like a real artist:
+- Ask yourself what you have NOT explored yet
+- Choose a new direction, mood, or concept
+- Create something original and different from your past work
+
+Rules:
+- Safe for all audiences
+- No sexual content
+- No explicit violence
+- Original concepts only
 
 Output EXACTLY two lines:
 
-PROMPT: <Detailed English image description including character, mood, lighting, colors, atmosphere>
-CAPTION: <Short, poetic, mysterious English caption. Max 140 chars. No hashtags>
+PROMPT: <A detailed English image description for a vertical phone wallpaper (9:21)>
+CAPTION: <A short thoughtful English caption>
 """
 
     # GROQ
     if GROQ_KEY:
-        try:
-            r = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {GROQ_KEY}"},
-                json={
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [{"role": "user", "content": instruction_prompt}],
-                    "temperature": 1.3,
-                    "max_tokens": 500
-                },
-                timeout=30
-            )
-            text = r.json()["choices"][0]["message"]["content"]
-        except:
-            text = ""
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": instruction_prompt}],
+                "temperature": 1.4,
+                "max_tokens": 600
+            },
+            timeout=30
+        )
+        text = r.json()["choices"][0]["message"]["content"]
+    elif GEMINI_KEY and genai:
+        genai.configure(api_key=GEMINI_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        text = model.generate_content(instruction_prompt).text
     else:
-        text = ""
-
-    if not text and GEMINI_KEY and genai:
-        try:
-            genai.configure(api_key=GEMINI_KEY)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            text = model.generate_content(instruction_prompt).text
-        except:
-            text = ""
+        raise RuntimeError("No AI provider available")
 
     lines = [l.strip() for l in text.split("\n") if l.strip()]
-    p = next(l for l in lines if l.startswith("PROMPT:"))[7:]
-    c = next(l for l in lines if l.startswith("CAPTION:"))[8:]
-    return p.strip(), c.strip()
+    prompt = next(l for l in lines if l.startswith("PROMPT:"))[7:].strip()
+    caption = next(l for l in lines if l.startswith("CAPTION:"))[8:].strip()
 
-def prepare_prompt(p):
-    return f"{p}, minimal, vertical wallpaper, 9:21, cinematic lighting, high quality"
+    save_to_memory(prompt, caption)
+    return prompt, caption
 
-# -----------------------------
-# IMAGE GENERATION
-# -----------------------------
+# =============================
+# IMAGE GENERATION (AI HORDE)
+# =============================
 
 def generate_image(prompt):
     payload = {
-        "prompt": prepare_prompt(prompt),
+        "prompt": f"{prompt}, vertical phone wallpaper, 9:21",
         "params": {"width": 640, "height": 1408, "steps": 25},
         "nsfw": False,
         "models": ["Juggernaut XL"]
@@ -162,33 +132,31 @@ def generate_image(prompt):
 
     r = requests.post(
         "https://stablehorde.net/api/v2/generate/async",
-        headers={"apikey": HORDE_KEY},
+        headers={"Client-Agent": "AutonomousArtistBot"},
         json=payload
     )
-
-    task = r.json()["id"]
+    task_id = r.json()["id"]
 
     while True:
         time.sleep(20)
-        s = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task}").json()
+        s = requests.get(
+            f"https://stablehorde.net/api/v2/generate/status/{task_id}"
+        ).json()
         if s["done"] and s["generations"]:
             return requests.get(s["generations"][0]["img"]).content
 
-# -----------------------------
+# =============================
 # POST TO TWITTER
-# -----------------------------
+# =============================
 
-def post(img, caption):
-    tag = get_current_trending_hashtag()
-    text = f"{caption} #MinimalArt #AnimeArt #FantasyArt {tag}"
-
-    with open("img.png", "wb") as f:
-        f.write(img)
+def post_to_twitter(image, caption):
+    with open("wallpaper.png", "wb") as f:
+        f.write(image)
 
     auth = OAuthHandler(API_KEY, API_SECRET)
     auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
     api = API(auth)
-    media = api.media_upload("img.png")
+    media = api.media_upload("wallpaper.png")
 
     client = Client(
         consumer_key=API_KEY,
@@ -196,23 +164,28 @@ def post(img, caption):
         access_token=ACCESS_TOKEN,
         access_token_secret=ACCESS_SECRET
     )
-    client.create_tweet(text=text[:280], media_ids=[media.media_id])
-    os.remove("img.png")
 
-# -----------------------------
-# MAIN LOOP (2 SAATTE 1)
-# -----------------------------
+    client.create_tweet(
+        text=caption[:280],
+        media_ids=[media.media_id]
+    )
+
+    os.remove("wallpaper.png")
+
+# =============================
+# MAIN LOOP (2 HOURS)
+# =============================
 
 if __name__ == "__main__":
-    print("🚀 Bot başladı – 2 saatte bir paylaşım", flush=True)
+    print("🎨 Autonomous Artist Bot started", flush=True)
 
     while True:
         try:
-            prompt, caption = get_idea_ultimate()
-            img = generate_image(prompt)
-            post(img, caption)
-            print("✅ Paylaşıldı. 2 saat bekleniyor...", flush=True)
+            prompt, caption = get_autonomous_idea()
+            image = generate_image(prompt)
+            post_to_twitter(image, caption)
+            print("✅ Posted. Sleeping 2 hours.", flush=True)
         except Exception as e:
-            print(f"⚠️ Hata: {e}", flush=True)
+            print(f"⚠️ Error: {e}", flush=True)
 
-        time.sleep(7200)  # 2 SAAT
+        time.sleep(7200)
