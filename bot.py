@@ -7,9 +7,9 @@ import json
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
-# Google GenAI için güvenli import
+# Google GenAI için DOĞRU ve GÜNCEL import (uyarı kalktı)
 try:
-    import google.generativeai as genai
+    import google.genai as genai
 except ImportError:
     genai = None
 
@@ -23,7 +23,7 @@ ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
-# Key kontrolü (GitHub log'unda görünsün)
+# Key kontrolü (log'da görünsün)
 print("🔑 Key Durumu:")
 print(f"Twitter API Key: {'Var' if API_KEY else 'YOK'}")
 print(f"Twitter Access Token: {'Var' if ACCESS_TOKEN else 'YOK'}")
@@ -65,16 +65,15 @@ if HORDE_KEY == "0000000000":
     print("⚠️ Hiçbir key doğrulanamadı, anonim modda devam ediliyor...", flush=True)
 
 # -----------------------------
-# Güvenli Trending Hashtag (Trends API çoğu app'te kapalı olduğu için sabit + rastgele)
+# Güvenli Hashtag (trend API sorunlu olduğu için)
 # -----------------------------
 SAFE_HASHTAGS = ["#AIArt", "#DigitalArt", "#Wallpaper", "#FantasyArt", "#AnimeArt", "#MobileWallpaper", "#Art", "#Illustration"]
 
 def get_current_trending_hashtag():
-    # Trends API artık çoğu yeni app'te çalışmıyor, güvenli alternatif:
     return random.choice(SAFE_HASHTAGS)
 
 # -----------------------------
-# Memory (geçmiş paylaşımlar) - GitHub'da güvenli olsun diye try-except
+# Memory (geçmiş paylaşımlar) - Güvenli
 # -----------------------------
 MEMORY_FILE = "memory.json"
 
@@ -205,9 +204,8 @@ def try_generate_image(prompt_text):
         print("⚠️ Horde istek hatası:", e)
         return None
 
-    # Bekleme
     wait_time = 0
-    while wait_time < 1800:  # 30 dakika max
+    while wait_time < 1800:
         time.sleep(20)
         wait_time += 20
         try:
@@ -263,35 +261,47 @@ def post_to_twitter(img_bytes, caption):
                 pass
 
 # -----------------------------
-# MAIN LOOP
+# MAIN LOOP - TEST MODU (60 saniye bekleme)
 # -----------------------------
 if __name__ == "__main__":
-    print("🚀 Autonomous Artist Bot başlatıldı - GitHub Actions uyumlu versiyon")
+    print("🚀 Autonomous Artist Bot başlatıldı - TEST MODU (60 sn bekleme)")
+    
+    # İlk çalıştırmada duplicate kontrolünü atla (hemen paylaşsın)
+    first_run = True
+    
     while True:
         try:
             prompt, caption = get_idea_ultimate()
-            print(f"🎨 Yeni fikir: {prompt[:60]}...")
+            print(f"🎨 Yeni fikir: {prompt[:80]}...")
 
-            if is_duplicate(prompt):
+            # İlk çalıştırmada duplicate olsa bile paylaş
+            if is_duplicate(prompt) and not first_run:
                 print("⚠️ Bu prompt daha önce kullanıldı, yenisi üretiliyor...")
                 time.sleep(10)
                 continue
 
-            print("🖼️  Resim üretiliyor (AI Horde)...")
+            print("🖼️ Resim üretiliyor (AI Horde ile)...")
             img = try_generate_image(prompt)
 
             if img:
                 print("📤 Tweet atılıyor...")
                 if post_to_twitter(img, caption):
                     save_memory(prompt)
-                    print("✅ Döngü tamamlandı, başarıyla paylaşıldı!")
+                    print("✅ Paylaşım başarılı!")
                 else:
-                    print("⚠️ Tweet atılamadı ama devam ediliyor.")
+                    print("⚠️ Tweet atılamadı.")
             else:
-                print("⚠️ Resim üretilemedi, bir sonraki döngüde tekrar denenecek.")
+                print("⚠️ Resim üretilemedi.")
+
+            first_run = False
 
         except Exception as e:
             print(f"🔥 Genel hata: {str(e)}")
 
-        print("⏳ 2 saat bekleniyor...\n")
-        time.sleep(7200)  # 2 saat = 7200 saniye
+        print("⏳ Bir sonraki paylaşım için 60 saniye bekleniyor... (Test modu)")
+        print("   Gerçek kullanımda bunu 7200 yap: time.sleep(7200)\n")
+        
+        time.sleep(60)  # TEST İÇİN 60 SANİYE
+        
+        # Gerçek kullanımda şu satırı aç:
+        # time.sleep(7200)  # 2 saat
