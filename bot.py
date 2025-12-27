@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
-# Google GenAI için DOĞRU ve GÜNCEL import (uyarı kalktı)
+# Google GenAI - Güncel import
 try:
     import google.genai as genai
 except ImportError:
@@ -23,7 +23,6 @@ ACCESS_SECRET = os.getenv("ACCESS_SECRET")
 GEMINI_KEY    = os.getenv("GEMINI_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
-# Key kontrolü (log'da görünsün)
 print("🔑 Key Durumu:")
 print(f"Twitter API Key: {'Var' if API_KEY else 'YOK'}")
 print(f"Twitter Access Token: {'Var' if ACCESS_TOKEN else 'YOK'}")
@@ -44,149 +43,109 @@ HORDE_KEYS = [
 ]
 
 HORDE_KEY = "0000000000"
-print("🔑 Horde key'leri test ediliyor...", flush=True)
+print("🔑 Horde key'leri test ediliyor...")
 
 for key in HORDE_KEYS:
     try:
-        test_url = "https://stablehorde.net/api/v2/find_user"
-        headers = {"apikey": key, "Client-Agent": "AutonomousArtistBot"}
-        response = requests.get(test_url, headers=headers, timeout=15)
+        response = requests.get(
+            "https://stablehorde.net/api/v2/find_user",
+            headers={"apikey": key, "Client-Agent": "AutonomousArtistBot"},
+            timeout=15
+        )
         if response.status_code == 200:
             data = response.json()
-            if data.get("id") and data.get("id") != 0:
+            if data.get("id"):
                 HORDE_KEY = key
-                print(f"✅ ÇALIŞAN KEY BULUNDU: {key[:8]}... (User: {data.get('username')})", flush=True)
+                print(f"✅ ÇALIŞAN KEY: {key[:8]}... (User: {data.get('username')})")
                 break
-    except Exception as e:
-        print(f"❌ Key testi hatası: {key[:8]}... → {str(e)}")
+    except:
         continue
 
 if HORDE_KEY == "0000000000":
-    print("⚠️ Hiçbir key doğrulanamadı, anonim modda devam ediliyor...", flush=True)
+    print("⚠️ Horde key çalışmadı, anonim modda devam...")
 
 # -----------------------------
-# Güvenli Hashtag (trend API sorunlu olduğu için)
+# Güvenli Hashtag
 # -----------------------------
-SAFE_HASHTAGS = ["#AIArt", "#DigitalArt", "#Wallpaper", "#FantasyArt", "#AnimeArt", "#MobileWallpaper", "#Art", "#Illustration"]
-
-def get_current_trending_hashtag():
-    return random.choice(SAFE_HASHTAGS)
-
-# -----------------------------
-# Memory (geçmiş paylaşımlar) - Güvenli
-# -----------------------------
-MEMORY_FILE = "memory.json"
-
-if not os.path.exists(MEMORY_FILE):
-    try:
-        with open(MEMORY_FILE, "w") as f:
-            json.dump([], f)
-    except:
-        pass
-
-def load_memory():
-    try:
-        with open(MEMORY_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
-
-def save_memory(item):
-    try:
-        memory = load_memory()
-        memory.append(item)
-        with open(MEMORY_FILE, "w") as f:
-            json.dump(memory, f)
-    except Exception as e:
-        print(f"⚠️ Memory kaydedilemedi: {e}")
-
-def is_duplicate(prompt):
-    try:
-        memory = load_memory()
-        return prompt in memory
-    except:
-        return False
+def get_hashtag():
+    tags = ["#AIArt", "#DigitalArt", "#Wallpaper", "#FantasyArt", "#AnimeArt", "#PhoneWallpaper"]
+    return random.choice(tags)
 
 # -----------------------------
-# 1. Fikir Üretici
+# Fikir Üret
 # -----------------------------
-def get_idea_ultimate():
-    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    instruction_prompt = f"""
-You are an imaginative mobile wallpaper artist.
-Today's date: {current_timestamp}
-You have complete creative freedom. Create unique, original phone wallpapers.
-Draw inspiration from popular culture, anime, fantasy, superheroes, supernatural, and mysterious characters.
-Exclude adult (18+) content.
+def get_idea():
+    prompt_text = f"""
+You are a creative mobile wallpaper artist. Create one unique, beautiful phone wallpaper idea.
+No adult content. Inspired by anime, fantasy, mystery, superheroes.
 Return exactly two lines:
-PROMPT: <English description of your creative wallpaper idea, including composition, colors, lighting, mood, references if any.>
-CAPTION: <Short poetic tweet caption (max 140 chars), no hashtags.>
+PROMPT: <detailed English description>
+CAPTION: <short poetic caption, max 100 chars, no hashtags>
 """
-    # Groq
+    # Groq öncelikli
     if GROQ_KEY:
         try:
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-            data = {
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.4,
-                "top_p": 0.95,
-                "max_tokens": 500
-            }
-            r = requests.post(url, headers=headers, json=data, timeout=30)
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt_text}],
+                    "temperature": 1.3,
+                    "max_tokens": 300
+                },
+                timeout=30
+            )
             if r.status_code == 200:
                 content = r.json()['choices'][0]['message']['content']
                 lines = [l.strip() for l in content.split('\n') if l.strip()]
-                prompt_line = next((l for l in lines if l.startswith("PROMPT:")), None)
-                caption_line = next((l for l in lines if l.startswith("CAPTION:")), None)
-                if prompt_line and caption_line:
-                    return prompt_line[7:].strip(), caption_line[8:].strip()
+                p = next((l[7:].strip() for l in lines if l.startswith("PROMPT:")), None)
+                c = next((l[8:].strip() for l in lines if l.startswith("CAPTION:")), None)
+                if p and c:
+                    return p, c
         except Exception as e:
-            print(f"⚠️ Groq hatası: {e}")
+            print(f"Groq hatası: {e}")
 
-    # Gemini
+    # Gemini yedek
     if GEMINI_KEY and genai:
         try:
             genai.configure(api_key=GEMINI_KEY)
             model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(
-                instruction_prompt,
-                generation_config=genai.types.GenerationConfig(temperature=1.3, top_p=0.95, max_output_tokens=500)
-            )
+            response = model.generate_content(prompt_text)
             text = response.text
             lines = [l.strip() for l in text.split('\n') if l.strip()]
-            prompt_line = next((l for l in lines if l.startswith("PROMPT:")), None)
-            caption_line = next((l for l in lines if l.startswith("CAPTION:")), None)
-            if prompt_line and caption_line:
-                return prompt_line[7:].strip(), caption_line[8:].strip()
+            p = next((l[7:].strip() for l in lines if l.startswith("PROMPT:")), None)
+            c = next((l[8:].strip() for l in lines if l.startswith("CAPTION:")), None)
+            if p and c:
+                return p, c
         except Exception as e:
-            print(f"⚠️ Gemini hatası: {e}")
+            print(f"Gemini hatası: {e}")
 
     # Fallback
-    fallback_prompts = [
-        "A mysterious anime character under a glowing moon",
-        "A superhero silhouette in soft pastel clouds",
-        "Fantasy forest with floating lanterns",
-        "Mystical creature in a foggy night scene",
-        "Ethereal character in a vibrant aurora sky"
-    ]
-    fallback_captions = ["mystery unfolds", "dreams take flight", "beyond the shadows", "magic whispers", "enchanting night"]
-    return random.choice(fallback_prompts), random.choice(fallback_captions)
+    return (
+        "Mysterious anime girl with glowing eyes under cherry blossoms at night",
+        "Whispers in the moonlight"
+    )
 
-def prepare_final_prompt(prompt):
-    return f"{prompt}, vertical phone wallpaper, 9:21 aspect ratio, soft lighting, subtle colors, clean design, negative space"
+def final_prompt(text):
+    return f"{text}, vertical phone wallpaper, 9:21 ratio, beautiful lighting, high detail, aesthetic"
 
 # -----------------------------
-# 2. AI HORDE GENERATION
+# Resim Üret
 # -----------------------------
-def try_generate_image(prompt_text):
-    final_prompt = prepare_final_prompt(prompt_text)
-    unique_seed = str(random.randint(1, 9999999999))
+def generate_image(prompt):
     payload = {
-        "prompt": final_prompt,
-        "params": {"sampler_name":"k_dpmpp_2m","cfg_scale":7,"width":640,"height":1408,"steps":30,"seed":unique_seed,"post_processing":["RealESRGAN_x4plus"]},
-        "nsfw": False, "censor_nsfw": True,
+        "prompt": final_prompt(prompt),
+        "params": {
+            "sampler_name": "k_dpmpp_2m",
+            "cfg_scale": 7,
+            "width": 640,
+            "height": 1408,
+            "steps": 30,
+            "post_processing": ["RealESRGAN_x4plus"]
+        },
+        "nsfw": False,
+        "censor_nsfw": True,
         "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"]
     }
     headers = {"apikey": HORDE_KEY, "Client-Agent": "AutonomousArtistBot"}
@@ -194,114 +153,75 @@ def try_generate_image(prompt_text):
     try:
         r = requests.post("https://stablehorde.net/api/v2/generate/async", headers=headers, json=payload, timeout=30)
         if r.status_code != 200:
-            print("⚠️ Horde async hatası:", r.json())
+            print("Horde hatası:", r.json())
             return None
         task_id = r.json().get("id")
         if not task_id:
-            print("⚠️ Task ID alınamadı:", r.json())
             return None
-    except Exception as e:
-        print("⚠️ Horde istek hatası:", e)
-        return None
 
-    wait_time = 0
-    while wait_time < 1800:
-        time.sleep(20)
-        wait_time += 20
-        try:
-            status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}", timeout=30).json()
+        print("🖼️ Resim sıraya alındı, bekleniyor... (max 15 dk)")
+        for _ in range(45):  # 15 dakika max
+            time.sleep(20)
+            status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}").json()
             if status.get("done") and status.get("generations"):
                 img_url = status["generations"][0]["img"]
                 return requests.get(img_url, timeout=60).content
-        except Exception as e:
-            print("⚠️ Status kontrol hatası:", e)
-    print("⚠️ Horde zaman aşımı (30 dk)")
-    return None
+        print("⏰ Zaman aşımı, resim gelmedi.")
+        return None
+    except Exception as e:
+        print("Horde bağlantı hatası:", e)
+        return None
 
 # -----------------------------
-# 3. TWITTER POST
+# Tweet At
 # -----------------------------
-def post_to_twitter(img_bytes, caption):
-    trending_tag = get_current_trending_hashtag()
-    hashtags = "#Wallpaper #DigitalArt #PhoneWallpaper #FantasyArt #Anime"
-    final_caption = f"{caption} {hashtags} {trending_tag}"
-    if len(final_caption) > 280:
-        final_caption = final_caption[:277] + "..."
+def tweet_image(img_bytes, caption):
+    tag = get_hashtag()
+    text = f"{caption} #Wallpaper #DigitalArt #AIArt #PhoneWallpaper {tag}"
+    if len(text) > 280:
+        text = text[:277] + "..."
 
-    filename = "wallpaper.png"
+    filename = "art.png"
+    with open(filename, "wb") as f:
+        f.write(img_bytes)
+
     try:
-        with open(filename, "wb") as f:
-            f.write(img_bytes)
-
         auth = OAuthHandler(API_KEY, API_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-        api = API(auth, wait_on_rate_limit=True)
-        
+        api = API(auth)
         media = api.media_upload(filename)
-        
-        client = Client(
-            consumer_key=API_KEY,
-            consumer_secret=API_SECRET,
-            access_token=ACCESS_TOKEN,
-            access_token_secret=ACCESS_SECRET,
-            wait_on_rate_limit=True
-        )
-        
-        client.create_tweet(text=final_caption, media_ids=[media.media_id])
-        print("🐦 TWEET BAŞARIYLA ATILDI!")
+
+        client = Client(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
+        client.create_tweet(text=text, media_ids=[media.media_id])
+
+        print("🎉 TWEET BAŞARIYLA ATILDI!")
+        print(f"Metin: {text}")
         return True
     except Exception as e:
         print(f"❌ Tweet hatası: {str(e)}")
         return False
     finally:
         if os.path.exists(filename):
-            try:
-                os.remove(filename)
-            except:
-                pass
+            os.remove(filename)
 
 # -----------------------------
-# MAIN LOOP - TEST MODU (60 saniye bekleme)
+# ANA ÇALIŞMA - SADECE 1 KEZ
 # -----------------------------
-if __name__ == "__main__":
-    print("🚀 Autonomous Artist Bot başlatıldı - TEST MODU (60 sn bekleme)")
-    
-    # İlk çalıştırmada duplicate kontrolünü atla (hemen paylaşsın)
-    first_run = True
-    
-    while True:
-        try:
-            prompt, caption = get_idea_ultimate()
-            print(f"🎨 Yeni fikir: {prompt[:80]}...")
+print("🚀 Tek seferlik Autonomous Artist başlatılıyor...\n")
 
-            # İlk çalıştırmada duplicate olsa bile paylaş
-            if is_duplicate(prompt) and not first_run:
-                print("⚠️ Bu prompt daha önce kullanıldı, yenisi üretiliyor...")
-                time.sleep(10)
-                continue
+prompt, caption = get_idea()
+print(f"🎨 Fikir: {prompt}")
+print(f"💬 Caption: {caption}\n")
 
-            print("🖼️ Resim üretiliyor (AI Horde ile)...")
-            img = try_generate_image(prompt)
+img = generate_image(prompt)
 
-            if img:
-                print("📤 Tweet atılıyor...")
-                if post_to_twitter(img, caption):
-                    save_memory(prompt)
-                    print("✅ Paylaşım başarılı!")
-                else:
-                    print("⚠️ Tweet atılamadı.")
-            else:
-                print("⚠️ Resim üretilemedi.")
+if img:
+    print("📤 Tweet gönderiliyor...")
+    if tweet_image(img, caption):
+        print("\n✅ Her şey tamam! Bot başarıyla çalıştı.")
+    else:
+        print("\n⚠️ Tweet atılamadı ama resim üretildi.")
+else:
+    print("\n⚠️ Resim üretilemedi.")
 
-            first_run = False
-
-        except Exception as e:
-            print(f"🔥 Genel hata: {str(e)}")
-
-        print("⏳ Bir sonraki paylaşım için 60 saniye bekleniyor... (Test modu)")
-        print("   Gerçek kullanımda bunu 7200 yap: time.sleep(7200)\n")
-        
-        time.sleep(60)  # TEST İÇİN 60 SANİYE
-        
-        # Gerçek kullanımda şu satırı aç:
-        # time.sleep(7200)  # 2 saat
+print("\nBot bitti. GitHub Actions tamamlandı.")
