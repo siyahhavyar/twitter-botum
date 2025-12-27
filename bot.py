@@ -3,19 +3,16 @@ import time
 import requests
 import tweepy
 import random
-import json
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
-# Google GenAI - Güncel import
+# Google GenAI
 try:
     import google.genai as genai
 except ImportError:
     genai = None
 
-# -----------------------------
-# ENV KEYS
-# -----------------------------
+# KEYS
 API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
 ACCESS_TOKEN  = os.getenv("ACCESS_TOKEN")
@@ -24,13 +21,12 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
 print("🔑 Key Durumu:")
-print(f"Twitter API Key: {'Var' if API_KEY else 'YOK'}")
-print(f"Twitter Access Token: {'Var' if ACCESS_TOKEN else 'YOK'}")
-print(f"Gemini Key: {'Var' if GEMINI_KEY else 'YOK'}")
-print(f"Groq Key: {'Var' if GROQ_KEY else 'YOK'}")
+print(f"Twitter: {'Var' if API_KEY and ACCESS_TOKEN else 'Eksik!'}")
+print(f"Gemini: {'Var' if GEMINI_KEY else 'Yok'}")
+print(f"Groq: {'Var' if GROQ_KEY else 'Yok'}")
 
 # -----------------------------
-# HORDE KEYS
+# 8 HORDE KEY - KUDOS KONTROLÜYLE SEÇİM
 # -----------------------------
 HORDE_KEYS = [
     "cQ9Kty7vhFWfD8nddDOq7Q",
@@ -42,93 +38,84 @@ HORDE_KEYS = [
     "Q-zqB1m-7kjc5pywX52uKg"
 ]
 
-HORDE_KEY = "0000000000"
-print("🔑 Horde key'leri test ediliyor...")
+HORDE_KEY = None
+print("🔍 Horde key'leri kontrol ediliyor (kudos miktarı bakılıyor)...")
 
 for key in HORDE_KEYS:
     try:
-        response = requests.get(
+        # Kullanıcı bilgisi ve kudos miktarı
+        info = requests.get(
             "https://stablehorde.net/api/v2/find_user",
             headers={"apikey": key, "Client-Agent": "AutonomousArtistBot"},
             timeout=15
-        )
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("id"):
-                HORDE_KEY = key
-                print(f"✅ ÇALIŞAN KEY: {key[:8]}... (User: {data.get('username')})")
-                break
-    except:
-        continue
+        ).json()
 
-if HORDE_KEY == "0000000000":
-    print("⚠️ Horde key çalışmadı, anonim modda devam...")
+        if info.get("kudos") is not None:
+            kudos = info.get("kudos", 0)
+            username = info.get("username", "Bilinmeyen")
+            print(f"   {key[:8]}... → {username} → {kudos} kudos")
+
+            if kudos >= 50:  # 44 maliyetli prompt için güvenli sınır
+                HORDE_KEY = key
+                print(f"✅ YETERLİ KUDOS BULUNDU: {key[:8]}... ({kudos} kudos)")
+                break
+    except Exception as e:
+        print(f"   {key[:8]}... → Test hatası: {e}")
+
+if not HORDE_KEY:
+    print("❌ Hiçbir key'de yeterli kudos yok (en az 50 lazım).")
+    print("   Çözüm: Yeni bir Horde hesabı açıp key al[](https://stablehorde.net/register)")
+    print("   Veya mevcut hesaba kudos kazan (görev yaparak).")
+    exit()  # Bot burada dursun, boşuna çalışmasın
 
 # -----------------------------
-# Güvenli Hashtag
+# Hashtag
 # -----------------------------
 def get_hashtag():
-    tags = ["#AIArt", "#DigitalArt", "#Wallpaper", "#FantasyArt", "#AnimeArt", "#PhoneWallpaper"]
-    return random.choice(tags)
+    return random.choice(["#AIArt", "#DigitalArt", "#Wallpaper", "#FantasyArt", "#AnimeArt", "#PhoneWallpaper"])
 
 # -----------------------------
 # Fikir Üret
 # -----------------------------
 def get_idea():
-    prompt_text = f"""
-You are a creative mobile wallpaper artist. Create one unique, beautiful phone wallpaper idea.
-No adult content. Inspired by anime, fantasy, mystery, superheroes.
+    prompt_text = """
+You are a creative mobile wallpaper artist.
+Create one unique, beautiful vertical phone wallpaper idea.
+Inspiration: anime, fantasy, mystery, superheroes.
+No adult content.
 Return exactly two lines:
 PROMPT: <detailed English description>
 CAPTION: <short poetic caption, max 100 chars, no hashtags>
 """
-    # Groq öncelikli
     if GROQ_KEY:
         try:
-            r = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
+            r = requests.post("https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {GROQ_KEY}"},
-                json={
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [{"role": "user", "content": prompt_text}],
-                    "temperature": 1.3,
-                    "max_tokens": 300
-                },
-                timeout=30
-            )
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt_text}], "temperature": 1.3},
+                timeout=30)
             if r.status_code == 200:
                 content = r.json()['choices'][0]['message']['content']
                 lines = [l.strip() for l in content.split('\n') if l.strip()]
                 p = next((l[7:].strip() for l in lines if l.startswith("PROMPT:")), None)
                 c = next((l[8:].strip() for l in lines if l.startswith("CAPTION:")), None)
-                if p and c:
-                    return p, c
-        except Exception as e:
-            print(f"Groq hatası: {e}")
+                if p and c: return p, c
+        except: pass
 
-    # Gemini yedek
     if GEMINI_KEY and genai:
         try:
             genai.configure(api_key=GEMINI_KEY)
             model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(prompt_text)
-            text = response.text
-            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            lines = [l.strip() for l in response.text.split('\n') if l.strip()]
             p = next((l[7:].strip() for l in lines if l.startswith("PROMPT:")), None)
             c = next((l[8:].strip() for l in lines if l.startswith("CAPTION:")), None)
-            if p and c:
-                return p, c
-        except Exception as e:
-            print(f"Gemini hatası: {e}")
+            if p and c: return p, c
+        except: pass
 
-    # Fallback
-    return (
-        "Mysterious anime girl with glowing eyes under cherry blossoms at night",
-        "Whispers in the moonlight"
-    )
+    return "A lone warrior standing on a cliff under a starry sky with aurora lights", "Eternal Vigil"
 
-def final_prompt(text):
-    return f"{text}, vertical phone wallpaper, 9:21 ratio, beautiful lighting, high detail, aesthetic"
+def final_prompt(p):
+    return f"{p}, vertical phone wallpaper, 9:21 aspect ratio, masterpiece, highly detailed, cinematic lighting"
 
 # -----------------------------
 # Resim Üret
@@ -141,7 +128,7 @@ def generate_image(prompt):
             "cfg_scale": 7,
             "width": 640,
             "height": 1408,
-            "steps": 30,
+            "steps": 28,
             "post_processing": ["RealESRGAN_x4plus"]
         },
         "nsfw": False,
@@ -151,37 +138,46 @@ def generate_image(prompt):
     headers = {"apikey": HORDE_KEY, "Client-Agent": "AutonomousArtistBot"}
 
     try:
-        r = requests.post("https://stablehorde.net/api/v2/generate/async", headers=headers, json=payload, timeout=30)
-        if r.status_code != 200:
-            print("Horde hatası:", r.json())
-            return None
-        task_id = r.json().get("id")
-        if not task_id:
+        r = requests.post("https://stablehorde.net/api/v2/generate/async", headers=headers, json=payload, timeout=60)
+        data = r.json()
+
+        if "message" in data:
+            print(f"❌ Horde reddetti: {data['message']}")
             return None
 
-        print("🖼️ Resim sıraya alındı, bekleniyor... (max 15 dk)")
-        for _ in range(45):  # 15 dakika max
+        task_id = data.get("id")
+        if not task_id:
+            print("❌ Task ID alınamadı:", data)
+            return None
+
+        print(f"🖼️ Görev başladı (ID: {task_id}), resim bekleniyor...")
+        
+        for _ in range(60):  # 20 dakika max
             time.sleep(20)
             status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}").json()
             if status.get("done") and status.get("generations"):
                 img_url = status["generations"][0]["img"]
+                print("✅ Resim tamamlandı!")
                 return requests.get(img_url, timeout=60).content
-        print("⏰ Zaman aşımı, resim gelmedi.")
+            if status.get("faulted"):
+                print("❌ Görev başarısız oldu.")
+                return None
+
+        print("⏰ Zaman aşımı (20 dk geçti)")
         return None
     except Exception as e:
-        print("Horde bağlantı hatası:", e)
+        print("❌ Bağlantı hatası:", e)
         return None
 
 # -----------------------------
 # Tweet At
 # -----------------------------
 def tweet_image(img_bytes, caption):
-    tag = get_hashtag()
-    text = f"{caption} #Wallpaper #DigitalArt #AIArt #PhoneWallpaper {tag}"
+    text = f"{caption} #AIArt #Wallpaper #DigitalArt #FantasyArt {get_hashtag()}"
     if len(text) > 280:
         text = text[:277] + "..."
 
-    filename = "art.png"
+    filename = "wallpaper.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
 
@@ -190,12 +186,10 @@ def tweet_image(img_bytes, caption):
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = API(auth)
         media = api.media_upload(filename)
-
         client = Client(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
         client.create_tweet(text=text, media_ids=[media.media_id])
-
         print("🎉 TWEET BAŞARIYLA ATILDI!")
-        print(f"Metin: {text}")
+        print(f"📝 {text}")
         return True
     except Exception as e:
         print(f"❌ Tweet hatası: {str(e)}")
@@ -205,23 +199,19 @@ def tweet_image(img_bytes, caption):
             os.remove(filename)
 
 # -----------------------------
-# ANA ÇALIŞMA - SADECE 1 KEZ
+# ANA ÇALIŞMA
 # -----------------------------
-print("🚀 Tek seferlik Autonomous Artist başlatılıyor...\n")
+print("\n🚀 Autonomous Artist başlıyor...\n")
 
 prompt, caption = get_idea()
-print(f"🎨 Fikir: {prompt}")
+print(f"🎨 Prompt: {prompt}")
 print(f"💬 Caption: {caption}\n")
 
 img = generate_image(prompt)
 
-if img:
-    print("📤 Tweet gönderiliyor...")
-    if tweet_image(img, caption):
-        print("\n✅ Her şey tamam! Bot başarıyla çalıştı.")
-    else:
-        print("\n⚠️ Tweet atılamadı ama resim üretildi.")
+if img and tweet_image(img, caption):
+    print("\n✅ Bot başarıyla tamamladı! Tweet atıldı.")
 else:
-    print("\n⚠️ Resim üretilemedi.")
+    print("\n⚠️ Bir aşamada hata oldu.")
 
-print("\nBot bitti. GitHub Actions tamamlandı.")
+print("\nGitHub Actions bitti.")
