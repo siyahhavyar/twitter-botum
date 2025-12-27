@@ -26,7 +26,7 @@ print(f"Gemini: {'Var' if GEMINI_KEY else 'Yok'}")
 print(f"Groq: {'Var' if GROQ_KEY else 'Yok'}")
 
 # -----------------------------
-# 8 HORDE KEY - KUDOS KONTROLÜYLE SEÇİM
+# HORDE KEYS - EN YÜKSEK KUDOS'LU SEÇ
 # -----------------------------
 HORDE_KEYS = [
     "cQ9Kty7vhFWfD8nddDOq7Q",
@@ -39,34 +39,29 @@ HORDE_KEYS = [
 ]
 
 HORDE_KEY = None
-print("🔍 Horde key'leri kontrol ediliyor (kudos miktarı bakılıyor)...")
+max_kudos = 0
+print("🔍 Horde key'leri kontrol ediliyor...")
 
 for key in HORDE_KEYS:
     try:
-        # Kullanıcı bilgisi ve kudos miktarı
-        info = requests.get(
-            "https://stablehorde.net/api/v2/find_user",
-            headers={"apikey": key, "Client-Agent": "AutonomousArtistBot"},
-            timeout=15
-        ).json()
-
-        if info.get("kudos") is not None:
-            kudos = info.get("kudos", 0)
-            username = info.get("username", "Bilinmeyen")
-            print(f"   {key[:8]}... → {username} → {kudos} kudos")
-
-            if kudos >= 50:  # 44 maliyetli prompt için güvenli sınır
-                HORDE_KEY = key
-                print(f"✅ YETERLİ KUDOS BULUNDU: {key[:8]}... ({kudos} kudos)")
-                break
-    except Exception as e:
-        print(f"   {key[:8]}... → Test hatası: {e}")
+        info = requests.get("https://stablehorde.net/api/v2/find_user", headers={"apikey": key}, timeout=15).json()
+        kudos = info.get("kudos", 0)
+        username = info.get("username", "Bilinmeyen")
+        print(f"   {key[:8]}... → {username} → {kudos} kudos")
+        if kudos > max_kudos:
+            max_kudos = kudos
+            HORDE_KEY = key
+    except:
+        pass
 
 if not HORDE_KEY:
-    print("❌ Hiçbir key'de yeterli kudos yok (en az 50 lazım).")
-    print("   Çözüm: Yeni bir Horde hesabı açıp key al[](https://stablehorde.net/register)")
-    print("   Veya mevcut hesaba kudos kazan (görev yaparak).")
-    exit()  # Bot burada dursun, boşuna çalışmasın
+    print("❌ Hiçbir key çalışmadı.")
+    exit()
+
+print(f"✅ Seçilen key: {HORDE_KEY[:8]}... ({max_kudos} kudos)")
+
+if max_kudos < 30:
+    print("⚠️ Kudos düşük (30+ önerilir), ama düşük maliyetli ayarlarla deniyoruz...")
 
 # -----------------------------
 # Hashtag
@@ -79,13 +74,12 @@ def get_hashtag():
 # -----------------------------
 def get_idea():
     prompt_text = """
-You are a creative mobile wallpaper artist.
-Create one unique, beautiful vertical phone wallpaper idea.
-Inspiration: anime, fantasy, mystery, superheroes.
-No adult content.
+Creative mobile wallpaper artist.
+One unique vertical phone wallpaper idea (anime, fantasy, mystery).
+No adult.
 Return exactly two lines:
 PROMPT: <detailed English description>
-CAPTION: <short poetic caption, max 100 chars, no hashtags>
+CAPTION: <short poetic caption, max 100 chars>
 """
     if GROQ_KEY:
         try:
@@ -101,24 +95,13 @@ CAPTION: <short poetic caption, max 100 chars, no hashtags>
                 if p and c: return p, c
         except: pass
 
-    if GEMINI_KEY and genai:
-        try:
-            genai.configure(api_key=GEMINI_KEY)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(prompt_text)
-            lines = [l.strip() for l in response.text.split('\n') if l.strip()]
-            p = next((l[7:].strip() for l in lines if l.startswith("PROMPT:")), None)
-            c = next((l[8:].strip() for l in lines if l.startswith("CAPTION:")), None)
-            if p and c: return p, c
-        except: pass
-
-    return "A lone warrior standing on a cliff under a starry sky with aurora lights", "Eternal Vigil"
+    return "Glowing anime character in mystical forest under stars", "Eternal Dream"
 
 def final_prompt(p):
-    return f"{p}, vertical phone wallpaper, 9:21 aspect ratio, masterpiece, highly detailed, cinematic lighting"
+    return f"{p}, vertical phone wallpaper, highly detailed, beautiful lighting, masterpiece"
 
 # -----------------------------
-# Resim Üret
+# Resim Üret - DÜŞÜK MALİYETLİ AYARLAR
 # -----------------------------
 def generate_image(prompt):
     payload = {
@@ -126,10 +109,10 @@ def generate_image(prompt):
         "params": {
             "sampler_name": "k_dpmpp_2m",
             "cfg_scale": 7,
-            "width": 640,
-            "height": 1408,
-            "steps": 28,
-            "post_processing": ["RealESRGAN_x4plus"]
+            "width": 512,      # Düşük çözünürlük
+            "height": 1024,    # Dikey wallpaper için yeterli
+            "steps": 20,       # Az step
+            # post_processing kaldırıldı (maliyet düşsün)
         },
         "nsfw": False,
         "censor_nsfw": True,
@@ -140,43 +123,32 @@ def generate_image(prompt):
     try:
         r = requests.post("https://stablehorde.net/api/v2/generate/async", headers=headers, json=payload, timeout=60)
         data = r.json()
-
-        if "message" in data:
-            print(f"❌ Horde reddetti: {data['message']}")
+        if not data.get("id"):
+            print("❌ Horde reddetti:", data)
             return None
 
-        task_id = data.get("id")
-        if not task_id:
-            print("❌ Task ID alınamadı:", data)
-            return None
+        task_id = data["id"]
+        print(f"🖼️ Görev başladı (maliyet düşük, {task_id})")
 
-        print(f"🖼️ Görev başladı (ID: {task_id}), resim bekleniyor...")
-        
-        for _ in range(60):  # 20 dakika max
+        for _ in range(45):  # 15 dk max
             time.sleep(20)
             status = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}").json()
             if status.get("done") and status.get("generations"):
                 img_url = status["generations"][0]["img"]
-                print("✅ Resim tamamlandı!")
+                print("✅ Resim hazır!")
                 return requests.get(img_url, timeout=60).content
-            if status.get("faulted"):
-                print("❌ Görev başarısız oldu.")
-                return None
 
-        print("⏰ Zaman aşımı (20 dk geçti)")
+        print("⏰ Zaman aşımı")
         return None
     except Exception as e:
-        print("❌ Bağlantı hatası:", e)
+        print("❌ Hata:", e)
         return None
 
 # -----------------------------
 # Tweet At
 # -----------------------------
 def tweet_image(img_bytes, caption):
-    text = f"{caption} #AIArt #Wallpaper #DigitalArt #FantasyArt {get_hashtag()}"
-    if len(text) > 280:
-        text = text[:277] + "..."
-
+    text = f"{caption} #AIArt #Wallpaper #DigitalArt {get_hashtag()}"
     filename = "wallpaper.png"
     with open(filename, "wb") as f:
         f.write(img_bytes)
@@ -188,20 +160,19 @@ def tweet_image(img_bytes, caption):
         media = api.media_upload(filename)
         client = Client(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
         client.create_tweet(text=text, media_ids=[media.media_id])
-        print("🎉 TWEET BAŞARIYLA ATILDI!")
-        print(f"📝 {text}")
+        print("🎉 TWEET ATILDI!")
         return True
     except Exception as e:
-        print(f"❌ Tweet hatası: {str(e)}")
+        print(f"❌ Tweet hatası: {e}")
         return False
     finally:
         if os.path.exists(filename):
             os.remove(filename)
 
 # -----------------------------
-# ANA ÇALIŞMA
+# ANA
 # -----------------------------
-print("\n🚀 Autonomous Artist başlıyor...\n")
+print("\n🚀 Bot başlıyor (düşük maliyet modu)...\n")
 
 prompt, caption = get_idea()
 print(f"🎨 Prompt: {prompt}")
@@ -210,8 +181,8 @@ print(f"💬 Caption: {caption}\n")
 img = generate_image(prompt)
 
 if img and tweet_image(img, caption):
-    print("\n✅ Bot başarıyla tamamladı! Tweet atıldı.")
+    print("\n✅ Başarılı! Tweet atıldı.")
 else:
-    print("\n⚠️ Bir aşamada hata oldu.")
+    print("\n⚠️ Hala sorun var.")
 
-print("\nGitHub Actions bitti.")
+print("\nBitti.")
