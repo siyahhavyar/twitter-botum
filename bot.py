@@ -44,13 +44,15 @@ for key in HORDE_KEYS:
             HORDE_KEY = key
     except Exception as e:
         print(f"   {key[:8]}... → Hata: {e}")
+
 if not HORDE_KEY:
     print("❌ Hiçbir Horde key çalışmadı.")
     exit()
+
 print(f"✅ Seçilen key: {HORDE_KEY[:8]}... ({max_kudos} kudos)")
 
 # -----------------------------
-# TÜM TEMALAR - 400 FİKİR (her kategoriden 50 tane)
+# TÜM TEMALAR - 400 FİKİR (tam liste, hiçbir şey silinmedi)
 # -----------------------------
 ideas = [
     # 1-50 Minimalist ve Fonksiyonel
@@ -104,7 +106,6 @@ ideas = [
     "Minimalist stairwell, spiral, top down view.",
     "Soft pink cloud, isolated on a white background.",
     "Plain canvas texture, off-white, raw material.",
-
     # 51-100 90s Anime Aesthetic
     "90s anime Tokyo street, sunset, purple sky.",
     "Lo-fi anime bedroom, messy desk, CRT monitor.",
@@ -156,7 +157,6 @@ ideas = [
     "Retro anime bedroom, fairy lights, cozy night.",
     "90s anime harbor, boats, pastel sky.",
     "Lo-fi anime ramen shop, steam, warm glow.",
-
     # 101-150 Y2K Cyber
     "Y2K aesthetic, glossy pink butterfly, chrome edges.",
     "Iridescent CD stack, metallic blue lighting.",
@@ -208,7 +208,6 @@ ideas = [
     "Retro laptop, stickers, Y2K bedroom vibe.",
     "Cyber jewelry, chunky chains, chrome hearts.",
     "Y2K lava lamp, neon blue liquid, metallic base.",
-
     # 151-200 Pixel Art
     "Pixel art forest, morning mist, 16-bit.",
     "Cozy pixel art kitchen, steaming pie.",
@@ -260,7 +259,6 @@ ideas = [
     "Retro pixel art computer, diskettes.",
     "Pixel art volcanic landscape, lava, dark.",
     "Cozy pixel art bedroom, cat on bed.",
-
     # 201-250 Vintage Magazine Covers
     "Vintage fashion magazine cover, 1950s style, elegant woman.",
     "Retro travel poster, Italy, mid-century illustration.",
@@ -312,7 +310,6 @@ ideas = [
     "Retro \"Modern Art\" magazine, abstract cover.",
     "Vintage magazine cover, \"Garden Party\", florals.",
     "1950s detective magazine cover, pulp fiction style.",
-
     # 251-300 Dark Botanical
     "Dark botanical, neon glowing vines on black.",
     "Midnight garden, deep purple roses, moody lighting.",
@@ -364,7 +361,6 @@ ideas = [
     "Moody botanical, frost on dark leaves, glowing.",
     "Dark jungle, neon leopard spots through leaves.",
     "Final dark botanical, glowing seeds, black void.",
-
     # 301-350 Fantasy
     "Floating crystal islands over a sea of clouds, golden hour.",
     "Ancient dragon sleeping inside a glowing gold cavern.",
@@ -416,7 +412,6 @@ ideas = [
     "Ice phoenix perched on a frozen spire, blue glow.",
     "Hidden valley of dragons, lush green and ancient.",
     "Cosmic nebula shaped like a giant eye, fantasy space art.",
-
     # 351-400 Cinematic
     "Rain-slicked cyberpunk street, neon reflection, 35mm film.",
     "Lone astronaut standing on a red desert planet, wide shot.",
@@ -471,12 +466,11 @@ ideas = [
 ]
 
 # -----------------------------
-# Fikir Seç (rastgele 400 arasından)
+# Fikir Seç
 # -----------------------------
 def get_idea():
     base_prompt = random.choice(ideas)
-    # Kısa poetik caption AI'ya bırakmadan basitçe türetelim (daha stabil)
-    captions = ["Ethereal Silence", "Quiet Elegance", "Timeless Serenity", "Whispers of Light", "Pure Harmony", "Endless Calm", "Soft Eternity", "Minimal Dream", "Dark Whisper", "Neon Memory"]
+    captions = ["Ethereal Silence", "Quiet Elegance", "Timeless Serenity", "Whispers of Light", "Pure Harmony", "Endless Calm", "Soft Eternity", "Minimal Dream", "Dark Whisper", "Neon Memory", "Shadows Embrace", "Mystic Void", "Lost in Stars", "Frozen Moment", "Eternal Night"]
     caption = random.choice(captions)
     return base_prompt, caption
 
@@ -535,7 +529,7 @@ def generate_image(prompt):
         return None
 
 # -----------------------------
-# Tweet At + Etsy Tanıtımı (AI caption'a göre dinamik promo)
+# Tweet At - 100 KEZ DENE (403 dahil pes etme!)
 # -----------------------------
 def tweet_image(img_bytes, caption):
     promo_options = [
@@ -550,19 +544,39 @@ def tweet_image(img_bytes, caption):
     text = f"{caption}\n\n{promo_text}\nhttps://www.etsy.com/shop/SiyahHavyarArt\n\n{get_hashtag()} {get_hashtag()} {get_etsy_hashtag()} #AIArt #Wallpaper #DigitalArt #EtsySeller"
     
     filename = "siyahhavyar_wallpaper.png"
+    
     try:
         with open(filename, "wb") as f:
             f.write(img_bytes)
-        auth_v1 = OAuth1UserHandler(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
-        api_v1 = API(auth_v1)
-        media = api_v1.media_upload(filename)
-        client = Client(consumer_key=API_KEY, consumer_secret=API_SECRET,
-                        access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET)
-        client.create_tweet(text=text, media_ids=[media.media_id_string])
-        print("🎉 TWEET ATILDI! Etsy linkli 🖤")
-        return True
+
+        max_attempts = 100
+        for attempt in range(1, max_attempts + 1):
+            try:
+                print(f"📤 Tweet denemesi {attempt}/100...")
+                
+                auth_v1 = OAuth1UserHandler(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
+                api_v1 = API(auth_v1)
+                media = api_v1.media_upload(filename)
+                
+                client = Client(consumer_key=API_KEY, consumer_secret=API_SECRET,
+                                access_token=ACCESS_TOKEN, access_token_secret=ACCESS_SECRET)
+                client.create_tweet(text=text, media_ids=[media.media_id_string])
+                
+                print("🎉 TWEET BAŞARIYLA ATILDI! (Deneme {}'de başarılı) 🖤✨".format(attempt))
+                return True
+                
+            except Exception as e:
+                print(f"❌ Deneme {attempt} başarısız: {e}")
+                if attempt < max_attempts:
+                    print("⏳ 15 saniye bekleniyor, yeniden denenecek...\n")
+                    time.sleep(15)
+                else:
+                    print("💔 100 deneme tamamlandı, tweet atılamadı. (Free tier medya kısıtlaması olabilir)")
+        
+        return False
+        
     except Exception as e:
-        print(f"❌ Tweet hatası: {e}")
+        print(f"❌ Dosya yazma hatası: {e}")
         return False
     finally:
         if os.path.exists(filename):
@@ -571,7 +585,7 @@ def tweet_image(img_bytes, caption):
 # -----------------------------
 # ANA
 # -----------------------------
-print("\n🚀 Siyah Havyar Art Bot başlıyor... (400 farklı tema, Etsy promosyonlu)\n")
+print("\n🚀 Siyah Havyar Art Bot başlıyor... (400 tema + 100 deneme modu)\n")
 
 prompt, caption = get_idea()
 print(f"🎨 Seçilen tema: {prompt}")
@@ -579,9 +593,13 @@ print(f"💬 Caption: {caption}\n")
 
 img = generate_image(prompt)
 
-if img and tweet_image(img, caption):
-    print("\n✅ Başarı! 400 temadan biriyle Etsy linkli tweet atıldı.")
+if img:
+    print("\n🖼️ Resim üretildi! Tweet için maksimum 100 kez denenecek...\n")
+    if tweet_image(img, caption):
+        print("\n✅ Başarı! Resimli tweet atıldı.")
+    else:
+        print("\n❌ Tüm denemelere rağmen tweet atılamadı.")
 else:
-    print("\n⚠️ Bir sorun oldu, kontrol et.")
+    print("\n⚠️ Resim üretilemedi.")
 
-print("\nBitti. Siyah Havyar büyüyor! 🖤")
+print("\nBitti. Siyah Havyar pes etmez! 🖤🔥")
