@@ -9,7 +9,7 @@ from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
 # -----------------------------
-# ENV KEYS (GitHub Secrets üzerinden gelir)
+# ENV KEYS
 # -----------------------------
 API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
@@ -22,7 +22,7 @@ GROQ_KEY      = os.getenv("GROQ_API_KEY")
 ETSY_LINK = "https://siyahhavyarart.etsy.com"
 
 # -----------------------------
-# 300 ADET ÖZEL PROMPT LİSTESİ (9:22 FORMATINDA)
+# 300 ADET PROMPT LİSTESİ
 # -----------------------------
 ALL_PROMPTS = [
     # --- 1. Cyber-Zen Cityscapes ---
@@ -231,63 +231,4 @@ def get_smart_caption(selected_prompt):
 def try_generate_image(prompt_text):
     final_prompt = f"{prompt_text}, high-quality digital art, 8k resolution, cinematic lighting, masterpiece"
     generate_url = "https://stablehorde.net/api/v2/generate/async"
-    headers = {"apikey": HORDE_KEY if HORDE_KEY else "0000000000", "Client-Agent": "SiyahHavyarBot:1.0"}
-    
-    payload = {
-        "prompt": final_prompt,
-        "params": {
-            "sampler_name": "k_dpmpp_2m", 
-            "cfg_scale": 7.5, "width": 640, "height": 1408, "steps": 30,
-            "post_processing": ["RealESRGAN_x4plus"]
-        },
-        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"]
-    }
-
-    try:
-        req = requests.post(generate_url, json=payload, headers=headers, timeout=40)
-        if req.status_code == 202:
-            task_id = req.json()['id']
-            while True:
-                time.sleep(15)
-                check = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}")
-                status = check.json()
-                if status['done']:
-                    return requests.get(status['generations'][0]['img']).content
-                print(f"⌛ Sıra: {status.get('queue_position', '?')} | Hazırlanıyor...")
-    except: return None
-
-def post_to_twitter(img_bytes, caption_text):
-    final_text = f"{caption_text}\n\n🎨 Get high quality prints: {ETSY_LINK}"
-    filename = "wallpaper.png"
-    with open(filename, "wb") as f: f.write(img_bytes)
-
-    try:
-        auth = OAuthHandler(API_KEY, API_SECRET)
-        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-        api = API(auth)
-        media = api.media_upload(filename)
-        
-        client = Client(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
-        client.create_tweet(text=final_text, media_ids=[media.media_id])
-        print("🐦 Paylaşım başarıyla tamamlandı!")
-        return True
-    except Exception as e:
-        print(f"❌ Twitter hatası: {e}")
-        return False
-    finally:
-        if os.path.exists(filename): os.remove(filename)
-
-if __name__ == "__main__":
-    print(f"--- GITHUB ACTION BAŞLADI: {datetime.now()} ---")
-    
-    # 300'den rastgele seç
-    picked = random.choice(ALL_PROMPTS)
-    
-    # Açıklama ve Görsel oluştur
-    caption = get_smart_caption(picked)
-    image = try_generate_image(picked)
-    
-    if image:
-        post_to_twitter(image, caption)
-    else:
-        print("🚨 HATA: Görsel oluşturulamadı.")
+    headers
