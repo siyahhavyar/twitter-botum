@@ -9,7 +9,7 @@ from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
 # -----------------------------
-# ENV KEYS
+# ENV KEYS (GitHub Secrets üzerinden gelir)
 # -----------------------------
 API_KEY       = os.getenv("API_KEY")
 API_SECRET    = os.getenv("API_SECRET")
@@ -197,37 +197,97 @@ ALL_PROMPTS = [
 ]
 
 def get_smart_caption(selected_prompt):
-    """Groq veya Gemini kullanarak seçilen prompta uygun açıklama ve hashtag üretir."""
     instruction = f"""
-    Act as a creative social media manager. I have generated a wallpaper with this concept: "{selected_prompt}".
+    Act as a creative social media expert. A wallpaper was generated with this prompt: "{selected_prompt}".
     
-    1. Write an artistic, catchy, and brief Twitter caption for this image.
-    2. Ensure the tone matches the theme (e.g., if it's 'Dark Fantasy', make it mysterious).
-    3. Include 3-5 high-performing hashtags specifically related to the image content.
+    TASK:
+    1. Write a short, poetic, and engaging Twitter caption.
+    2. Ensure it reflects the theme of the image (e.g., mysterious for dark fantasy, cozy for anime).
+    3. Include 3-5 trending and relevant hashtags.
     
-    IMPORTANT: Return ONLY the caption and hashtags. Do not say "Here is your caption".
+    RULES: Return ONLY the caption and hashtags. Do not include any meta-talk.
     """
     
     if GROQ_KEY:
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-            data = {
-                "model": "llama-3.3-70b-versatile", 
-                "messages": [{"role": "user", "content": instruction}],
-                "temperature": 0.8
-            }
+            data = {"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": instruction}], "temperature": 0.8}
             response = requests.post(url, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
                 return response.json()['choices'][0]['message']['content'].strip()
         except: pass
-
+    
+    # Yedek Plan: Gemini
     if GEMINI_KEY:
         try:
             genai.configure(api_key=GEMINI_KEY)
             model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(instruction)
-            return response.text.strip()
+            return model.generate_content(instruction).text.strip()
         except: pass
 
-    return "Elevate your screen with this unique digital masterpiece. ✨ #Art #Wallpaper #Digital"
+    return "Transform your phone with this unique artistic piece! ✨ #DigitalArt #Art #Wallpaper"
+
+def try_generate_image(prompt_text):
+    final_prompt = f"{prompt_text}, high-quality digital art, 8k resolution, cinematic lighting, masterpiece"
+    generate_url = "https://stablehorde.net/api/v2/generate/async"
+    headers = {"apikey": HORDE_KEY if HORDE_KEY else "0000000000", "Client-Agent": "SiyahHavyarBot:1.0"}
+    
+    payload = {
+        "prompt": final_prompt,
+        "params": {
+            "sampler_name": "k_dpmpp_2m", 
+            "cfg_scale": 7.5, "width": 640, "height": 1408, "steps": 30,
+            "post_processing": ["RealESRGAN_x4plus"]
+        },
+        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"]
+    }
+
+    try:
+        req = requests.post(generate_url, json=payload, headers=headers, timeout=40)
+        if req.status_code == 202:
+            task_id = req.json()['id']
+            while True:
+                time.sleep(15)
+                check = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}")
+                status = check.json()
+                if status['done']:
+                    return requests.get(status['generations'][0]['img']).content
+                print(f"⌛ Sıra: {status.get('queue_position', '?')} | Hazırlanıyor...")
+    except: return None
+
+def post_to_twitter(img_bytes, caption_text):
+    final_text = f"{caption_text}\n\n🎨 Get high quality prints: {ETSY_LINK}"
+    filename = "wallpaper.png"
+    with open(filename, "wb") as f: f.write(img_bytes)
+
+    try:
+        auth = OAuthHandler(API_KEY, API_SECRET)
+        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+        api = API(auth)
+        media = api.media_upload(filename)
+        
+        client = Client(API_KEY, API_SECRET, ACCESS_TOKEN, ACCESS_SECRET)
+        client.create_tweet(text=final_text, media_ids=[media.media_id])
+        print("🐦 Paylaşım başarıyla tamamlandı!")
+        return True
+    except Exception as e:
+        print(f"❌ Twitter hatası: {e}")
+        return False
+    finally:
+        if os.path.exists(filename): os.remove(filename)
+
+if __name__ == "__main__":
+    print(f"--- GITHUB ACTION BAŞLADI: {datetime.now()} ---")
+    
+    # 300'den rastgele seç
+    picked = random.choice(ALL_PROMPTS)
+    
+    # Açıklama ve Görsel oluştur
+    caption = get_smart_caption(picked)
+    image = try_generate_image(picked)
+    
+    if image:
+        post_to_twitter(image, caption)
+    else:
+        print("🚨 HATA: Görsel oluşturulamadı.")
