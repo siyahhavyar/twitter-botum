@@ -21,10 +21,10 @@ GROQ_KEY      = os.getenv("GROQ_API_KEY")
 ETSY_LINK = "https://siyahhavyarart.etsy.com"
 
 # -----------------------------
-# 300 ADET PROMPT LİSTESİ
+# 250 ADET PROMPT LİSTESİ (SADELEŞTİRİLMİŞ)
 # -----------------------------
 ALL_PROMPTS = [
-    # --- 1. Cyber-Zen Cityscapes ---
+    # --- 1. Cyber-Zen Cityscapes (25 Adet) ---
     "Cyberpunk Tokyo street with cherry blossoms falling, 9:22", "Rain-slicked futuristic alleyway with neon signs reflecting in puddles, 9:22",
     "A greenhouse inside a spaceship looking out at a nebula, 9:22", "Holographic bonsai tree in a dark high-tech apartment, 9:22",
     "Cybernetic forest with glowing blue roots and metallic leaves, 9:22", "A girl sitting on a skyscraper edge overlooking a glowing megacity, 9:22",
@@ -37,11 +37,9 @@ ALL_PROMPTS = [
     "High-tech tea house on a floating cloud, 9:22", "Cyberpunk street food stall with steam and purple lighting, 9:22",
     "Abandoned robot overgrown with glowing moss, 9:22", "Future Paris with a neon Eiffel Tower and flying drones, 9:22",
     "Minimalist white tech-city with blue glowing accents, 9:22", "A cyborg cat sitting on a neon billboard, 9:22",
-    "Vertical shot of a glowing elevator going to space, 9:22", "Holographic aurora borealis over a futuristic cabin, 9:22",
-    "A canal in a future Venice with glowing water, 9:22", "High-speed light trails on a multi-level highway, 9:22",
-    "A futuristic temple with monks and holographic screens, 9:22", "Neon sunrise over a chrome ocean, 9:22",
+    "Vertical shot of a glowing elevator going to space, 9:22",
 
-    # --- 2. Dreamcore & Surreal ---
+    # --- 2. Dreamcore & Surreal (25 Adet) ---
     "Endless marble stairs leading into a pink sunset sky, 9:22", "A single door standing in the middle of a flower field, 9:22",
     "Giant floating bubbles containing miniature worlds, 9:22", "A white bed floating on a calm turquoise ocean, 9:22",
     "Soft clouds shaped like whales swimming in the sky, 9:22", "A library where books are flying like birds, 9:22",
@@ -54,11 +52,9 @@ ALL_PROMPTS = [
     "Abstract waves of liquid silk in pastel colors, 9:22", "A girl swinging from a crescent moon, 9:22",
     "Giant chess pieces on a checkered desert, 9:22", "A path of glowing stones through a dark misty valley, 9:22",
     "Clouds spilling out of a window like a waterfall, 9:22", "A lonely tree with leaves made of tiny stars, 9:22",
-    "Transparent piano in a field of tall grass, 9:22", "Abstract portals opening in a minimalist white room, 9:22",
-    "Raindrops that look like diamonds falling slowly, 9:22", "A bridge made of rainbows over a silver sea, 9:22",
-    "Celestial lions made of constellations, 9:22", "A surreal doorway into a lush jungle from a snowy field, 9:22",
+    "Transparent piano in a field of tall grass, 9:22",
 
-    # --- 3. Aesthetic Anime Girls ---
+    # --- 3. Aesthetic Anime Girls (25 Adet) ---
     "Anime girl drinking tea by a rainy window, lo-fi style, 9:22", "Girl with headphones sitting on a train, sunset lighting, 9:22",
     "Anime girl reading a book in a sunlit garden, Ghibli style, 9:22", "A girl standing under a cherry blossom tree, petals flying, 9:22",
     "Anime girl looking at the starry night sky from a balcony, 9:22", "Street fashion anime girl in a neon Tokyo district, 9:22",
@@ -71,11 +67,9 @@ ALL_PROMPTS = [
     "Girl watching a summer festival with fireworks, 9:22", "Anime girl in a library with floating magical books, 9:22",
     "A girl sitting on a rooftop with a panoramic city view, 9:22", "Anime girl walking through a futuristic mall, 9:22",
     "Girl holding a glowing lantern in a dark cave, 9:22", "Anime girl with a sword in a snowy landscape, 9:22",
-    "Girl floating in zero gravity inside a space station, 9:22", "Anime girl skater in a retro-wave setting, 9:22",
-    "Girl making coffee in a rustic cafe, soft morning light, 9:22", "Anime girl with butterfly wings in a secret garden, 9:22",
-    "Girl looking at her reflection in a magical pond, 9:22", "Chill anime girl lying on grass looking at the blue sky, 9:22",
+    "Girl floating in zero gravity inside a space station, 9:22",
 
-    # --- 4. Dark Fantasy & Gothic ---
+    # --- 4. Dark Fantasy & Gothic (25 Adet) ---
     "A gothic cathedral under a blood red moon, 9:22", "Dark knight in obsidian armor standing in a blizzard, 9:22",
     "Abandoned throne room overgrown with black roses, 9:22", "A mysterious figure in a cloak holding a blue flame, 9:22",
     "Crows flying over a misty graveyard at twilight, 9:22", "A silver dragon perched on a jagged mountain peak, 9:22",
@@ -88,11 +82,9 @@ ALL_PROMPTS = [
     "Skeletal hands holding a glowing crystal ball, 9:22", "A dark lake with a submerged stone castle, 9:22",
     "Raven perched on a skull in a foggy forest, 9:22", "Dark queen with a crown of obsidian, 9:22",
     "Ruined bridge over a river of liquid gold, 9:22", "A dark tower touching the thunderclouds, 9:22",
-    "Mysterious stairs descending into the earth, 9:22", "Crimson roses frozen in black ice, 9:22",
-    "A dark warrior looking at a burning village, 9:22", "Shadowy forest with glowing red eyes in the dark, 9:22",
-    "Ancient tomb with glowing blue hieroglyphics, 9:22", "A gothic clock tower hitting midnight, 9:22",
+    "Mysterious stairs descending into the earth, 9:22",
 
-    # --- 5. Liquid Abstract ---
+    # --- 5. Liquid Abstract (25 Adet) ---
     "Iridescent liquid metal ripples, 3D render, 9:22", "Abstract glass spheres floating in a void, 9:22",
     "Swirling patterns of gold and black silk, 9:22", "Translucent colorful crystals stacked vertically, 9:22",
     "Abstract waves of neon liquid light, 9:22", "Multi-colored smoke frozen in time, 9:22",
@@ -105,11 +97,9 @@ ALL_PROMPTS = [
     "Abstract flow of glowing magma under ice, 9:22", "Soft focus bokeh of neon lights, 9:22",
     "Abstract layers of colored paper, 9:22", "Digital glitches on a dark background, 9:22",
     "Transparent 3D heart made of glass, 9:22", "Abstract tunnel of light and shadows, 9:22",
-    "Vibrant paint splashes in mid-air, 9:22", "Minimalist lines forming a 3D landscape, 9:22",
-    "Glowing jelly-like abstract organisms, 9:22", "Abstract weave of copper and silver wires, 9:22",
-    "Crystalline structure of a snowflake, macro, 9:22", "Soft gradients of sunset colors on silk, 9:22",
+    "Vibrant paint splashes in mid-air, 9:22",
 
-    # --- 6. Nature Minimalism ---
+    # --- 6. Nature Minimalism (25 Adet) ---
     "Single pine tree on a snowy hill, minimalist white background, 9:22", "Calm lake reflection of a crescent moon, 9:22",
     "Macro shot of a single green leaf with a water drop, 9:22", "Misty mountain peaks in the early morning, 9:22",
     "Golden wheat field under a clear blue sky, 9:22", "A single white flower in a vast dark field, 9:22",
@@ -123,10 +113,9 @@ ALL_PROMPTS = [
     "Lavender field stretching to the horizon, 9:22", "Dark stormy clouds over a golden meadow, 9:22",
     "Minimalist waterfall in a hidden stone canyon, 9:22", "A lone cactus in a vast white salt flat, 9:22",
     "Close-up of a peacock feather, 9:22", "Raindrops on a dark purple umbrella, 9:22",
-    "A simple stone bridge over a misty river, 9:22", "White fluffy dandelions blowing in the wind, 9:22",
-    "Minimalist line art of a mountain range on paper, 9:22", "The edge of a cliff overlooking a sea of clouds, 9:22",
+    "A simple stone bridge over a misty river, 9:22",
 
-    # --- 7. Retro Future ---
+    # --- 7. Retro Future (25 Adet) ---
     "Retro sports car driving into a digital sunset, 9:22", "Synthwave grid landscape with neon mountains, 9:22",
     "A futuristic walkman floating in space with neon tapes, 9:22", "Cyberpunk arcade room with glowing screens, 9:22",
     "Retro astronaut sitting on a neon moon, 9:22", "A palm tree silhouette against a giant retro sun, 9:22",
@@ -139,11 +128,9 @@ ALL_PROMPTS = [
     "Retro highway with infinite light trails, 9:22", "A neon-lit dolphin jumping over a digital ocean, 9:22",
     "Cyberpunk pizza shop with flickering pink signs, 9:22", "Abstract 3D pyramids in a retro-space environment, 9:22",
     "A glowing heart made of neon tubes on a brick wall, 9:22", "Retro-tech goggles reflecting a futuristic city, 9:22",
-    "An island with a single palm tree and a neon volcano, 9:22", "Low-poly mountains under a magenta sky, 9:22",
-    "A futuristic highway sign saying Welcome to the Future, 9:22", "Chrome spheres floating over a purple liquid floor, 9:22",
-    "80s arcade cabinet in a dark alley with neon rain, 9:22", "A portal opening into a neon dimension, 9:22",
+    "An island with a single palm tree and a neon volcano, 9:22",
 
-    # --- 8. Space Odyssey ---
+    # --- 8. Space Odyssey (25 Adet) ---
     "A massive black hole bending light around it, 9:22", "Astronaut floating lonely in a colorful nebula, 9:22",
     "Two planets colliding in a slow-motion explosion, 9:22", "A futuristic space station orbiting a ringed planet, 9:22",
     "Close-up of the moon's surface with Earth in the back, 9:22", "A galaxy shaped like a giant eye, 9:22",
@@ -156,11 +143,9 @@ ALL_PROMPTS = [
     "A staircase made of light leading into a nebula, 9:22", "Space whale swimming through a sea of stars, 9:22",
     "Abandoned spaceship overgrown with alien moss, 9:22", "A glowing portal on a desolate dark planet, 9:22",
     "Close-up of a sun flare, intense orange and yellow, 9:22", "Astronaut garden inside a glass dome on Mars, 9:22",
-    "Cosmic hourglass with galaxies falling through, 9:22", "A frozen ocean on Europa with blue cracks, 9:22",
-    "Giant robotic hand reaching for a small star, 9:22", "A nebula that looks like a watercolor painting, 9:22",
-    "Space suit helmet lying on a dusty alien beach, 9:22", "The pillars of creation in high-definition gold, 9:22",
+    "Cosmic hourglass with galaxies falling through, 9:22",
 
-    # --- 9. Cute & Kawaii Anime ---
+    # --- 9. Cute & Kawaii Anime (25 Adet) ---
     "Tiny anime girl sleeping on a giant fluffy cat, 9:22", "A group of chibi characters having a tea party, 9:22",
     "Anime girl with bunny ears eating a strawberry crepe, 9:22", "Cute magical girl with a star wand, 9:22",
     "Little anime witch flying on a broom with a cat, 9:22", "A room full of plushies and fairy lights, 9:22",
@@ -173,11 +158,9 @@ ALL_PROMPTS = [
     "Anime girl and her Shiba Inu dog at a park, 9:22", "Cute mermaid girl in an aquarium with bubbles, 9:22",
     "Anime girl with bear ears holding a giant honey jar, 9:22", "Tiny anime girl living in a teapot house, 9:22",
     "Kawaii girl under a rain of falling stars, 9:22", "Anime girl baking cupcakes in a pastel kitchen, 9:22",
-    "Chibi explorer in a jungle of giant flowers, 9:22", "Anime girl in a kimono at a summer festival, 9:22",
-    "A box full of cute kittens and one anime girl, 9:22", "Kawaii girl swing set on a cloud, 9:22",
-    "Anime girl with glasses reading a tiny book, 9:22", "Soft aesthetic of an anime girl at a flower shop, 9:22",
+    "Chibi explorer in a jungle of giant flowers, 9:22",
 
-    # --- 10. Dark Tech & Hardware ---
+    # --- 10. Dark Tech & Hardware (25 Adet) ---
     "Close-up of a glowing CPU with liquid cooling pipes, 9:22", "Transparent smartphone showing internal circuit boards, 9:22",
     "Cybernetic hand reaching out from a dark screen, 9:22", "Matrix-style green code falling over black, 9:22",
     "A futuristic laboratory with a humanoid robot, 9:22", "Mechanical heart made of gears and blue wires, 9:22",
@@ -190,9 +173,7 @@ ALL_PROMPTS = [
     "High-tech jet engine with glowing blue plasma, 9:22", "Circuit board patterns etched into dark glass, 9:22",
     "A robotic cat with metallic fur and glowing eyes, 9:22", "Futuristic data center with rows of lights, 9:22",
     "Abstract tech-shards floating in a dark vacuum, 9:22", "A cyborg girl with visible mechanical parts on face, 9:22",
-    "Vertical shot of a massive futuristic turbine, 9:22", "Glowing blueprint of a spaceship on a screen, 9:22",
-    "Metallic tentacles with glowing tips in the dark, 9:22", "A futuristic car engine with transparent covers, 9:22",
-    "Digital DNA strand made of bits and bytes, 9:22", "A portal made of rotating mechanical rings, 9:22"
+    "Vertical shot of a massive futuristic turbine, 9:22"
 ]
 
 def get_smart_caption(selected_prompt):
@@ -207,7 +188,7 @@ def get_smart_caption(selected_prompt):
     RULES: Return ONLY the caption and hashtags. Do not include any meta-talk.
     """
     
-    # PLAN A: GROQ (Varsa)
+    # PLAN A: GROQ
     if GROQ_KEY:
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -221,7 +202,6 @@ def get_smart_caption(selected_prompt):
     # PLAN B: GEMINI (Direkt API - Kütüphanesiz)
     if GEMINI_KEY:
         try:
-            # Google'ın sorunlu kütüphanesi yerine direkt API çağrısı yapıyoruz.
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
             headers = {'Content-Type': 'application/json'}
             data = {"contents": [{"parts": [{"text": instruction}]}]}
@@ -229,3 +209,80 @@ def get_smart_caption(selected_prompt):
             response = requests.post(url, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
                 result = response.json()
+                return result['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception as e:
+            print(f"Gemini API Hata: {e}")
+
+    return "Transform your phone with this unique artistic piece! ✨ #DigitalArt #Art #Wallpaper"
+
+def try_generate_image(prompt_text):
+    final_prompt = f"{prompt_text}, high-quality digital art, 8k resolution, cinematic lighting, masterpiece"
+    generate_url = "https://stablehorde.net/api/v2/generate/async"
+    headers = {"apikey": HORDE_KEY if HORDE_KEY else "0000000000", "Client-Agent": "SiyahHavyarBot:1.0"}
+    
+    payload = {
+        "prompt": final_prompt,
+        "params": {
+            "sampler_name": "k_dpmpp_2m", 
+            "cfg_scale": 7.5, "width": 640, "height": 1408, "steps": 30,
+            "post_processing": ["RealESRGAN_x4plus"]
+        },
+        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"]
+    }
+
+    try:
+        req = requests.post(generate_url, json=payload, headers=headers, timeout=40)
+        if req.status_code == 202:
+            task_id = req.json()['id']
+            while True:
+                time.sleep(15)
+                check = requests.get(f"https://stablehorde.net/api/v2/generate/status/{task_id}")
+                status = check.json()
+                if status['done']:
+                    return requests.get(status['generations'][0]['img']).content
+                print(f"⌛ Sıra: {status.get('queue_position', '?')} | Hazırlanıyor...")
+    except: return None
+
+def post_to_twitter(img_bytes, caption_text):
+    final_text = f"{caption_text}\n\n🎨 Get high quality prints: {ETSY_LINK}"
+    filename = "wallpaper.png"
+    with open(filename, "wb") as f: f.write(img_bytes)
+
+    try:
+        # V1.1 (Resim Yükleme)
+        auth = OAuthHandler(API_KEY, API_SECRET)
+        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
+        api = API(auth)
+        media = api.media_upload(filename)
+        
+        # V2 (Tweet Atma)
+        client = Client(
+            consumer_key=API_KEY,
+            consumer_secret=API_SECRET,
+            access_token=ACCESS_TOKEN,
+            access_token_secret=ACCESS_SECRET
+        )
+        
+        client.create_tweet(text=final_text, media_ids=[media.media_id])
+        print("🐦 Paylaşım başarıyla tamamlandı!")
+        return True
+    except Exception as e:
+        print(f"❌ Twitter hatası: {e}")
+        return False
+    finally:
+        if os.path.exists(filename): os.remove(filename)
+
+if __name__ == "__main__":
+    print(f"--- GITHUB ACTION BAŞLADI: {datetime.now()} ---")
+    
+  # 250'den rastgele seç
+    picked = random.choice(ALL_PROMPTS)
+    
+    # Açıklama ve Görsel
+    caption = get_smart_caption(picked)
+    image = try_generate_image(picked)
+    
+    if image:
+        post_to_twitter(image, caption)
+    else:
+        print("🚨 HATA: Görsel oluşturulamadı.")
