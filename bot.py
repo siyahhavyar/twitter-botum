@@ -3,8 +3,7 @@ import time
 import requests
 import tweepy
 import random
-import urllib.parse
-import google.generativeai as genai
+import json
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
@@ -208,6 +207,7 @@ def get_smart_caption(selected_prompt):
     RULES: Return ONLY the caption and hashtags. Do not include any meta-talk.
     """
     
+    # PLAN A: GROQ (Varsa)
     if GROQ_KEY:
         try:
             url = "https://api.groq.com/openai/v1/chat/completions"
@@ -218,17 +218,14 @@ def get_smart_caption(selected_prompt):
                 return response.json()['choices'][0]['message']['content'].strip()
         except: pass
     
-    # Yedek Plan: Gemini
+    # PLAN B: GEMINI (Direkt API - Kütüphanesiz)
     if GEMINI_KEY:
         try:
-            genai.configure(api_key=GEMINI_KEY)
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            return model.generate_content(instruction).text.strip()
-        except: pass
-
-    return "Transform your phone with this unique artistic piece! ✨ #DigitalArt #Art #Wallpaper"
-
-def try_generate_image(prompt_text):
-    final_prompt = f"{prompt_text}, high-quality digital art, 8k resolution, cinematic lighting, masterpiece"
-    generate_url = "https://stablehorde.net/api/v2/generate/async"
-    headers
+            # Google'ın sorunlu kütüphanesi yerine direkt API çağrısı yapıyoruz.
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            headers = {'Content-Type': 'application/json'}
+            data = {"contents": [{"parts": [{"text": instruction}]}]}
+            
+            response = requests.post(url, headers=headers, json=data, timeout=20)
+            if response.status_code == 200:
+                result = response.json()
