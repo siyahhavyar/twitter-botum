@@ -3,7 +3,6 @@ import time
 import requests
 import tweepy
 import random
-import json
 from datetime import datetime
 from tweepy import OAuthHandler, API, Client
 
@@ -24,7 +23,7 @@ ETSY_LINK = "https://siyahhavyarart.etsy.com"
 # 220 ADET PROMPT LİSTESİ (22 x 10 Konu)
 # -----------------------------
 ALL_PROMPTS = [
-    # --- 1. Cyber-Zen Cityscapes (22 Adet) ---
+    # --- 1. Cyber-Zen Cityscapes ---
     "Cyberpunk Tokyo street with cherry blossoms falling, 9:22", "Rain-slicked futuristic alleyway with neon signs reflecting in puddles, 9:22",
     "A greenhouse inside a spaceship looking out at a nebula, 9:22", "Holographic bonsai tree in a dark high-tech apartment, 9:22",
     "Cybernetic forest with glowing blue roots and metallic leaves, 9:22", "A girl sitting on a skyscraper edge overlooking a glowing megacity, 9:22",
@@ -37,7 +36,7 @@ ALL_PROMPTS = [
     "High-tech tea house on a floating cloud, 9:22", "Cyberpunk street food stall with steam and purple lighting, 9:22",
     "Abandoned robot overgrown with glowing moss, 9:22", "Future Paris with a neon Eiffel Tower and flying drones, 9:22",
 
-    # --- 2. Dreamcore & Surreal (22 Adet) ---
+    # --- 2. Dreamcore & Surreal ---
     "Endless marble stairs leading into a pink sunset sky, 9:22", "A single door standing in the middle of a flower field, 9:22",
     "Giant floating bubbles containing miniature worlds, 9:22", "A white bed floating on a calm turquoise ocean, 9:22",
     "Soft clouds shaped like whales swimming in the sky, 9:22", "A library where books are flying like birds, 9:22",
@@ -50,7 +49,7 @@ ALL_PROMPTS = [
     "Abstract waves of liquid silk in pastel colors, 9:22", "A girl swinging from a crescent moon, 9:22",
     "Giant chess pieces on a checkered desert, 9:22", "A path of glowing stones through a dark misty valley, 9:22",
 
-    # --- 3. Aesthetic Anime Girls (22 Adet) ---
+    # --- 3. Aesthetic Anime Girls ---
     "Anime girl drinking tea by a rainy window, lo-fi style, 9:22", "Girl with headphones sitting on a train, sunset lighting, 9:22",
     "Anime girl reading a book in a sunlit garden, Ghibli style, 9:22", "A girl standing under a cherry blossom tree, petals flying, 9:22",
     "Anime girl looking at the starry night sky from a balcony, 9:22", "Street fashion anime girl in a neon Tokyo district, 9:22",
@@ -63,7 +62,7 @@ ALL_PROMPTS = [
     "Girl watching a summer festival with fireworks, 9:22", "Anime girl in a library with floating magical books, 9:22",
     "A girl sitting on a rooftop with a panoramic city view, 9:22", "Anime girl walking through a futuristic mall, 9:22",
 
-    # --- 4. Dark Fantasy & Gothic (22 Adet) ---
+    # --- 4. Dark Fantasy & Gothic ---
     "A gothic cathedral under a blood red moon, 9:22", "Dark knight in obsidian armor standing in a blizzard, 9:22",
     "Abandoned throne room overgrown with black roses, 9:22", "A mysterious figure in a cloak holding a blue flame, 9:22",
     "Crows flying over a misty graveyard at twilight, 9:22", "A silver dragon perched on a jagged mountain peak, 9:22",
@@ -77,7 +76,7 @@ ALL_PROMPTS = [
     "Raven perched on a skull in a foggy forest, 9:22", "Dark queen with a crown of obsidian, 9:22",
     "Ruined bridge over a river of liquid gold, 9:22",
 
-    # --- 5. Liquid Abstract (22 Adet) ---
+    # --- 5. Liquid Abstract ---
     "Iridescent liquid metal ripples, 3D render, 9:22", "Abstract glass spheres floating in a void, 9:22",
     "Swirling patterns of gold and black silk, 9:22", "Translucent colorful crystals stacked vertically, 9:22",
     "Abstract waves of neon liquid light, 9:22", "Multi-colored smoke frozen in time, 9:22",
@@ -91,7 +90,7 @@ ALL_PROMPTS = [
     "Abstract layers of colored paper, 9:22", "Digital glitches on a dark background, 9:22",
     "Transparent 3D heart made of glass, 9:22",
 
-    # --- 6. Nature Minimalism (22 Adet) ---
+    # --- 6. Nature Minimalism ---
     "Single pine tree on a snowy hill, minimalist white background, 9:22", "Calm lake reflection of a crescent moon, 9:22",
     "Macro shot of a single green leaf with a water drop, 9:22", "Misty mountain peaks in the early morning, 9:22",
     "Golden wheat field under a clear blue sky, 9:22", "A single white flower in a vast dark field, 9:22",
@@ -104,7 +103,7 @@ ALL_PROMPTS = [
     "A small wooden boat on a mirror-like lake, 9:22", "Abstract pattern of palm leaf shadows on a white wall, 9:22",
     "Lavender field stretching to the horizon, 9:22", "Dark stormy clouds over a golden meadow, 9:22",
 
-    # --- 7. Retro Future (22 Adet) ---
+    # --- 7. Retro Future ---
     "Retro sports car driving into a digital sunset, 9:22", "Synthwave grid landscape with neon mountains, 9:22",
     "A futuristic walkman floating in space with neon tapes, 9:22", "Cyberpunk arcade room with glowing screens, 9:22",
     "Retro astronaut sitting on a neon moon, 9:22", "A palm tree silhouette against a giant retro sun, 9:22",
@@ -118,7 +117,7 @@ ALL_PROMPTS = [
     "Cyberpunk pizza shop with flickering pink signs, 9:22", "Abstract 3D pyramids in a retro-space environment, 9:22",
     "A glowing heart made of neon tubes on a brick wall, 9:22",
 
-    # --- 8. Space Odyssey (22 Adet) ---
+    # --- 8. Space Odyssey ---
     "A massive black hole bending light around it, 9:22", "Astronaut floating lonely in a colorful nebula, 9:22",
     "Two planets colliding in a slow-motion explosion, 9:22", "A futuristic space station orbiting a ringed planet, 9:22",
     "Close-up of the moon's surface with Earth in the back, 9:22", "A galaxy shaped like a giant eye, 9:22",
@@ -132,7 +131,7 @@ ALL_PROMPTS = [
     "Abandoned spaceship overgrown with alien moss, 9:22", "A glowing portal on a desolate dark planet, 9:22",
     "Close-up of a sun flare, intense orange and yellow, 9:22",
 
-    # --- 9. Cute & Kawaii Anime (22 Adet) ---
+    # --- 9. Cute & Kawaii Anime ---
     "Tiny anime girl sleeping on a giant fluffy cat, 9:22", "A group of chibi characters having a tea party, 9:22",
     "Anime girl with bunny ears eating a strawberry crepe, 9:22", "Cute magical girl with a star wand, 9:22",
     "Little anime witch flying on a broom with a cat, 9:22", "A room full of plushies and fairy lights, 9:22",
@@ -146,7 +145,7 @@ ALL_PROMPTS = [
     "Anime girl with bear ears holding a giant honey jar, 9:22", "Tiny anime girl living in a teapot house, 9:22",
     "Kawaii girl under a rain of falling stars, 9:22",
 
-    # --- 10. Dark Tech & Hardware (22 Adet) ---
+    # --- 10. Dark Tech & Hardware ---
     "Close-up of a glowing CPU with liquid cooling pipes, 9:22", "Transparent smartphone showing internal circuit boards, 9:22",
     "Cybernetic hand reaching out from a dark screen, 9:22", "Matrix-style green code falling over black, 9:22",
     "A futuristic laboratory with a humanoid robot, 9:22", "Mechanical heart made of gears and blue wires, 9:22",
@@ -233,13 +232,13 @@ def post_to_twitter(img_bytes, caption_text):
     with open(filename, "wb") as f: f.write(img_bytes)
 
     try:
-        # V1.1 (Resim Yükleme)
+        # 1. Medya Yükleme (V1.1 - Burası Erişim Jetonu ister)
         auth = OAuthHandler(API_KEY, API_SECRET)
         auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
         api = API(auth)
         media = api.media_upload(filename)
         
-        # V2 (Tweet Atma)
+        # 2. Tweet Atma (V2 - Burası da Erişim Jetonu ister)
         client = Client(
             consumer_key=API_KEY,
             consumer_secret=API_SECRET,
