@@ -19,256 +19,215 @@ GEMINI_KEY    = os.getenv("GEMINI_KEY")
 HORDE_KEY     = os.getenv("HORDE_API_KEY")
 GROQ_KEY      = os.getenv("GROQ_API_KEY")
 
-# Anonim Mod Kontrolü
-if not HORDE_KEY or HORDE_KEY.strip() == "":
-    print("UYARI: Horde Key yok, Anonim mod (Yavaş olabilir).", flush=True)
-    HORDE_KEY = "0000000000"
-else:
-    print(f"BAŞARILI: Horde Key aktif! ({HORDE_KEY[:4]}***)", flush=True)
+ETSY_LINK = "https://siyahhavyarart.etsy.com"
 
 # -----------------------------
-# 1. FİKİR ÜRETİCİ (SAF SANATÇI MODU)
+# 300 ADET ÖZEL PROMPT LİSTESİ (9:22 FORMATINDA)
 # -----------------------------
-def get_idea_ultimate():
-    print("🧠 Yapay Zeka sanatçı koltuğuna oturuyor ve düşünüyor...", flush=True)
+ALL_PROMPTS = [
+    # --- 1. Cyber-Zen Cityscapes ---
+    "Cyberpunk Tokyo street with cherry blossoms falling, 9:22", "Rain-slicked futuristic alleyway with neon signs reflecting in puddles, 9:22",
+    "A greenhouse inside a spaceship looking out at a nebula, 9:22", "Holographic bonsai tree in a dark high-tech apartment, 9:22",
+    "Cybernetic forest with glowing blue roots and metallic leaves, 9:22", "A girl sitting on a skyscraper edge overlooking a glowing megacity, 9:22",
+    "Future Seoul with traditional Hanok roofs and floating cars, 9:22", "Neon pink waterfall flowing through a dark chrome canyon, 9:22",
+    "Floating islands with high-tech villas and digital clouds, 9:22", "A robot gardener tending to a vertical garden on a skyscraper, 9:22",
+    "Cyberpunk shrine with laser-gate torii, 9:22", "Underwater neon city with bioluminescent sea life, 9:22",
+    "Futuristic library with floating digital scrolls, 9:22", "A train cabin traveling through a tunnel of light, 9:22",
+    "Neon-lit marketplace in a desert oasis of the future, 9:22", "Glass bridge over a neon abyss, minimal design, 9:22",
+    "A futuristic bedroom with a massive window showing Saturn, 9:22", "Digital rain falling on a metallic lotus flower, 9:22",
+    "High-tech tea house on a floating cloud, 9:22", "Cyberpunk street food stall with steam and purple lighting, 9:22",
+    "Abandoned robot overgrown with glowing moss, 9:22", "Future Paris with a neon Eiffel Tower and flying drones, 9:22",
+    "Minimalist white tech-city with blue glowing accents, 9:22", "A cyborg cat sitting on a neon billboard, 9:22",
+    "Vertical shot of a glowing elevator going to space, 9:22", "Holographic aurora borealis over a futuristic cabin, 9:22",
+    "A canal in a future Venice with glowing water, 9:22", "High-speed light trails on a multi-level highway, 9:22",
+    "A futuristic temple with monks and holographic screens, 9:22", "Neon sunrise over a chrome ocean, 9:22",
+
+    # --- 2. Dreamcore & Surreal ---
+    "Endless marble stairs leading into a pink sunset sky, 9:22", "A single door standing in the middle of a flower field, 9:22",
+    "Giant floating bubbles containing miniature worlds, 9:22", "A white bed floating on a calm turquoise ocean, 9:22",
+    "Soft clouds shaped like whales swimming in the sky, 9:22", "A library where books are flying like birds, 9:22",
+    "Pastel desert with giant crystalline structures, 9:22", "Mirror-like lake reflecting a galaxy instead of the sky, 9:22",
+    "A lighthouse casting light into a nebula, 9:22", "Giant mushrooms in a misty, lavender-colored forest, 9:22",
+    "An hourglass with stars instead of sand, 9:22", "A floating golden staircase in a void, 9:22",
+    "Moon hanging low over a field of glowing sunflowers, 9:22", "A train track made of water through a candy-colored forest, 9:22",
+    "Surreal floating mountains with waterfalls flowing upwards, 9:22", "A giant clock face under the ocean ripples, 9:22",
+    "Paper planes flying towards a giant golden sun, 9:22", "A cozy cottage inside a giant glass jar, 9:22",
+    "Abstract waves of liquid silk in pastel colors, 9:22", "A girl swinging from a crescent moon, 9:22",
+    "Giant chess pieces on a checkered desert, 9:22", "A path of glowing stones through a dark misty valley, 9:22",
+    "Clouds spilling out of a window like a waterfall, 9:22", "A lonely tree with leaves made of tiny stars, 9:22",
+    "Transparent piano in a field of tall grass, 9:22", "Abstract portals opening in a minimalist white room, 9:22",
+    "Raindrops that look like diamonds falling slowly, 9:22", "A bridge made of rainbows over a silver sea, 9:22",
+    "Celestial lions made of constellations, 9:22", "A surreal doorway into a lush jungle from a snowy field, 9:22",
+
+    # --- 3. Aesthetic Anime Girls ---
+    "Anime girl drinking tea by a rainy window, lo-fi style, 9:22", "Girl with headphones sitting on a train, sunset lighting, 9:22",
+    "Anime girl reading a book in a sunlit garden, Ghibli style, 9:22", "A girl standing under a cherry blossom tree, petals flying, 9:22",
+    "Anime girl looking at the starry night sky from a balcony, 9:22", "Street fashion anime girl in a neon Tokyo district, 9:22",
+    "Girl walking a cat in a quiet suburban street, soft colors, 9:22", "Anime girl playing guitar in a cozy bedroom, 9:22",
+    "A girl with glowing eyes in a dark fantasy forest, 9:22", "Anime girl painting on a canvas in an art studio, 9:22",
+    "Girl waiting at a bus stop under a giant umbrella, 9:22", "Anime girl in a white dress standing in a sunflower field, 9:22",
+    "Tech-wear anime girl with a futuristic visor, 9:22", "Girl eating ramen at a night market, cinematic lighting, 9:22",
+    "Anime girl sleeping on a pile of fluffy clouds, 9:22", "Girl on a bicycle riding through a seaside town, 9:22",
+    "Cyber-hacker anime girl in front of many screens, 9:22", "Anime girl with fox ears in a traditional Japanese shrine, 9:22",
+    "Girl watching a summer festival with fireworks, 9:22", "Anime girl in a library with floating magical books, 9:22",
+    "A girl sitting on a rooftop with a panoramic city view, 9:22", "Anime girl walking through a futuristic mall, 9:22",
+    "Girl holding a glowing lantern in a dark cave, 9:22", "Anime girl with a sword in a snowy landscape, 9:22",
+    "Girl floating in zero gravity inside a space station, 9:22", "Anime girl skater in a retro-wave setting, 9:22",
+    "Girl making coffee in a rustic cafe, soft morning light, 9:22", "Anime girl with butterfly wings in a secret garden, 9:22",
+    "Girl looking at her reflection in a magical pond, 9:22", "Chill anime girl lying on grass looking at the blue sky, 9:22",
+
+    # --- 4. Dark Fantasy & Gothic ---
+    "A gothic cathedral under a blood red moon, 9:22", "Dark knight in obsidian armor standing in a blizzard, 9:22",
+    "Abandoned throne room overgrown with black roses, 9:22", "A mysterious figure in a cloak holding a blue flame, 9:22",
+    "Crows flying over a misty graveyard at twilight, 9:22", "A silver dragon perched on a jagged mountain peak, 9:22",
+    "Ghostly ship sailing on a sea of shadows, 9:22", "Dark palace with glowing purple windows, 9:22",
+    "A vampire countess in a red velvet gown, 9:22", "Enchanted forest with black trees and silver mist, 9:22",
+    "A crown of thorns sitting on a stone altar, 9:22", "Dark angel with tattered wings looking at a ruined city, 9:22",
+    "Ancient library with candles and dusty scrolls, 9:22", "A black panther with glowing green eyes in the dark, 9:22",
+    "Gothic iron gates leading to a mysterious mansion, 9:22", "A magical ritual with glowing runes on the floor, 9:22",
+    "Dark knight fighting a giant shadow monster, 9:22", "Moonlit balcony with a view of a dark abyss, 9:22",
+    "Skeletal hands holding a glowing crystal ball, 9:22", "A dark lake with a submerged stone castle, 9:22",
+    "Raven perched on a skull in a foggy forest, 9:22", "Dark queen with a crown of obsidian, 9:22",
+    "Ruined bridge over a river of liquid gold, 9:22", "A dark tower touching the thunderclouds, 9:22",
+    "Mysterious stairs descending into the earth, 9:22", "Crimson roses frozen in black ice, 9:22",
+    "A dark warrior looking at a burning village, 9:22", "Shadowy forest with glowing red eyes in the dark, 9:22",
+    "Ancient tomb with glowing blue hieroglyphics, 9:22", "A gothic clock tower hitting midnight, 9:22",
+
+    # --- 5. Liquid Abstract ---
+    "Iridescent liquid metal ripples, 3D render, 9:22", "Abstract glass spheres floating in a void, 9:22",
+    "Swirling patterns of gold and black silk, 9:22", "Translucent colorful crystals stacked vertically, 9:22",
+    "Abstract waves of neon liquid light, 9:22", "Multi-colored smoke frozen in time, 9:22",
+    "Molten silver flowing over matte black rocks, 9:22", "Dynamic abstract shards of blue glass, 9:22",
+    "Bubbles of oil in water, macro photography, 9:22", "Abstract geometric shapes in 3D, pastel colors, 9:22",
+    "Liquid holograph reflecting a rainbow, 9:22", "Soft fabric-like waves in a minimalist room, 9:22",
+    "Glowing fiber optic strands in the dark, 9:22", "Fractal patterns in deep purple and gold, 9:22",
+    "Abstract explosion of colorful sand, 9:22", "Glass prisms refracting light into rainbows, 9:22",
+    "Liquid marble texture in emerald and white, 9:22", "3D rendered twisted metallic tubes, 9:22",
+    "Abstract flow of glowing magma under ice, 9:22", "Soft focus bokeh of neon lights, 9:22",
+    "Abstract layers of colored paper, 9:22", "Digital glitches on a dark background, 9:22",
+    "Transparent 3D heart made of glass, 9:22", "Abstract tunnel of light and shadows, 9:22",
+    "Vibrant paint splashes in mid-air, 9:22", "Minimalist lines forming a 3D landscape, 9:22",
+    "Glowing jelly-like abstract organisms, 9:22", "Abstract weave of copper and silver wires, 9:22",
+    "Crystalline structure of a snowflake, macro, 9:22", "Soft gradients of sunset colors on silk, 9:22",
+
+    # --- 6. Nature Minimalism ---
+    "Single pine tree on a snowy hill, minimalist white background, 9:22", "Calm lake reflection of a crescent moon, 9:22",
+    "Macro shot of a single green leaf with a water drop, 9:22", "Misty mountain peaks in the early morning, 9:22",
+    "Golden wheat field under a clear blue sky, 9:22", "A single white flower in a vast dark field, 9:22",
+    "Abstract desert dunes with sharp shadows, 9:22", "Silhouette of a bird flying over a calm ocean at dusk, 9:22",
+    "Close-up of bamboo stalks, soft green lighting, 9:22", "Zen stones stacked perfectly by a small stream, 9:22",
+    "Frozen bubbles on a dark ice surface, 9:22", "Top down view of a lonely forest path, 9:22",
+    "Minimalist sea waves hitting white sand, 9:22", "A single red tulip in a black and white world, 9:22",
+    "Foggy forest with light rays piercing through trees, 9:22", "Geometric ice crystals on a window pane, 9:22",
+    "Soft pink cherry blossoms against a minimalist grey wall, 9:22", "Underwater view of sunlight rays in blue water, 9:22",
+    "A small wooden boat on a mirror-like lake, 9:22", "Abstract pattern of palm leaf shadows on a white wall, 9:22",
+    "Lavender field stretching to the horizon, 9:22", "Dark stormy clouds over a golden meadow, 9:22",
+    "Minimalist waterfall in a hidden stone canyon, 9:22", "A lone cactus in a vast white salt flat, 9:22",
+    "Close-up of a peacock feather, 9:22", "Raindrops on a dark purple umbrella, 9:22",
+    "A simple stone bridge over a misty river, 9:22", "White fluffy dandelions blowing in the wind, 9:22",
+    "Minimalist line art of a mountain range on paper, 9:22", "The edge of a cliff overlooking a sea of clouds, 9:22",
+
+    # --- 7. Retro Future ---
+    "Retro sports car driving into a digital sunset, 9:22", "Synthwave grid landscape with neon mountains, 9:22",
+    "A futuristic walkman floating in space with neon tapes, 9:22", "Cyberpunk arcade room with glowing screens, 9:22",
+    "Retro astronaut sitting on a neon moon, 9:22", "A palm tree silhouette against a giant retro sun, 9:22",
+    "Neon-lit city street with 80s aesthetic and rain, 9:22", "VHS glitch effect on a futuristic skyline, 9:22",
+    "Floating geometric shapes in a pink and cyan void, 9:22", "A cassette tape unraveling into a nebula, 9:22",
+    "Cyber-pink motorcycle parked under a neon billboard, 9:22", "Retro-futuristic computer terminal with green code, 9:22",
+    "A pair of neon roller skates on a glowing grid floor, 9:22", "Digital sunset reflected in a space helmet, 9:22",
+    "Vaporwave statue of David with neon sunglasses, 9:22", "Electric blue lightning over a purple desert, 9:22",
+    "80s style robot dancing in a disco light setting, 9:22", "A futuristic boombox blasting neon soundwaves, 9:22",
+    "Retro highway with infinite light trails, 9:22", "A neon-lit dolphin jumping over a digital ocean, 9:22",
+    "Cyberpunk pizza shop with flickering pink signs, 9:22", "Abstract 3D pyramids in a retro-space environment, 9:22",
+    "A glowing heart made of neon tubes on a brick wall, 9:22", "Retro-tech goggles reflecting a futuristic city, 9:22",
+    "An island with a single palm tree and a neon volcano, 9:22", "Low-poly mountains under a magenta sky, 9:22",
+    "A futuristic highway sign saying Welcome to the Future, 9:22", "Chrome spheres floating over a purple liquid floor, 9:22",
+    "80s arcade cabinet in a dark alley with neon rain, 9:22", "A portal opening into a neon dimension, 9:22",
+
+    # --- 8. Space Odyssey ---
+    "A massive black hole bending light around it, 9:22", "Astronaut floating lonely in a colorful nebula, 9:22",
+    "Two planets colliding in a slow-motion explosion, 9:22", "A futuristic space station orbiting a ringed planet, 9:22",
+    "Close-up of the moon's surface with Earth in the back, 9:22", "A galaxy shaped like a giant eye, 9:22",
+    "Cosmic dust forming the shape of a phoenix, 9:22", "A futuristic rover on a red Martian desert, 9:22",
+    "Alien forest with glowing plants under two moons, 9:22", "Starship entering a wormhole, light-speed, 9:22",
+    "A clear view of the Milky Way from a mountain top, 9:22", "Astronaut standing on an asteroid looking at a supernova, 9:22",
+    "Giant gas giant planet with storm swirls, 9:22", "A cosmic lighthouse on the edge of the universe, 9:22",
+    "Rain of diamonds on a dark icy planet, 9:22", "A futuristic city built inside a moon crater, 9:22",
+    "Satellite floating over a glowing blue Earth at night, 9:22", "Abstract cosmic ocean with liquid stars, 9:22",
+    "A staircase made of light leading into a nebula, 9:22", "Space whale swimming through a sea of stars, 9:22",
+    "Abandoned spaceship overgrown with alien moss, 9:22", "A glowing portal on a desolate dark planet, 9:22",
+    "Close-up of a sun flare, intense orange and yellow, 9:22", "Astronaut garden inside a glass dome on Mars, 9:22",
+    "Cosmic hourglass with galaxies falling through, 9:22", "A frozen ocean on Europa with blue cracks, 9:22",
+    "Giant robotic hand reaching for a small star, 9:22", "A nebula that looks like a watercolor painting, 9:22",
+    "Space suit helmet lying on a dusty alien beach, 9:22", "The pillars of creation in high-definition gold, 9:22",
+
+    # --- 9. Cute & Kawaii Anime ---
+    "Tiny anime girl sleeping on a giant fluffy cat, 9:22", "A group of chibi characters having a tea party, 9:22",
+    "Anime girl with bunny ears eating a strawberry crepe, 9:22", "Cute magical girl with a star wand, 9:22",
+    "Little anime witch flying on a broom with a cat, 9:22", "A room full of plushies and fairy lights, 9:22",
+    "Anime girl in a dinosaur onesie drinking milk, 9:22", "Kawaii fox girl playing in autumn leaves, 9:22",
+    "Chibi knight protecting a tiny dragon, 9:22", "Anime girl making a heart with her hands, 9:22",
+    "Pastel colored candy shop with a cute anime cashier, 9:22", "A girl floating with dozens of colorful balloons, 9:22",
+    "Cute anime girl hiding in a giant sunflower, 9:22", "Chibi girl sitting on a slice of watermelon, 9:22",
+    "Anime girl with blue hair and a penguin hoodie, 9:22", "A magical forest with tiny glowing anime fairies, 9:22",
+    "Kawaii girl painting pink clouds on a blue sky, 9:22", "Chibi angel sitting on a rainbow, 9:22",
+    "Anime girl and her Shiba Inu dog at a park, 9:22", "Cute mermaid girl in an aquarium with bubbles, 9:22",
+    "Anime girl with bear ears holding a giant honey jar, 9:22", "Tiny anime girl living in a teapot house, 9:22",
+    "Kawaii girl under a rain of falling stars, 9:22", "Anime girl baking cupcakes in a pastel kitchen, 9:22",
+    "Chibi explorer in a jungle of giant flowers, 9:22", "Anime girl in a kimono at a summer festival, 9:22",
+    "A box full of cute kittens and one anime girl, 9:22", "Kawaii girl swing set on a cloud, 9:22",
+    "Anime girl with glasses reading a tiny book, 9:22", "Soft aesthetic of an anime girl at a flower shop, 9:22",
+
+    # --- 10. Dark Tech & Hardware ---
+    "Close-up of a glowing CPU with liquid cooling pipes, 9:22", "Transparent smartphone showing internal circuit boards, 9:22",
+    "Cybernetic hand reaching out from a dark screen, 9:22", "Matrix-style green code falling over black, 9:22",
+    "A futuristic laboratory with a humanoid robot, 9:22", "Mechanical heart made of gears and blue wires, 9:22",
+    "Close-up of a high-tech camera lens reflecting a city, 9:22", "Glowing fiber optic cables in a dark server room, 9:22",
+    "Abstract 3D motherboard with neon light paths, 9:22", "A futuristic drone flying through a dark rainy city, 9:22",
+    "Cyberpunk visor with a digital HUD display, 9:22", "Microchip landscape that looks like a tiny city, 9:22",
+    "A robotic eye with a red glowing iris, macro, 9:22", "Dark hardware texture with orange glowing accents, 9:22",
+    "Futuristic keyboard with neon RGB lighting, 9:22", "A hacker desk with multiple monitors, dark vibes, 9:22",
+    "Mechanical wings made of chrome and carbon fiber, 9:22", "Liquid metal forming a 3D skull, 9:22",
+    "High-tech jet engine with glowing blue plasma, 9:22", "Circuit board patterns etched into dark glass, 9:22",
+    "A robotic cat with metallic fur and glowing eyes, 9:22", "Futuristic data center with rows of lights, 9:22",
+    "Abstract tech-shards floating in a dark vacuum, 9:22", "A cyborg girl with visible mechanical parts on face, 9:22",
+    "Vertical shot of a massive futuristic turbine, 9:22", "Glowing blueprint of a spaceship on a screen, 9:22",
+    "Metallic tentacles with glowing tips in the dark, 9:22", "A futuristic car engine with transparent covers, 9:22",
+    "Digital DNA strand made of bits and bytes, 9:22", "A portal made of rotating mechanical rings, 9:22"
+]
+
+def get_smart_caption(selected_prompt):
+    """Groq veya Gemini kullanarak seçilen prompta uygun açıklama ve hashtag üretir."""
+    instruction = f"""
+    Act as a creative social media manager. I have generated a wallpaper with this concept: "{selected_prompt}".
     
-    # Zamana göre benzersizlik katıyoruz
-    current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    1. Write an artistic, catchy, and brief Twitter caption for this image.
+    2. Ensure the tone matches the theme (e.g., if it's 'Dark Fantasy', make it mysterious).
+    3. Include 3-5 high-performing hashtags specifically related to the image content.
     
-    # --- İŞTE BURASI DEĞİŞTİ: HİÇBİR KONU/ÖRNEK YOK ---
-    instruction_prompt = f"""
-    Timestamp: {current_timestamp}
-    
-    Act as a Visionary Digital Artist and Trendsetter.
-    
-    I am giving you a BLANK CANVAS.
-    I am NOT giving you a topic.
-    I am NOT giving you a style.
-    
-    YOUR TASK:
-    Close your virtual eyes and imagine a Masterpiece Phone Wallpaper.
-    Think: "What visual concept would make people stop scrolling and say WOW?"
-    
-    It can be ANYTHING:
-    - Something abstract and emotional?
-    - A scene from a movie that doesn't exist?
-    - A futuristic invention?
-    - A wild mixture of nature and technology?
-    - A bizarre dream?
-    
-    RULES:
-    1. Be 100% Original. Do not use clichés.
-    2. Make it VISUALLY STUNNING.
-    3. Decide the subject, the lighting, the colors, and the mood YOURSELF.
-    
-    Return exactly two lines:
-    PROMPT: <The detailed English description of your vision>
-    CAPTION: <A short, artistic tweet caption for this wallpaper>
+    IMPORTANT: Return ONLY the caption and hashtags. Do not say "Here is your caption".
     """
-
-    # --- PLAN A: GROQ (En Yaratıcısı) ---
+    
     if GROQ_KEY:
         try:
-            print("🧠 Groq hayal kuruyor...", flush=True)
             url = "https://api.groq.com/openai/v1/chat/completions"
             headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             data = {
                 "model": "llama-3.3-70b-versatile", 
-                "messages": [{"role": "user", "content": instruction_prompt}],
-                "temperature": 1.0 # Yüksek yaratıcılık
+                "messages": [{"role": "user", "content": instruction}],
+                "temperature": 0.8
             }
             response = requests.post(url, headers=headers, json=data, timeout=20)
             if response.status_code == 200:
-                parts = response.json()['choices'][0]['message']['content'].split("CAPTION:")
-                if len(parts) >= 2:
-                    print("✅ Groq bir fikir buldu!", flush=True)
-                    return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception: pass
+                return response.json()['choices'][0]['message']['content'].strip()
+        except: pass
 
-    # --- PLAN B: GEMINI ---
     if GEMINI_KEY:
         try:
-            print("🧠 Gemini hayal kuruyor...", flush=True)
             genai.configure(api_key=GEMINI_KEY)
-            config = genai.types.GenerationConfig(temperature=1.0)
-            model = genai.GenerativeModel("gemini-2.0-flash", generation_config=config)
-            response = model.generate_content(instruction_prompt)
-            parts = response.text.split("CAPTION:")
-            if len(parts) >= 2:
-                return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-        except Exception: pass
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = model.generate_content(instruction)
+            return response.text.strip()
+        except: pass
 
-    # --- PLAN C: POLLINATIONS (Yedek) ---
-    try:
-        encoded = urllib.parse.quote("Imagine a unique, artistic wallpaper. Return PROMPT: ... CAPTION: ...")
-        response = requests.get(f"https://text.pollinations.ai/{encoded}?seed={random.randint(1,9999)}", timeout=30)
-        parts = response.text.split("CAPTION:")
-        if len(parts) >= 2:
-            return parts[0].replace("PROMPT:", "").strip(), parts[1].strip()
-    except Exception: pass
-
-    return "A masterpiece artistic wallpaper, 8k", "#Art"
-
-
-def prepare_final_prompt(raw_prompt):
-    # Sadece teknik kalite komutları ekliyoruz, STİL eklemiyoruz.
-    return (
-        f"{raw_prompt}, "
-        "vertical wallpaper, 9:21 aspect ratio, 8k resolution, "
-        "masterpiece, highly detailed, sharp focus"
-    )
-
-# -----------------------------
-# 2. AI HORDE (KESİNTİSİZ - PUAN HATASI ÖNLEYİCİ)
-# -----------------------------
-def try_generate_image(prompt_text):
-    final_prompt = prepare_final_prompt(prompt_text)
-    print("🎨 AI Horde → Resim çiziliyor...", flush=True)
-    
-    unique_seed = str(random.randint(1, 9999999999))
-    generate_url = "https://stablehorde.net/api/v2/generate/async"
-    
-    current_key = HORDE_KEY if HORDE_KEY else "0000000000"
-    headers = {"apikey": current_key, "Client-Agent": "MyTwitterBot:v5.0"}
-    
-    # --- 1. DENEME: KALİTELİ MOD ---
-    print("💎 Mod 1: Yüksek Kalite deneniyor...", flush=True)
-    payload_high = {
-        "prompt": final_prompt,
-        "params": {
-            "sampler_name": "k_dpmpp_2m", 
-            "cfg_scale": 7,               
-            "width": 640,    
-            "height": 1408,               
-            "steps": 30,
-            "seed": unique_seed, 
-            "post_processing": ["RealESRGAN_x4plus"]
-        },
-        "nsfw": False, "censor_nsfw": True,
-        "models": ["AlbedoBase XL (SDXL)", "Juggernaut XL"] 
-    }
-
-    try:
-        req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
-        
-        # Hata yakalama
-        if req.status_code != 202:
-            error_msg = req.text
-            print(f"⚠️ Yüksek Kalite Reddedildi: {error_msg[:100]}...", flush=True)
-            
-            # Sunucu "Puan yetersiz" veya "Yoğunum" derse:
-            if "Kudos" in error_msg or "demand" in error_msg or req.status_code == 503:
-                print("🔄 Sunucular dolu! Standart Kaliteye (Ekonomi Modu) geçiliyor...", flush=True)
-                payload_high["params"]["post_processing"] = [] # Upscale kapat
-                payload_high["params"]["steps"] = 20 # Adımı düşür
-                
-                req = requests.post(generate_url, json=payload_high, headers=headers, timeout=30)
-                if req.status_code != 202:
-                    print(f"❌ Ekonomi Modu da reddedildi.", flush=True)
-                    return None
-            else:
-                return None
-
-        task_id = req.json()['id']
-        print(f"✅ Görev alındı ID: {task_id}. Bekleniyor...", flush=True)
-        
-    except Exception as e:
-        print(f"⚠️ Bağlantı Hatası: {e}", flush=True)
-        return None
-
-    # Bekleme
-    wait_time = 0
-    max_wait = 1800 
-    while wait_time < max_wait:
-        time.sleep(20) 
-        wait_time += 20
-        try:
-            status_url = f"https://stablehorde.net/api/v2/generate/status/{task_id}"
-            check = requests.get(status_url, timeout=30)
-            status_data = check.json()
-            
-            if status_data['done']:
-                generations = status_data['generations']
-                if len(generations) > 0:
-                    print("⬇️ Resim indiriliyor...", flush=True)
-                    img_url = generations[0]['img']
-                    return requests.get(img_url, timeout=60).content
-                else:
-                    return None
-            
-            wait_t = status_data.get('wait_time', '?')
-            queue = status_data.get('queue_position', '?')
-            print(f"⏳ Geçen: {wait_time}sn | Sıra: {queue} | Tahmini: {wait_t}sn", flush=True)
-        except Exception:
-            time.sleep(5) 
-
-    print("⚠️ Zaman aşımı.", flush=True)
-    return None
-
-# -----------------------------
-# 3. TWITTER POST
-# -----------------------------
-def post_to_twitter(img_bytes, caption):
-    filename = "wallpaper_mobile.png"
-    with open(filename, "wb") as f:
-        f.write(img_bytes)
-
-    try:
-        auth = OAuthHandler(API_KEY, API_SECRET)
-        auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET)
-        api = API(auth)
-        media = api.media_upload(filename)
-        client = Client(
-            consumer_key=API_KEY,
-            consumer_secret=API_SECRET,
-            access_token=ACCESS_TOKEN,
-            access_token_secret=ACCESS_SECRET
-        )
-        
-        client.create_tweet(text=caption, media_ids=[media.media_id])
-        print("🐦 TWEET BAŞARIYLA ATILDI!", flush=True)
-        return True 
-    except Exception as e:
-        print(f"❌ Twitter Hatası: {e}", flush=True)
-        return False
-    finally:
-        if os.path.exists(filename):
-            os.remove(filename)
-
-# -----------------------------
-# MAIN
-# -----------------------------
-if __name__ == "__main__":
-    print("🚀 Bot Başlatılıyor... (SAF SANATÇI MODU)", flush=True)
-    
-    # Fikir al
-    prompt, caption = get_idea_ultimate()
-    print("------------------------------------------------", flush=True)
-    print("🎯 Yapay Zekanın Bulduğu Konu:", prompt[:100] + "...", flush=True)
-    print("📝 Tweet:", caption, flush=True)
-    print("------------------------------------------------", flush=True)
-
-    basari = False
-    deneme_sayisi = 1
-    
-    while not basari:
-        print(f"\n🔄 DENEME: {deneme_sayisi}", flush=True)
-        
-        try:
-            img = try_generate_image(prompt)
-            if img:
-                if post_to_twitter(img, caption):
-                    basari = True 
-                    print("🎉 Görev Başarılı! Bot kapanıyor.", flush=True)
-                else:
-                    print("⚠️ Resim var ama Tweet atılamadı.", flush=True)
-            else:
-                print("⚠️ Resim çizilemedi (Sunucu hatası).", flush=True)
-                
-        except Exception as e:
-            print(f"⚠️ Genel Hata: {e}", flush=True)
-        
-        if not basari:
-            print("💤 Sunucular dolu, 3 dakika bekleyip tekrar deniyorum...", flush=True)
-            time.sleep(180) 
-            deneme_sayisi += 1
+    return "Elevate your screen with this unique digital masterpiece. ✨ #Art #Wallpaper #Digital"
